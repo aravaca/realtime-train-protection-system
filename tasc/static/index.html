@@ -127,9 +127,14 @@ function stopRep(){
 }
 
 ws.onopen = () => {
+  // 연결이 준비됐다는 표시만 하고, 시작은 키 입력으로만
+  console.log("WebSocket connected");
+};
+
+btnStart.addEventListener("click", () => {
   sendCmd("start", 0);
   overlay.classList.add("hide");
-};
+});
 
 
 addEventListener("keydown", (e) => {
