@@ -2,6 +2,8 @@
 import math
 import json
 import asyncio
+import time
+
 from dataclasses import dataclass
 from collections import deque
 from typing import Optional, List
@@ -200,15 +202,16 @@ class StoppingSim:
         self.notch_history.append(st.lever_notch)
         self.time_history.append(st.t)
 
-        # 첫 B1 제동 1초 유지 체크
+        # 예를 들어 self.first_brake_b1_start 초기값 None
         if not self.first_brake_done:
             if st.lever_notch == 1:
                 if self.first_brake_b1_start is None:
-                    self.first_brake_b1_start = st.t
-                elif st.t - self.first_brake_b1_start >= 1.0:
+                    self.first_brake_b1_start = time.time()  # 현재 시간 초 단위(실수)
+                elif time.time() - self.first_brake_b1_start >= 1:
                     self.first_brake_done = True
             else:
                 self.first_brake_b1_start = None
+
 
         # 제동 감속 (음수)
         a_brake = (
