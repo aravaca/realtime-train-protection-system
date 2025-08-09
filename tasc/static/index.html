@@ -4,70 +4,193 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>TASC Stop Trainer</title>
-  <style>
-    html,body{margin:0;background:#0b0f14;color:#e7f0ff;font-family:system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,AppleGothic,sans-serif}
-    #wrap{max-width:960px;margin:18px auto;padding:0 12px}
-    .row{display:flex;gap:12px;align-items:center}
-    .card{background:#121826;border:1px solid #1f2a3a;border-radius:12px;padding:12px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
-    canvas{width:100%;height:320px;background:linear-gradient(#0b0f14,#0a1019);border-radius:12px}
-    .kbd{background:#0a121c;border:1px solid #203048;color:#9fc5ff;padding:2px 6px;border-radius:6px;font-size:12px}
-    .stat{font-size:28px;font-weight:700}
-    .ok{color:#9effb5}.warn{color:#ffd18f}.bad{color:#ff9b9b}
-    button{background:#1a2a40;color:#e7f0ff;border:1px solid #2a446b;border-radius:10px;padding:8px 12px;cursor:pointer}
-    button:hover{background:#203652}
-    #overlay {
-      position: fixed;
-      top: 50px;
-      right: 20px;
-      width: 320px;
-      max-width: 90vw;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0,0,0,0.85);
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.7);
-      z-index: 9999;
-    }
+<style>
+  html, body {
+  margin: 0;
+  background: radial-gradient(circle at 50% 20%, #0b0f14, #05070a);
+  color: #e7f0ff;
+  font-family: 'Orbitron', system-ui, Segoe UI, Roboto, Apple SD Gothic Neo, AppleGothic, sans-serif;
+}
 
-    #overlay.hide {
-      display: none;
-    }
-    @keyframes neonGlow {
-      0%, 100% {
-        text-shadow:
-          0 0 5px #fff,
-          0 0 10px #fff,
-          0 0 20px currentColor,
-          0 0 30px currentColor,
-          0 0 40px currentColor,
-          0 0 55px currentColor,
-          0 0 75px currentColor;
-        opacity: 1;
-      }
-      50% {
-        text-shadow:
-          0 0 2px #fff,
-          0 0 5px #fff,
-          0 0 10px currentColor,
-          0 0 15px currentColor,
-          0 0 20px currentColor,
-          0 0 30px currentColor,
-          0 0 40px currentColor;
-        opacity: 0.8;
-      }
-    }
+#wrap {
+  max-width: 960px;
+  margin: 18px auto;
+  padding: 0 12px;
+}
 
-    .grade-S, .grade-A {
-      animation: neonGlow 2s ease-in-out infinite;
-    }
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
 
-    .grade-S { color: gold; }
-    .grade-A { color: #4CAF50; }
+.card {
+  background: rgba(18, 24, 38, 0.7);
+  border: 1px solid rgba(0, 246, 255, 0.15);
+  border-radius: 16px;
+  padding: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.7);
+}
 
-  </style>
+canvas {
+  width: 100%;
+  height: 320px;
+  background: linear-gradient(#0b0f14, #0a1019);
+  border-radius: 12px;
+}
+
+.kbd {
+  background: rgba(10, 18, 28, 0.8);
+  border: 1px solid #2b3f5f;
+  color: #9fc5ff;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.stat {
+  font-size: 32px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 0 4px rgba(0, 200, 255, 0.8);
+}
+
+.ok {
+  color: #9effb5;
+}
+.warn {
+  color: #ffd18f;
+}
+.bad {
+  color: #ff9b9b;
+}
+
+button, .btn-primary {
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background 0.3s ease, transform 0.1s ease;
+}
+button:hover, .btn-primary:hover {
+  background: linear-gradient(135deg, #0072ff, #00c6ff);
+  transform: translateY(-1px);
+}
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+}
+
+#overlay.hide {
+  display: none;
+}
+
+.overlay-card {
+  background: rgba(18, 24, 38, 0.9);
+  padding: 24px 28px;
+  border-radius: 14px;
+  box-shadow: 0 0 20px rgba(0, 246, 255, 0.2);
+  text-align: center;
+  width: 300px;
+  border: 1px solid rgba(0, 246, 255, 0.2);
+}
+
+.title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #00f6ff;
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  color: #9fc5ff;
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+  text-align: left;
+  font-weight: 500;
+  color: #cceaff;
+}
+
+.form-input {
+  width: 95%;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  border: 1px solid rgba(0, 246, 255, 0.3);
+  border-radius: 8px;
+  margin-top: 4px;
+  background: rgba(10, 18, 28, 0.6);
+  color: #e7f0ff;
+}
+.form-input:focus {
+  border-color: #00f6ff;
+  outline: none;
+}
+
+.kbd-info {
+  margin: 16px 0;
+  font-size: 0.85rem;
+  color: #9fc5ff;
+}
+
+@keyframes neonGlow {
+  0%, 100% {
+    text-shadow:
+      0 0 5px #fff,
+      0 0 10px #fff,
+      0 0 20px currentColor,
+      0 0 30px currentColor,
+      0 0 40px currentColor,
+      0 0 55px currentColor,
+      0 0 75px currentColor;
+    opacity: 1;
+  }
+  50% {
+    text-shadow:
+      0 0 2px #fff,
+      0 0 5px #fff,
+      0 0 10px currentColor,
+      0 0 15px currentColor,
+      0 0 20px currentColor,
+      0 0 30px currentColor,
+      0 0 40px currentColor;
+    opacity: 0.8;
+  }
+}
+
+.grade-S, .grade-A {
+  animation: neonGlow 2s ease-in-out infinite;
+}
+
+.grade-S {
+  color: gold;
+}
+.grade-A {
+  color: #4CAF50;
+}
+
+</style>
 </head>
 <body>
 <div id="wrap" class="row" style="flex-direction:column">
@@ -92,32 +215,62 @@
   </div>
 </div>
 
+<!-- HTML -->
 <div id="overlay">
-  <div class="card" style="text-align:center">
-    <div style="font-size:20px;margin-bottom:8px">정차 트레이너</div>
-    <div>초기값을 입력하고 <b>Space</b> 또는 아래 버튼을 눌러 시작하세요.</div>
-    <div style="margin-bottom:12px">
-      <label>초기 속도 (km/h): <input id="inputSpeed" type="number" value="90" min="40" max="120" step="10"></label>
+  <div class="card">
+    <h2 class="title">🚉 TASC 기반 정차 트레이너</h2>
+    <p class="subtitle">초기값을 입력하고 <b>Space</b> 또는 아래 버튼을 눌러 시작하세요.</p>
+
+    <label class="form-label">
+      초기 속도 (km/h)
+      <input id="inputSpeed" type="number" value="90" min="40" max="120" step="10" class="form-input">
+    </label>
+
+    <label class="form-label">
+      거리 (m)
+      <input id="inputDist" type="number" value="500" min="200" max="800" step="100" class="form-input">
+    </label>
+
+    <label class="form-label">
+      경사도 (%)
+      <input id="inputGrade" type="number" value="0.0" min="-10" max="10" step="0.1" class="form-input">
+    </label>
+
+    <div class="kbd-info">
+      <span class="kbd">W</span> 브레이크 강화 · 
+      <span class="kbd">S</span> 완화 · 
+      <span class="kbd">N</span> 해방
     </div>
-    <div style="margin-bottom:12px">
-      <label>거리 (m): <input id="inputDist" type="number" value="500" min="200" max="800" step="100"></label>
-    </div>
-    <div style="margin-bottom:12px">
-      <label>경사도 (%): <input id="inputGrade" type="number" value="0.0" min="-10" max="10" step="0.1"></label>
-    </div>
-    <div style="margin-top:12px"><span class="kbd">W</span> 브레이크 강화 · <span class="kbd">S</span> 완화 · <span class="kbd">N</span> 해방</div>
-    <div style="margin-top:12px"><button id="btnStart">Start (Space)</button></div>
+
+    <button id="btnStart" class="btn-primary">Start (Space)</button>
   </div>
 </div>
 
 
+
+
+
 <script>
+let vehicle = null;
+let brakeDecels = {};
+
 fetch('static/carName.json')
   .then(res => res.json())
   .then(data => {
-    document.getElementById('carName').textContent = data.name;
+    vehicle = data; // vehicle로 변수명 통일
+    document.getElementById('carName').textContent = vehicle.name;
+
+    if (vehicle.notch_accels && vehicle.notches) {
+      brakeDecels = {};
+      for(let i=0; i < vehicle.notches; i++) {
+        // 감속값 배열 반대 순서로 넣기
+        brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches - 1 - i] ?? 0);
+}
+
+    }
   })
   .catch(console.error);
+
 
 
 const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
@@ -164,33 +317,73 @@ btnStart.addEventListener("click", () => {
   sendCmd("start", 0);
   overlay.classList.add("hide");
 });
+
+
 addEventListener("keydown", (e) => {
   if ([" ", "w", "W", "s", "S", "n", "N"].includes(e.key)) e.preventDefault();
   if (e.repeat) return;
 
   if (e.key === " ") {
     if (ws.readyState === WebSocket.OPEN) {
-      const speed = Number(inputSpeed.value);
-      const dist = Number(inputDist.value);
-      const grade = Number(inputGrade.value);
+      if (isFinished) {
+        if (!overlayShowingResult) {
+          // 첫번째 스페이스: 결과 오버레이 보여주기
+          overlay.classList.remove("hide");
+          // overlay.querySelector("div.card > div").textContent = "결과";
+          overlayShowingResult = true;
+        } else {
+          // 두번째 스페이스: 결과 오버레이 닫고 게임 시작
+          overlay.classList.add("hide");
+          const speed = Number(inputSpeed.value);
+          const dist = Number(inputDist.value);
+          const grade = Number(inputGrade.value);
 
-      ws.send(JSON.stringify({
-        type: "cmd",
-        payload: {
-          name: "setInitial",
-          speed,
-          dist,
-          grade,
+          ws.send(JSON.stringify({
+            type: "cmd",
+            payload: {
+              name: "setInitial",
+              speed,
+              dist,
+              grade,
+            }
+          }));
+          ws.send(JSON.stringify({
+            type: "cmd",
+            payload: {
+              name: "start"
+            }
+          }));
+
+          isFinished = false;
+          overlayShowingResult = false;
         }
-      }));
-      ws.send(JSON.stringify({
-        type: "cmd",
-        payload: {
-          name: "start"
-        }
-      }));
+      } else {
+        // 게임이 진행중 또는 아직 안끝났으면 그냥 시작
+        const speed = Number(inputSpeed.value);
+        const dist = Number(inputDist.value);
+        const grade = Number(inputGrade.value);
+
+        ws.send(JSON.stringify({
+          type: "cmd",
+          payload: {
+            name: "setInitial",
+            speed,
+            dist,
+            grade,
+          }
+        }));
+        ws.send(JSON.stringify({
+          type: "cmd",
+          payload: {
+            name: "start"
+          }
+        }));
+
+        overlay.classList.add("hide");
+        isFinished = false;
+        overlayShowingResult = false;
+      }
     }
-    overlay.classList.add("hide");
   }
   else if (e.key === "w" || e.key === "W") {
     sendCmd("applyNotch", +1);
@@ -202,6 +395,7 @@ addEventListener("keydown", (e) => {
     sendCmd("release", 0);
   }
 });
+
 
 if (/Mobi|Android/i.test(navigator.userAgent)) {
   window.addEventListener("touchstart", (e) => {
@@ -220,35 +414,174 @@ if (/Mobi|Android/i.test(navigator.userAgent)) {
 }
 
 
-function drawHUD(st){
-  const dpr=devicePixelRatio||1, w=canvas.width, h=canvas.height;
-  ctx.clearRect(0,0,w,h);
-  ctx.strokeStyle="#20334d"; ctx.lineWidth=1*dpr;
-  ctx.beginPath(); ctx.moveTo(48*dpr,12*dpr); ctx.lineTo(48*dpr,h-28*dpr); ctx.lineTo(w-12*dpr,h-28*dpr); ctx.stroke();
+// HUD 그리기
+function drawHUD(st) {
+  const dpr = devicePixelRatio || 1, w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
 
-  const L=st.L, vmax=Math.max(st.v*1.2, st.v_ref*1.5, 25.0);
-  const X=(s)=>48*dpr + (w-60*dpr)*(s/Math.max(1e-6,L));
-  const Y=(v)=>(h-28*dpr) - (h-48*dpr)*(v/Math.max(1e-6,vmax));
+  const v0 = st.v;
+  const lever = st.lever_notch;
+  const currentPos = st.pos ?? 0;
+  const stopPos = st.stopPos ?? 500;
 
-  ctx.strokeStyle="#3fa9ff"; ctx.lineWidth=2*dpr;
+  const remainingDistance = (typeof st.remaining_m === "number") ? Math.max(0, st.remaining_m) : Math.max(0, stopPos - currentPos);
+
+
+  const minL = 1;
+  const maxDecel = Math.max(...Object.values(brakeDecels));
+  const maxStopDist = maxDecel > 0 ? (v0 * v0) / (2 * maxDecel) : 0;
+
+  const speedFactor = Math.max(0.3, Math.min(1, v0 / 10)); 
+
+  const adjustedRemaining = remainingDistance * (1 + (1 - speedFactor) * 0.5);
+
+  // 축소 방지용 최소 거리 기준
+  const minX = 1; // 50m 이하로 축소 방지
+
+  // remainingDistance가 작을 때 급격한 축소 방지 (예: 제곱근 스케일링)
+  const safeRemaining = Math.max(minX, Math.sqrt(adjustedRemaining) * 10);
+
+  const maxDistance = Math.max(
+    minL,
+    maxStopDist * 1.5,
+    safeRemaining * 1.2
+  );
+
+
+  const leftMargin = 48 * dpr;
+  const rightMargin = 12 * dpr;
+  const usableWidth = w - leftMargin - rightMargin;
+  const X = dist => leftMargin + usableWidth * (dist / maxDistance);
+
+  const vmax = Math.max(10, v0 * 3.6 * 1.2);
+
+  const bottomMargin = 28 * dpr;
+  const topMargin = 12 * dpr;
+  const usableHeight = h - bottomMargin - topMargin;
+  const Y = v => h - bottomMargin - usableHeight * (v / vmax);
+
+  // 축 그리기
+  ctx.strokeStyle = "#20334d";
+  ctx.lineWidth = 1 * dpr;
   ctx.beginPath();
-  for(let i=0;i<=80;i++){
-    const ss=L*(i/80), vv=Math.sqrt(Math.max(0, 2*(0.8*1.0)*(L-ss)));
-    const x=X(ss), y=Y(vv);
-    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  }
+  ctx.moveTo(leftMargin, topMargin);
+  ctx.lineTo(leftMargin, h - bottomMargin);
+  ctx.lineTo(w - rightMargin, h - bottomMargin);
   ctx.stroke();
 
-  ctx.fillStyle="#ffd18f";
-  ctx.beginPath(); ctx.arc(X(st.s), Y(st.v), 4*dpr, 0, Math.PI*2); ctx.fill();
+  // x축 눈금 (50m 단위)
+  ctx.fillStyle = "#888";
+  ctx.font = `${10 * dpr}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  for (let dist = 0; dist <= maxDistance; dist += 50) {
+    const x = X(dist);
+    ctx.beginPath();
+    ctx.moveTo(x, h - bottomMargin);
+    ctx.lineTo(x, h - bottomMargin + 4 * dpr);
+    ctx.stroke();
+    ctx.fillText(`${Math.round(dist)}m`, x, h - bottomMargin + 6 * dpr);
+  }
 
-  const remRatio=Math.max(0, Math.min(1, st.remaining_m/L));
-  ctx.fillStyle="#19304b"; ctx.fillRect(48*dpr, 6*dpr, (w-60*dpr), 4*dpr);
-  ctx.fillStyle="#8fd0ff"; ctx.fillRect(48*dpr, 6*dpr, (w-60*dpr)*(1-remRatio), 4*dpr);
+  // y축 눈금 (10km/h 단위)
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let speed_kmh = 0; speed_kmh <= vmax; speed_kmh += 10) {
+    const y = Y(speed_kmh);
+    ctx.beginPath();
+    ctx.moveTo(leftMargin - 4 * dpr, y);
+    ctx.lineTo(leftMargin, y);
+    ctx.stroke();
+    ctx.fillText(`${speed_kmh}`, leftMargin - 6 * dpr, y);
+  }
+
+  // 브레이크 단계별 감속 곡선 그리기
+  ctx.lineWidth = 2 * dpr;
+  const maxNotch = vehicle?.notches ?? 9;
+  for(let notch = 0; notch < maxNotch; notch++) {
+    const decel = brakeDecels[notch] ?? 0;
+    if(decel <= 0) continue;
+
+    const s_brake = (v0 * v0) / (2 * decel);
+
+    ctx.beginPath();
+    ctx.strokeStyle = notch === lever ? "#ffae00" : "#3fa9ff";
+
+    for(let i=0; i<=100; i++) {
+      const frac = i / 100;
+      const s = s_brake * frac;
+      const v_cur = Math.sqrt(Math.max(0, v0*v0 - 2*decel*s));
+      const x = X(s);
+      const y = Y(v_cur * 3.6);
+
+      if(i===0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = notch === lever ? "#ffae00" : "#3fa9ff";
+    ctx.font = `${12 * dpr}px 'Orbitron', sans-serif`;
+    const textX = X(s_brake);
+    if (notch == 8) {
+      ctx.fillText(`EB`, textX + 5 * dpr, Y(0) + 12 * dpr);
+      
+    } else if (notch == 0) {
+      ctx.fillText(`N`, textX + 5 * dpr, Y(0) + 12 * dpr);
+      
+    } else{
+      ctx.fillText(`B${notch}`, textX + 5 * dpr, Y(0) + 12 * dpr);
+    }
+  }
+
+
+
+  // 빨간 세로선: 남은 거리 위치
+  const x_redline = X(remainingDistance);
+  ctx.strokeStyle = "#ff0000";
+  ctx.lineWidth = 1.5 * dpr;
+  ctx.beginPath();
+  ctx.moveTo(x_redline, Y(0));
+  ctx.lineTo(x_redline, Y(vmax));
+  ctx.stroke();
+
+  ctx.fillStyle = "#ff0000";
+  ctx.font = `${14 * dpr}px 'Orbitron', sans-serif`;
+  ctx.textAlign = "center";
+  ctx.fillText("남은 거리", x_redline, Y(vmax) - 18 * dpr);
+
+  // // 현재 속도 점 표시 (빨간선 위)
+  // ctx.fillStyle = "#ffd18f";
+  // ctx.beginPath();
+  // ctx.arc(x_redline, Y(v0 * 3.6), 6 * dpr, 0, 2 * Math.PI);
+  // ctx.fill();
+
+  // // 현재 속도 텍스트 (빨간선 오른쪽 위)
+  // ctx.fillStyle = "#ffd18f";
+  // ctx.font = `${14 * dpr}px 'Orbitron', sans-serif`;
+  // ctx.textAlign = "left";
+  // ctx.fillText(`속도: ${(v0 * 3.6).toFixed(1)} km/h`, x_redline + 10 * dpr, Y(v0 * 3.6) - 10 * dpr);
 }
+
+// 애니메이션 루프 (초당 60fps)
+let lastTimestamp = 0;
+function loop(timestamp) {
+  if (!lastTimestamp) lastTimestamp = timestamp;
+  const dt = (timestamp - lastTimestamp) / 1000;
+  lastTimestamp = timestamp;
+
+  updateSimulation(dt);
+  drawHUD(st);
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
 
 const grade_percentEl = document.getElementById("grade_percent");
 const timerEl = document.getElementById("timer");
+
+let isFinished = false;  // 정지 완료 여부 전역 변수
+let overlayShowingResult = false;  // 정지 완료 여부 전역 변수
+
 ws.onmessage = (ev) => {
   const msg = JSON.parse(ev.data);
   if (msg.type === "state") {
@@ -275,6 +608,7 @@ ws.onmessage = (ev) => {
     drawHUD(st);
 
     if (st.finished) {
+      isFinished = true;
       const issues = st.issues || {};
 
       const feedbackItems = [
@@ -331,16 +665,15 @@ ws.onmessage = (ev) => {
         })
         .join("") + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S로 조작</div>`;
 
-      setTimeout(() => {
-        overlay.classList.remove("hide");
-        overlay.querySelector("div.card > div").textContent = "결과";
-      }, 2000);
     } else {
+      isFinished = true;
       fb.textContent = "Space로 시작. W/S로 브레이크 조절하세요.";
     }
 
   }
 };
+
+
 </script>
 </body>
 </html>

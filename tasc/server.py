@@ -1,3 +1,4 @@
+# uvicorn server:app --reload
 import math
 import json
 import asyncio
@@ -239,6 +240,23 @@ class StoppingSim:
 
         # 1차 시스템 응답
         st.a += (a_target - st.a) * (dt / max(1e-6, self.veh.tau_brk))
+        # 총 목표 가속도
+        a_desired = a_brake + a_grade + a_rr + a_drag
+
+        # 현재 가속도 변화량 한계
+        max_da = self.veh.j_max * dt  # 최대 가속도 변화량 (저크 제한)
+
+        # 가속도 변화량 계산
+        da = a_desired - st.a
+
+        # 가속도 변화량 제한
+        if da > max_da:
+            da = max_da
+        elif da < -max_da:
+            da = -max_da
+
+        # 가속도 업데이트
+        st.a += da
 
         # 속도, 위치 적분
         st.v = max(0.0, st.v + st.a * dt)
@@ -296,7 +314,7 @@ class StoppingSim:
 
             # 정차 오차에 따른 점수 (0~500)
             err_abs = abs(st.stop_error_m or 0.0)
-            error_score = max(0, 500 - int(err_abs * 50))  # 오차 0m → 500점, 10m → 0점
+            error_score = max(0, 500 - int(err_abs * 500))  # 오차 0m → 500점, 10m → 0점
             score += error_score
 
             st.score = score
