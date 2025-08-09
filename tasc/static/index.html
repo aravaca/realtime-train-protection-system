@@ -205,7 +205,17 @@ ws.onmessage = (ev) => {
       : `-${Math.abs(rem).toFixed(2)}`;
 
     spdEl.textContent = (st.v * 3.6).toFixed(1);
-    notchEl.textContent = st.lever_notch.toFixed(1);
+    function notchText(notch) {
+      if (notch === 0) return "N";
+      else if (notch === 8) return "EB"; // B7 다음이 EB
+      else return `B${notch}`;
+    }
+
+
+    // 사용 시
+    notchEl.textContent = notchText(st.lever_notch, st.max_notch);
+
+
     grade_percentEl.textContent = st.grade_percent.toFixed(2);
     timerEl.textContent = st.t.toFixed(3);
     drawHUD(st);

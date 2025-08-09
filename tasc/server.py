@@ -9,13 +9,14 @@ from fastapi.staticfiles import StaticFiles
 
 import json
 
+
 @dataclass
 class Vehicle:
     name: str = "EMU-233-JR-East"
     mass_t: float = 200.0
     a_max: float = 1.0
     j_max: float = 0.8
-    notches: int = 8
+    notches: int = 9
     notch_accels: list = None
     tau_cmd: float = 0.150
     tau_brk: float = 0.250
@@ -36,7 +37,10 @@ class Vehicle:
             a_max=data.get("a_max", 1.0),
             j_max=data.get("j_max", 0.8),
             notches=data.get("notches", 8),
-            notch_accels=data.get("notch_accels", [-1.10, -0.95, -0.80, -0.65, -0.50, -0.35, -0.20, 0.0]),
+            notch_accels=data.get(
+                "notch_accels",
+                [-1.5, -1.10, -0.95, -0.80, -0.65, -0.50, -0.35, -0.20, 0.0],
+            ),
             tau_cmd=data.get("tau_cmd_ms", 150) / 1000.0,
             tau_brk=data.get("tau_brk_ms", 250) / 1000.0,
             mass_kg=mass_t * 1000,  # ton → kg
@@ -45,6 +49,7 @@ class Vehicle:
             Cd=1.8,
             A=10.0,
         )
+
 
 @dataclass
 class Scenario:
@@ -58,14 +63,14 @@ class Scenario:
     def from_json(cls, filepath):
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
-        v0_kmph = data.get("v0", 25.0)   # JSON 에서 km/h 단위로 입력 받음
-        v0_ms = v0_kmph / 3.6            # km/h → m/s 변환
+        v0_kmph = data.get("v0", 25.0)  # JSON 에서 km/h 단위로 입력 받음
+        v0_ms = v0_kmph / 3.6  # km/h → m/s 변환
         return cls(
             L=data.get("L", 500.0),
             v0=v0_ms,
             grade_percent=data.get("grade_percent", 0.0),
             mu=data.get("mu", 1.0),
-            dt=data.get("dt", 0.005)
+            dt=data.get("dt", 0.005),
         )
 
 
@@ -86,6 +91,7 @@ def build_vref(L: float, a_ref: float):
     def vref(s: float):
         rem = max(0.0, L - s)
         return math.sqrt(max(0.0, 2.0 * a_ref * rem))
+
     return vref
 
 
@@ -106,12 +112,12 @@ class StoppingSim:
         if name == "stepNotch" or name == "applyNotch":
             name = "stepNotch"
             val = int(val)
-        self._cmd_queue.append({
-            "t": self.state.t + self.veh.tau_cmd,
-            "name": name,
-            "val": val
-        })
-        print(f"Queued command: {name} {val} at t={self.state.t + self.veh.tau_cmd:.3f}")
+        self._cmd_queue.append(
+            {"t": self.state.t + self.veh.tau_cmd, "name": name, "val": val}
+        )
+        print(
+            f"Queued command: {name} {val} at t={self.state.t + self.veh.tau_cmd:.3f}"
+        )
 
     def _apply_command(self, cmd: Dict):
         st = self.state
@@ -130,7 +136,9 @@ class StoppingSim:
             print(f"Applied emergencyBrake: lever_notch={st.lever_notch}")
 
     def reset(self):
-        self.state = State(t=0.0, s=0.0, v=self.scn.v0, a=0.0, lever_notch=0, finished=False)
+        self.state = State(
+            t=0.0, s=0.0, v=self.scn.v0, a=0.0, lever_notch=0, finished=False
+        )
         self._cmd_queue.clear()
         print("Simulation reset")
 
@@ -148,7 +156,11 @@ class StoppingSim:
             self._apply_command(self._cmd_queue.popleft())
 
         # 제동 감속 (음수) — notch_accels * mu
-        a_brake = self.veh.notch_accels[st.lever_notch] * self.scn.mu if st.lever_notch < len(self.veh.notch_accels) else 0.0
+        a_brake = (
+            self.veh.notch_accels[st.lever_notch] * self.scn.mu
+            if st.lever_notch < len(self.veh.notch_accels)
+            else 0.0
+        )
 
         # 경사 가속도
         a_grade = -9.81 * (self.scn.grade_percent / 100.0)
@@ -215,7 +227,6 @@ class StoppingSim:
             self.running = False
             print(f"Simulation finished with grade {st.grade}")
 
-
     def snapshot(self):
         st = self.state
         return {
@@ -232,9 +243,8 @@ class StoppingSim:
             "residual_speed_kmh": st.residual_speed_kmh,
             "grade": st.grade,
             "running": self.running,
-            "grade_percent": self.scn.grade_percent,   # 여기에 추가
+            "grade_percent": self.scn.grade_percent,  # 여기에 추가
         }
-
 
 
 app = FastAPI()
@@ -262,7 +272,6 @@ async def ws_endpoint(ws: WebSocket):
     vehicle.notch_accels = list(reversed(vehicle.notch_accels))
 
     scenario = Scenario.from_json(scenario_json_path)
-
 
     sim = StoppingSim(vehicle, scenario)
     sim.start()
@@ -299,7 +308,9 @@ async def ws_endpoint(ws: WebSocket):
 
             if sim.running:
                 sim.step()
-                print(f"step: t={sim.state.t:.3f}, v={sim.state.v:.3f}, notch={sim.state.lever_notch}")
+                print(
+                    f"step: t={sim.state.t:.3f}, v={sim.state.v:.3f}, notch={sim.state.lever_notch}"
+                )
 
             await ws.send_text(json.dumps({"type": "state", "payload": sim.snapshot()}))
             await asyncio.sleep(0)
