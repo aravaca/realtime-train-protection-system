@@ -21,7 +21,7 @@ class Vehicle:
     tau_cmd: float = 0.150
     tau_brk: float = 0.250
     mass_kg: float = 200000.0
-    C_rr: float = 0.002
+    C_rr: float = 0.005
     rho_air: float = 1.225
     Cd: float = 1.8
     A: float = 10.0
@@ -44,7 +44,7 @@ class Vehicle:
             tau_cmd=data.get("tau_cmd_ms", 150) / 1000.0,
             tau_brk=data.get("tau_brk_ms", 250) / 1000.0,
             mass_kg=mass_t * 1000,
-            C_rr=0.002,
+            C_rr=0.005,
             rho_air=1.225,
             Cd=1.8,
             A=10.0,
@@ -218,7 +218,8 @@ class StoppingSim:
         )
 
         # 경사 가속도
-        a_grade = -9.81 * (self.scn.grade_percent / 100.0)
+        a_grade = -9.81 * (self.scn.grade_percent / 1000.0)
+        
 
         # Rolling resistance
         v = st.v
@@ -443,10 +444,12 @@ async def ws_endpoint(ws: WebSocket):
                         speed = payload.get("speed")
                         dist = payload.get("dist")
                         grade = payload.get("grade", 0.0)  # 기본값 0.0
+                        mu = payload.get("mu", 1.0)
                         if speed is not None and dist is not None:
                             sim.scn.v0 = float(speed) / 3.6  # km/h -> m/s
                             sim.scn.L = float(dist)
                             sim.scn.grade_percent = float(grade)
+                            sim.scn.mu = float(mu)
                             sim.reset()
                     elif name == "start":
                         sim.start()
