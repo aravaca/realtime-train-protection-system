@@ -4,234 +4,312 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>TASC Simulator</title>
-  <style>
-    /* ===== 기본 배경 & 폰트 ===== */
-    html, body {
-      margin: 0;
-      background: radial-gradient(circle at 50% 20%, #0b0f14, #05070a);
-      background-attachment: fixed;
-      color: #e7f0ff;
-      font-family: 'Orbitron', system-ui, Segoe UI, Roboto, Apple SD Gothic Neo, AppleGothic, sans-serif;
-      overflow: hidden;
-    }
+<style>
+html, body {
+  margin: 0;
+  background: radial-gradient(circle at 50% 20%, #0b0f14, #05070a);
+  background-attachment: fixed; /* 스크롤 시 유지 */
+  color: #e7f0ff;
+  font-family: 'Orbitron', system-ui, Segoe UI, Roboto, Apple SD Gothic Neo, AppleGothic, sans-serif;
+}
 
-    /* ===== 레이아웃 ===== */
-    #wrap {
-      max-width: 960px;
-      margin: 18px auto;
-      padding: 0 12px;
-    }
-    .row {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-    }
+.game-background,
+.snow-background,
+.rain-background {
+  background: transparent !important;
+}
 
-    /* ===== 카드 ===== */
-    .card {
-      background: rgba(18, 24, 38, 0.7);
-      border: 1px solid rgba(0, 246, 255, 0.15);
-      border-radius: 16px;
-      padding: 16px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 28px rgba(0,0,0,0.7);
-    }
 
-    /* ===== 캔버스 ===== */
-    canvas {
-      width: 100%;
-      height: 320px;
-      background: linear-gradient(#0b0f14, #0a1019);
-      border-radius: 12px;
-    }
+#wrap {
+  max-width: 960px;
+  margin: 18px auto;
+  padding: 0 12px;
+}
 
-    /* ===== 키보드 표시 ===== */
-    .kbd {
-      background: rgba(10, 18, 28, 0.8);
-      border: 1px solid #2b3f5f;
-      color: #9fc5ff;
-      padding: 2px 6px;
-      border-radius: 6px;
-      font-size: 12px;
-    }
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
 
-    /* ===== 상태 색상 ===== */
-    .stat {
-      font-size: 32px;
-      font-weight: 800;
-      color: #ffffff;
-      text-shadow: 0 0 4px rgba(0, 200, 255, 0.8);
-    }
-    .ok { color: #9effb5; }
-    .warn { color: #ffd18f; }
-    .bad { color: #ff9b9b; }
+.card {
+  background: rgba(18, 24, 38, 0.7);
+  border: 1px solid rgba(0, 246, 255, 0.15);
+  border-radius: 16px;
+  padding: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.7);
+}
 
-    /* ===== 버튼 ===== */
-    button, .btn-primary {
-      background: linear-gradient(135deg, #00c6ff, #0072ff);
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      padding: 10px 16px;
-      font-size: 15px;
-      font-weight: 600;
-      transition: background 0.3s ease, transform 0.1s ease;
-      cursor: pointer;
-    }
-    button:hover, .btn-primary:hover {
-      background: linear-gradient(135deg, #0072ff, #00c6ff);
-      transform: translateY(-1px);
-    }
+canvas {
+  width: 100%;
+  height: 320px;
+  background: linear-gradient(#0b0f14, #0a1019);
+  border-radius: 12px;
+}
 
-    /* ===== 오버레이 ===== */
-    #overlay {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(8px);
-      z-index: 9999;
-    }
-    #overlay.hide { display: none; }
-    .overlay-card {
-      background: rgba(18, 24, 38, 0.9);
-      padding: 24px 28px;
-      border-radius: 14px;
-      box-shadow: 0 0 20px rgba(0, 246, 255, 0.2);
-      text-align: center;
-      width: 300px;
-      border: 1px solid rgba(0, 246, 255, 0.2);
-    }
+.kbd {
+  background: rgba(10, 18, 28, 0.8);
+  border: 1px solid #2b3f5f;
+  color: #9fc5ff;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+}
 
-    .title {
-      font-size: 1.4rem;
-      font-weight: 600;
-      margin-bottom: 4px;
-      color: #00f6ff;
-    }
-    .subtitle {
-      font-size: 0.9rem;
-      color: #9fc5ff;
-      margin-bottom: 16px;
-    }
+.stat {
+  font-size: 32px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 0 4px rgba(0, 200, 255, 0.8);
+}
 
-    /* ===== 폼 ===== */
-    .form-label {
-      display: block;
-      font-size: 0.85rem;
-      margin-bottom: 12px;
-      text-align: left;
-      font-weight: 500;
-      color: #cceaff;
-    }
-    .form-input {
-      width: 95%;
-      padding: 8px 10px;
-      font-size: 0.9rem;
-      border: 1px solid rgba(0, 246, 255, 0.3);
-      border-radius: 8px;
-      margin-top: 4px;
-      background: rgba(10, 18, 28, 0.6);
-      color: #e7f0ff;
-    }
-    .form-input:focus {
-      border-color: #00f6ff;
-      outline: none;
-    }
-    .kbd-info {
-      margin: 16px 0;
-      font-size: 0.85rem;
-      color: #9fc5ff;
-    }
+.ok {
+  color: #9effb5;
+}
+.warn {
+  color: #ffd18f;
+}
+.bad {
+  color: #ff9b9b;
+}
 
-    /* ===== 네온 글로우 ===== */
-    @keyframes neonGlow {
-      0%, 100% {
-        text-shadow:
-          0 0 5px #fff,
-          0 0 10px #fff,
-          0 0 20px currentColor,
-          0 0 30px currentColor,
-          0 0 40px currentColor,
-          0 0 55px currentColor,
-          0 0 75px currentColor;
-        opacity: 1;
-      }
-      50% {
-        text-shadow:
-          0 0 2px #fff,
-          0 0 5px #fff,
-          0 0 10px currentColor,
-          0 0 15px currentColor,
-          0 0 20px currentColor,
-          0 0 30px currentColor,
-          0 0 40px currentColor;
-        opacity: 0.8;
-      }
-    }
-    .grade-S, .grade-A { animation: neonGlow 2s ease-in-out infinite; }
-    .grade-S { color: gold; }
-    .grade-A { color: #4CAF50; }
+button, .btn-primary {
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background 0.3s ease, transform 0.1s ease;
+}
+button:hover, .btn-primary:hover {
+  background: linear-gradient(135deg, #0072ff, #00c6ff);
+  transform: translateY(-1px);
+}
 
-    /* ===== 눈 & 비 애니메이션 ===== */
-    .snowflakes, .raindrops {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      pointer-events: none;
-      overflow: hidden;
-      display: none;
-      z-index: 9998;
-    }
-    .snowflakes div {
-      position: absolute;
-      background-color: #fff;
-      border-radius: 50%;
-      opacity: 0.8;
-      animation: snow 5s linear infinite;
-    }
-    @keyframes snow {
-      0% { transform: translateY(-20px); }
-      100% { transform: translateY(100vh); }
-    }
-    .raindrops div {
-      position: absolute;
-      background-color: rgba(173, 216, 230, 0.8);
-      width: 2px;
-      height: 15px;
-      animation: rain 0.5s linear infinite;
-    }
-    @keyframes rain {
-      0% { transform: translateY(-20px); }
-      100% { transform: translateY(100vh); }
-    }
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+}
 
-    /* ===== 배경 계층 ===== */
-    .snow-background, .rain-background {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      z-index: -1;
+#overlay.hide {
+  display: none;
+}
+
+.overlay-card {
+  background: rgba(18, 24, 38, 0.9);
+  padding: 24px 28px;
+  border-radius: 14px;
+  box-shadow: 0 0 20px rgba(0, 246, 255, 0.2);
+  text-align: center;
+  width: 300px;
+  border: 1px solid rgba(0, 246, 255, 0.2);
+}
+
+.title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #00f6ff;
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  color: #9fc5ff;
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+  text-align: left;
+  font-weight: 500;
+  color: #cceaff;
+}
+
+.form-input {
+  width: 95%;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  border: 1px solid rgba(0, 246, 255, 0.3);
+  border-radius: 8px;
+  margin-top: 4px;
+  background: rgba(10, 18, 28, 0.6);
+  color: #e7f0ff;
+}
+.form-input:focus {
+  border-color: #00f6ff;
+  outline: none;
+}
+
+.kbd-info {
+  margin: 16px 0;
+  font-size: 0.85rem;
+  color: #9fc5ff;
+}
+
+@keyframes neonGlow {
+  0%, 100% {
+    text-shadow:
+      0 0 5px #fff,
+      0 0 10px #fff,
+      0 0 20px currentColor,
+      0 0 30px currentColor,
+      0 0 40px currentColor,
+      0 0 55px currentColor,
+      0 0 75px currentColor;
+    opacity: 1;
+  }
+  50% {
+    text-shadow:
+      0 0 2px #fff,
+      0 0 5px #fff,
+      0 0 10px currentColor,
+      0 0 15px currentColor,
+      0 0 20px currentColor,
+      0 0 30px currentColor,
+      0 0 40px currentColor;
+    opacity: 0.8;
+  }
+}
+
+.grade-S, .grade-A {
+  animation: neonGlow 2s ease-in-out infinite;
+}
+
+.grade-S {
+  color: gold;
+}
+.grade-A {
+  color: #4CAF50;
+}
+
+
+
+  /* 눈 애니메이션 */
+  .snowflakes {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    display: none; /* 기본적으로 숨김 */
+    overflow:hidden;
+  }
+
+  .snowflakes div {
+    position: absolute;
+    background-color: #fff;
+    width: 10px;
+    height:10px;
+    border-radius: 50%;
+    opacity: 0.8;
+    animation: snow 5s linear infinite;
+  }
+
+  @keyframes snow {
+    0% {
+      transform: translateY(-20px);
     }
-    .snow-background .snowflakes,
-    .rain-background .raindrops { display: block; }
+    100% {
+      transform: translateY(100vh);
+    }
+  }
+
+  /* 비 애니메이션 */
+  .raindrops {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9998;
+    display: none; /* 기본적으로 숨김 */
+    overflow:hidden;
+
+  }
+
+  .raindrops div {
+    position: absolute;
+    background-color: rgba(173, 216, 230, 0.8);
+    width: 2px;
+    height: 15px;
+    animation: rain 0.5s linear infinite;
+  }
+
+  @keyframes rain {
+    0% {
+      transform: translateY(-20px);
+    }
+    100% {
+      transform: translateY(100vh);
+    }
+  }
+
+/* 눈 내리는 배경 */
+.snow-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1; /* 다른 요소 아래로 배치 */
+}
+
+.snow-background .snowflakes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 비 내리는 배경 */
+.rain-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1; /* 다른 요소 아래로 배치 */
+}
+
+.rain-background .raindrops {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 기본적으로 배경에 overflow 설정 */
+body {
+  overflow: hidden; /* 애니메이션이 화면 밖으로 나가지 않도록 설정 */
+}
+
+
 </style>
 </head>
 <body>
-  <!-- 눈/비 컨테이너 -->
-  <div class="snow-background">
-    <div class="snowflakes"></div>
-  </div>
-  <div class="rain-background">
-    <div class="raindrops"></div>
-  </div>
 <div id="wrap" class="row" style="flex-direction:column">
   <div class="row" style="gap:16px;flex-wrap:wrap">
     <div class="card" style="flex:1 1 260px">
