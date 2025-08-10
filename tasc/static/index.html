@@ -438,7 +438,7 @@ setInterval(generateSnowflake, 200);  // 200ms마다 새로운 눈송이 생성
 let vehicle = null;
 let brakeDecels = {};
 
-fetch('static/carName.json')
+fetch('/carName.json')
   .then(res => res.json())
   .then(data => {
     vehicle = data; // vehicle로 변수명 통일
