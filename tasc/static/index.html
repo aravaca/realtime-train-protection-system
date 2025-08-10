@@ -222,17 +222,9 @@
     }
     .snow-background .snowflakes,
     .rain-background .raindrops { display: block; }
-  </style>
+</style>
 </head>
 <body>
-  <!-- 예시 구조 -->
-  <div id="wrap">
-    <div class="card">
-      <h2 class="title">TASC Simulator</h2>
-      <p class="subtitle">테스트용 인터페이스</p>
-    </div>
-  </div>
-
   <!-- 눈/비 컨테이너 -->
   <div class="snow-background">
     <div class="snowflakes"></div>
@@ -240,54 +232,6 @@
   <div class="rain-background">
     <div class="raindrops"></div>
   </div>
-
-  <!-- 오버레이 -->
-  <div id="overlay" class="hide">
-    <div class="overlay-card">
-      <div class="title">알림</div>
-      <div class="subtitle">게임이 일시정지되었습니다.</div>
-    </div>
-  </div>
-
-  <script>
-    // 눈/비 생성 예시
-    function createSnowflakes(count = 30) {
-      const container = document.querySelector('.snowflakes');
-      container.innerHTML = '';
-      for (let i = 0; i < count; i++) {
-        const snow = document.createElement('div');
-        snow.style.width = snow.style.height = `${Math.random() * 6 + 4}px`;
-        snow.style.left = `${Math.random() * 100}%`;
-        snow.style.animationDuration = `${Math.random() * 3 + 4}s`;
-        snow.style.animationDelay = `${Math.random() * 5}s`;
-        container.appendChild(snow);
-      }
-    }
-    function createRaindrops(count = 40) {
-      const container = document.querySelector('.raindrops');
-      container.innerHTML = '';
-      for (let i = 0; i < count; i++) {
-        const rain = document.createElement('div');
-        rain.style.left = `${Math.random() * 100}%`;
-        rain.style.animationDuration = `${Math.random() * 0.5 + 0.5}s`;
-        rain.style.animationDelay = `${Math.random()}s`;
-        container.appendChild(rain);
-      }
-    }
-    // 실행 예시
-    createSnowflakes();
-    createRaindrops();
-  </script>
-</body>
-</html>
-
-</style>
-</head>
-<body>
-<div class="weather-layer" aria-hidden="true">
-  <div class="snowflakes"></div>
-  <div class="raindrops"></div>
-</div>
 <div id="wrap" class="row" style="flex-direction:column">
   <div class="row" style="gap:16px;flex-wrap:wrap">
     <div class="card" style="flex:1 1 260px">
