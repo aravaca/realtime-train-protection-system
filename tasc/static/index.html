@@ -190,6 +190,115 @@ button:hover, .btn-primary:hover {
   color: #4CAF50;
 }
 
+
+
+  /* 눈 애니메이션 */
+  .snowflakes {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    display: none; /* 기본적으로 숨김 */
+    overflow:hidden;
+  }
+
+  .snowflakes div {
+    position: absolute;
+    background-color: #fff;
+    width: 10px;
+    height:10px;
+    border-radius: 50%;
+    opacity: 0.8;
+    animation: snow 5s linear infinite;
+  }
+
+  @keyframes snow {
+    0% {
+      transform: translateY(-20px);
+    }
+    100% {
+      transform: translateY(100vh);
+    }
+  }
+
+  /* 비 애니메이션 */
+  .raindrops {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9998;
+    display: none; /* 기본적으로 숨김 */
+    overflow:hidden;
+
+  }
+
+  .raindrops div {
+    position: absolute;
+    background-color: rgba(173, 216, 230, 0.8);
+    width: 2px;
+    height: 15px;
+    animation: rain 0.5s linear infinite;
+  }
+
+  @keyframes rain {
+    0% {
+      transform: translateY(-20px);
+    }
+    100% {
+      transform: translateY(100vh);
+    }
+  }
+
+/* 눈 내리는 배경 */
+.snow-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1; /* 다른 요소 아래로 배치 */
+}
+
+.snow-background .snowflakes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 비 내리는 배경 */
+.rain-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1; /* 다른 요소 아래로 배치 */
+}
+
+.rain-background .raindrops {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 기본적으로 배경에 overflow 설정 */
+body {
+  overflow: hidden; /* 애니메이션이 화면 밖으로 나가지 않도록 설정 */
+}
+
+
 </style>
 </head>
 <body>
@@ -247,14 +356,37 @@ button:hover, .btn-primary:hover {
 
     <label class="form-label" for="trainLength">편성</label>
       <select class="form-input" id="trainLength" onchange="updateTrainLength()">
-          <option value="4">4량</option>
-          <option value="6">6량</option>
-          <option value="8">8량</option>
-          <option value="10">10량</option>
-          <option value="12">12량</option>
-          <option value="15">15량</option>
+        <option value="4">4량 (JR 소부선 일부 구간)</option>
+        <option value="6">6량 (JR 야마노테선, JR 치요다선, JR 소부선, JR 게이힌도호쿠선)</option>
+        <option value="8">8량 (JR 도호쿠선, JR 요코스카선, JR 야마노테선, JR 게이힌도호쿠선)</option>
+        <option value="10">10량 (JR 도호쿠선 일부 구간, JR 주오선 일부 구간)</option>
+        <option value="12">12량 (JR 도호쿠선 주요 구간, JR 주오선 주요 구간)</option>
+        <option value="15">15량 (JR 도호쿠선 일부 구간, 고속 노선)</option>
       </select>
 
+    <!-- 게임 배경 -->
+    <div class="game-background"></div>
+
+    <!-- 눈 애니메이션 -->
+    <div class="snowflakes"></div>
+
+    <!-- 비 애니메이션 -->
+    <div class="raindrops">
+      <div style="animation-delay: 0s; left: 5%;"></div>
+      <div style="animation-delay: 0.2s; left: 15%;"></div>
+      <div style="animation-delay: 0.4s; left: 25%;"></div>
+      <div style="animation-delay: 0.6s; left: 35%;"></div>
+      <div style="animation-delay: 0.8s; left: 45%;"></div>
+      <div style="animation-delay: 1s; left: 55%;"></div>
+      <div style="animation-delay: 1.2s; left: 65%;"></div>
+      <div style="animation-delay: 1.4s; left: 75%;"></div>
+      <div style="animation-delay: 1.6s; left: 85%;"></div>
+      <div style="animation-delay: 1.8s; left: 95%;"></div>
+
+      <!-- 계속 추가... -->
+    </div>
+
+    <!-- 다른 콘텐츠들... -->
 
 
     <div class="kbd-info">
@@ -272,6 +404,40 @@ button:hover, .btn-primary:hover {
 
 
 <script>
+const snowflakesContainer = document.querySelector('.snowflakes');
+
+// 눈송이를 생성하는 함수
+function generateSnowflake() {
+  const snowflake = document.createElement('div');
+  const randomLeft = Math.floor(Math.random() * 101);  // Random left position from 0% to 100%
+  const animationDelay = Math.random() * 2;  // Random delay before starting (up to 2 seconds)
+  const animationDuration = (Math.random() * 5) + 5;  // 랜덤한 내리기 속도 (5~10초 사이)
+
+  // Set the random left position and animation duration
+  snowflake.style.animationDelay = animationDelay + 's';  // Add delay before starting to fall
+  snowflake.style.animationDuration = animationDuration + 's';
+  snowflake.style.left = randomLeft + '%';
+
+  // Add snowflake styling
+  snowflake.style.position = 'absolute';
+  snowflake.style.top = '-10px';  // 눈송이 시작 위치 (화면 상단)
+  snowflake.style.width = '10px';  // 눈송이 크기
+  snowflake.style.height = '10px';  // 눈송이 크기
+  snowflake.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';  // 흰색
+  snowflake.style.borderRadius = '50%';  // 원형으로 설정
+
+  // Append the snowflake to the container
+  snowflakesContainer.appendChild(snowflake);
+
+  // 일정 시간 뒤에 눈송이가 떨어지지 않도록 삭제
+  setTimeout(() => {
+    snowflakesContainer.removeChild(snowflake);
+  }, (animationDuration + animationDelay) * 1000);  // 눈송이가 끝나면 삭제
+}
+
+// 눈송이를 일정 간격으로 생성
+setInterval(generateSnowflake, 200);  // 200ms마다 새로운 눈송이 생성
+
 let vehicle = null;
 let brakeDecels = {};
 
@@ -304,9 +470,36 @@ const btnStart=document.getElementById("btnStart");
 const canvas=document.getElementById("hud");
 const ctx=canvas.getContext("2d");
 
+const weatherSelect = document.getElementById("weatherSelect");
+const snowflakes = document.querySelector(".snowflakes");
+const raindrops = document.querySelector(".raindrops");
 
+weatherSelect.addEventListener("change", function() {
+  const weather = this.value;
 
+  if (weather === "눈옴") {
+    snowflakes.style.display = "block";  // 눈 애니메이션 표시
+    raindrops.style.display = "none";   // 비 애니메이션 숨김
+  } else if (weather === "비옴") {
+    raindrops.style.display = "block";  // 비 애니메이션 표시
+    snowflakes.style.display = "none";  // 눈 애니메이션 숨김
+  } else {
+    raindrops.style.display = "none";   // 비 애니메이션 숨김
+    snowflakes.style.display = "none";  // 눈 애니메이션 숨김
+  }
+});
 
+// 초기값에 따라 애니메이션 설정
+if (weatherSelect.value === "눈옴") {
+  snowflakes.style.display = "block";
+  raindrops.style.display = "none";
+} else if (weatherSelect.value === "비옴") {
+  snowflakes.style.display = "none";
+  raindrops.style.display = "block";
+} else {
+  snowflakes.style.display = "none";
+  raindrops.style.display = "none";
+}
 
 function resize(){
   canvas.width=canvas.clientWidth*devicePixelRatio;
@@ -350,6 +543,58 @@ btnStart.addEventListener("click", () => {
   sendCmd("start", 0);
   overlay.classList.add("hide");
 });
+// 날씨 변경 시 애니메이션과 배경색을 동적으로 변경
+weatherSelect.addEventListener("change", function() {
+  const weather = this.value;
+
+  if (weather === "눈옴") {
+    snowflakes.style.display = "block";  // 눈 애니메이션 표시
+    raindrops.style.display = "none";   // 비 애니메이션 숨김
+    document.documentElement.style.background = "#ffffff"; 
+    document.body.style.background = "#ffffff"; 
+    document.body.classList.add('snow-background');
+    document.body.classList.remove('rain-background');
+  } else if (weather === "비옴") {
+    raindrops.style.display = "block";  // 비 애니메이션 표시
+    snowflakes.style.display = "none";  // 눈 애니메이션 숨김
+    document.documentElement.style.background = "#4b5d67"; 
+    document.body.style.background = "#4b5d67"; 
+    document.body.classList.add('rain-background');
+    document.body.classList.remove('snow-background');
+  } else {
+    raindrops.style.display = "none";   // 비 애니메이션 숨김
+    snowflakes.style.display = "none";  // 눈 애니메이션 숨김
+    document.documentElement.style.background = "#0b0f14"; 
+    document.body.style.background = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
+    document.body.classList.remove('snow-background');
+    document.body.classList.remove('rain-background');
+  }
+});
+
+// 초기값 설정
+if (weatherSelect.value === "눈옴") {
+  snowflakes.style.display = "block";
+  raindrops.style.display = "none";
+  document.documentElement.style.background = "#ffffff";
+  document.body.style.background = "#ffffff"; 
+  document.body.classList.add('snow-background');
+  document.body.classList.remove('rain-background');
+} else if (weatherSelect.value === "비옴") {
+  snowflakes.style.display = "none";
+  raindrops.style.display = "block";
+  document.documentElement.style.background = "#4b5d67";
+  document.body.style.background = "#4b5d67"; 
+  document.body.classList.add('rain-background');
+  document.body.classList.remove('snow-background');
+} else {
+  snowflakes.style.display = "none";
+  raindrops.style.display = "none";
+  document.documentElement.style.background = "#0b0f14"; 
+  document.body.style.background = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
+  document.body.classList.remove('snow-background');
+  document.body.classList.remove('rain-background');
+}
+
 
 btnStart.addEventListener("click", () => {
   const speed = Number(inputSpeed.value);
