@@ -1,4 +1,5 @@
-# uvicorn server:app --reload
+# 
+
 import math
 import json
 import asyncio

@@ -400,9 +400,6 @@ body {
 </div>
 
 
-
-
-
 <script>
 const snowflakesContainer = document.querySelector('.snowflakes');
 
@@ -701,20 +698,23 @@ addEventListener("keydown", (e) => {
 });
 
 
-
 if (/Mobi|Android/i.test(navigator.userAgent)) {
   window.addEventListener("touchstart", (e) => {
-    if (e.touches.length !== 1) return;
+    if (e.touches.length !== 1) return;  // 한 손가락만 터치되었을 때만 처리
     const touch = e.touches[0];
-    const y = touch.clientY;
-    const h = window.innerHeight;
+    const y = touch.clientY;  // 터치한 Y좌표
+    const h = window.innerHeight;  // 화면 높이
 
+    // 화면 상단을 터치했을 때
     if (y < h / 2) {
-      sendCmd("applyNotch", +1);
-    } else {
-      sendCmd("applyNotch", -1);
+      sendCmd("applyNotch", +1);  // 브레이크 올리기
+      e.preventDefault();  // 터치 이벤트의 기본 동작을 막음
     }
-    e.preventDefault();
+    // 화면 하단을 터치했을 때
+    else {
+      sendCmd("applyNotch", -1);  // 브레이크 내리기
+      e.preventDefault();  // 터치 이벤트의 기본 동작을 막음
+    }
   }, { passive: false });
 }
 
