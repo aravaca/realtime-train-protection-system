@@ -245,6 +245,17 @@ button:hover, .btn-primary:hover {
       </select>
     </label>
 
+    <label class="form-label" for="trainLength">편성</label>
+      <select class="form-input" id="trainLength" onchange="updateTrainLength()">
+          <option value="4">4량</option>
+          <option value="6">6량</option>
+          <option value="8">8량</option>
+          <option value="10">10량</option>
+          <option value="12">12량</option>
+          <option value="15">15량</option>
+      </select>
+
+
 
     <div class="kbd-info">
       <span class="kbd">W</span> 브레이크 강화 · 
@@ -293,6 +304,10 @@ const btnStart=document.getElementById("btnStart");
 const canvas=document.getElementById("hud");
 const ctx=canvas.getContext("2d");
 
+
+
+
+
 function resize(){
   canvas.width=canvas.clientWidth*devicePixelRatio;
   canvas.height=canvas.clientHeight*devicePixelRatio;
@@ -303,6 +318,14 @@ function sendCmd(name, delta) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({type:"cmd", payload:{name, delta}}));
   }
+}
+
+function updateTrainLength() {
+    const trainLength = document.getElementById("trainLength").value;
+    ws.send(JSON.stringify({
+        type: "cmd",
+        payload: { name: "setTrainLength", length: trainLength }
+    }));
 }
 const inputSpeed = document.getElementById("inputSpeed");
 const inputDist = document.getElementById("inputDist");

@@ -27,6 +27,10 @@ class Vehicle:
     rho_air: float = 1.225
     Cd: float = 1.8
     A: float = 10.0
+    
+    def update_mass(self, length: int):
+        # 질량을 량 수에 맞춰 업데이트
+        self.mass_kg = self.mass_t * 1000 * length
 
     @classmethod
     def from_json(cls, filepath):
@@ -228,7 +232,7 @@ class StoppingSim:
 
         # 경사 가속도
         a_grade = -9.81 * (self.scn.grade_percent / 100.0)
-        # a_grade /= 10 #보정
+        a_grade /= 10 #보정
 
         # Rolling resistance
         v = st.v
@@ -519,6 +523,11 @@ async def ws_endpoint(ws: WebSocket):
                         sim.queue_command("release", 0)
                     elif name == "emergencyBrake":
                         sim.queue_command("emergencyBrake", 0)
+                    elif name == "setTrainLength":
+                        length = int(payload.get("length", 8))  # 기본값 8량
+                        vehicle.update_mass(length)  # 차량의 질량 업데이트
+                        print(f"Train length set to {length} cars.") 
+                        sim.reset()
                     elif name == "reset":
                         sim.reset()
             except asyncio.TimeoutError:
