@@ -145,6 +145,9 @@ class StoppingSim:
 
         self.eb_used = False  # EB 사용 여부 기록
 
+        self.prev_a = 0.0  # 이전 가속도 저장용
+        self.jerk_history = []
+
     def _clamp_notch(self, n):
         return max(0, min(self.veh.notches - 1, n))
 
@@ -178,6 +181,9 @@ class StoppingSim:
         self.first_brake_done = False
         self.notch_history.clear()
         self.time_history.clear()
+        self.prev_a = 0.0  # 초기 가속도
+        self.jerk_history = []
+
         print("Simulation reset")
 
     def start(self):
@@ -221,8 +227,8 @@ class StoppingSim:
         )
 
         # 경사 가속도
-        a_grade = -9.81 * (self.scn.grade_percent / 1000.0)
-        
+        a_grade = -9.81 * (self.scn.grade_percent / 100.0)
+        # a_grade /= 10 #보정
 
         # Rolling resistance
         v = st.v
@@ -306,7 +312,7 @@ class StoppingSim:
                 st.issues["stop_not_b1_msg"] = "정차 시 B1로 정차함 - 승차감 양호"
             elif last_notch == 0:
                 st.issues["stop_not_b1"] = True
-                st.issues["stop_not_b1_msg"] = "정차 시 N으로 정차함 - 열차가 미끄러질 수 있음"
+                st.issues["stop_not_b1_msg"] = "정차 시 N으로 정차함 - 열차 미끄러짐 주의"
             else:
                 st.issues["stop_not_b1"] = True
                 st.issues["stop_not_b1_msg"] = "정차 시 B2 이상으로 정차함 - 승차감 불쾌"
@@ -321,10 +327,6 @@ class StoppingSim:
             error_score = max(0, 500 - int(err_abs * 500))  # 오차 0m → 500점, 10m → 0점
             score += error_score
 
-            st.score = score
-            self.running = False
-            print(f"Simulation finished. Score: {score}")
-
             # 초기 제동 체크
             st.issues["early_brake_too_short"] = not self.first_brake_done
 
@@ -338,6 +340,30 @@ class StoppingSim:
             )
 
             st.issues["stop_error_m"] = st.stop_error_m
+
+            if not hasattr(self, "prev_a"):
+                self.prev_a = 0.0
+            if not hasattr(self, "jerk_history"):
+                self.jerk_history = []
+
+            # 가속도 변화량(저크) 계산
+            jerk = abs((st.a - self.prev_a) / dt)
+            if jerk > 30:
+                print(f"High jerk detected: {jerk:.3f} at t={st.t:.3f}")
+            self.prev_a = st.a
+            self.jerk_history.append(jerk)
+
+            print(self.jerk_history)
+            if st.finished:
+                avg_jerk, jerk_score = self.compute_jerk_score()
+                score += int(jerk_score)
+                st.score = score
+                print(f"Avg jerk: {avg_jerk:.4f}, jerk_score: {jerk_score:.2f}, final score: {score}")
+                self.running = False
+
+                print(f"Simulation finished. Score: {score}")
+
+
 
 
     def is_stair_pattern(self, notches: List[int]) -> bool:
@@ -381,6 +407,36 @@ class StoppingSim:
             return False
 
         return True
+        
+    def compute_jerk_score(self):
+        dt = self.scn.dt
+        window_time = 1.0
+        n = int(window_time / dt)
+        recent_jerks = self.jerk_history[-n:] if len(self.jerk_history) >= n else self.jerk_history
+
+        if not recent_jerks:
+            print("jerk_history is empty")
+            return 0.0, 0
+
+        avg_jerk = sum(recent_jerks) / len(recent_jerks)
+        high_jerk_count = sum(1 for j in recent_jerks if j > 30)  # 임계치 30
+
+        penalty_factor = min(1, high_jerk_count / 10)  # 10회 이상 급격한 저크 발생 시 페널티 최대
+        adjusted_jerk = avg_jerk * (1 + penalty_factor)
+
+        print(f"avg_jerk={avg_jerk:.2f}, high_jerk_count={high_jerk_count}, penalty_factor={penalty_factor:.2f}, adjusted_jerk={adjusted_jerk:.2f}")
+
+        if adjusted_jerk <= 25:
+            jerk_score = 500
+        elif adjusted_jerk <= 50:
+            jerk_score = 500 * (50 - adjusted_jerk) / 25
+        else:
+            jerk_score = 0
+
+        return adjusted_jerk, jerk_score
+
+
+
 
     def snapshot(self):
         st = self.state

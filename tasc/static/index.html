@@ -368,45 +368,20 @@ addEventListener("keydown", (e) => {
   if (e.repeat) return;
 
   if (e.key === " ") {
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws.readyState !== WebSocket.OPEN) return;
+
+    if (overlay.classList.contains("hide")) {
+      // 오버레이 숨김 상태 → 게임 진행 중 또는 종료
       if (isFinished) {
-        if (!overlayShowingResult) {
-          // 첫번째 스페이스: 결과 오버레이 보여주기
-          overlay.classList.remove("hide");
-          // overlay.querySelector("div.card > div").textContent = "결과";
-          overlayShowingResult = true;
-        } else {
-          // 두번째 스페이스: 결과 오버레이 닫고 게임 시작
-          overlay.classList.add("hide");
-          const speed = Number(inputSpeed.value);
-          const dist = Number(inputDist.value);
-          const grade = Number(inputGrade.value);
-
-          ws.send(JSON.stringify({
-            type: "cmd",
-            payload: {
-              name: "setInitial",
-              speed,
-              dist,
-              grade,
-            }
-          }));
-          ws.send(JSON.stringify({
-            type: "cmd",
-            payload: {
-              name: "start"
-            }
-          }));
-
-          isFinished = false;
-          overlayShowingResult = false;
-        }
+        // 결과 오버레이 보여주기
+        overlay.classList.remove("hide");
+        overlayShowingResult = true;
+        isFinished = false; // 결과창 상태 진입
       } else {
-        // 게임이 진행중 또는 아직 안끝났으면 그냥 시작
+        // 게임 도중에 다시 시작
         const speed = Number(inputSpeed.value);
         const dist = Number(inputDist.value);
         const grade = Number(inputGrade.value);
-
         ws.send(JSON.stringify({
           type: "cmd",
           payload: {
@@ -418,17 +393,34 @@ addEventListener("keydown", (e) => {
         }));
         ws.send(JSON.stringify({
           type: "cmd",
-          payload: {
-            name: "start"
-          }
+          payload: { name: "start" }
         }));
-
-        overlay.classList.add("hide");
         isFinished = false;
         overlayShowingResult = false;
       }
+    } else {
+      // 오버레이가 보이는 상태 → 게임 시작
+      overlay.classList.add("hide");
+      const speed = Number(inputSpeed.value);
+      const dist = Number(inputDist.value);
+      const grade = Number(inputGrade.value);
+      ws.send(JSON.stringify({
+        type: "cmd",
+        payload: {
+          name: "setInitial",
+          speed,
+          dist,
+          grade,
+        }
+      }));
+      ws.send(JSON.stringify({
+        type: "cmd",
+        payload: { name: "start" }
+      }));
+      isFinished = false;
+      overlayShowingResult = false;
     }
-  }
+  } 
   else if (e.key === "w" || e.key === "W") {
     sendCmd("applyNotch", +1);
   }
@@ -439,6 +431,7 @@ addEventListener("keydown", (e) => {
     sendCmd("release", 0);
   }
 });
+
 
 
 if (/Mobi|Android/i.test(navigator.userAgent)) {
@@ -487,24 +480,35 @@ function drawHUD(st) {
 
   // remainingDistance가 작을 때 급격한 축소 방지 (예: 제곱근 스케일링)
   const safeRemaining = Math.max(minX, Math.sqrt(adjustedRemaining) * 10);
+  const s_b1 = (brakeDecels[1] ?? 0) > 0 ? (v0 * v0) / (2 * brakeDecels[1]) : 0;
+  const s_b2 = (brakeDecels[2] ?? 0) > 0 ? (v0 * v0) / (2 * brakeDecels[2]) : 0;
 
-  const decel_b3 = brakeDecels[3] ?? 0;
-  const s_b3 = decel_b3 > 0 ? (v0 * v0) / (2 * decel_b3) : 0;
 
-  const isStart = remainingDistance > 300;  // 시작 기준, 필요하면 조절
 
-// 전역 변수 혹은 함수 밖에 저장 (예: let prevMaxDistance = 0;)
+  const isStart = remainingDistance > 0;  // 시작 기준, 필요하면 조절
 
-  const smoothFactor = 0.001;  // 0~1, 클수록 빠르게 변화
+
+  const smoothFactor = 0.1;  // 0~1, 클수록 빠르게 변화
   const targetMaxDistance = Math.max(
     minL,
-    maxStopDist * 1.5,
-    safeRemaining * 1.2,
-    s_b3 * (remainingDistance > 300 ? 1.1 : 0)
+    maxStopDist * 1.5,          // 최대 제동 거리 기준
+    safeRemaining * 1.2,        // 남은 거리 기준
+    s_b1 * 1.1,                 // B1 표시도 들어오게
+    s_b2 * 1.1                  // B2 표시도 들어오게
   );
 
-  maxDistance = prevMaxDistance * (1 - smoothFactor) + targetMaxDistance * smoothFactor;
+  let maxDistance;
+
+  if (prevMaxDistance === 0) {
+    // 첫 프레임 → 부드러운 보간 없이 바로 타겟 거리 사용
+    maxDistance = targetMaxDistance;
+  } else {
+    // 이후 프레임 → 부드러운 보간
+    maxDistance = prevMaxDistance * (1 - smoothFactor) + targetMaxDistance * smoothFactor;
+  }
+
   prevMaxDistance = maxDistance;
+
 
   const leftMargin = 48 * dpr;
   const rightMargin = 12 * dpr;
@@ -532,13 +536,13 @@ function drawHUD(st) {
   ctx.font = `${10 * dpr}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  for (let dist = 0; dist <= maxDistance; dist += 50) {
+  for (let dist = 0; dist <= maxDistance; dist += 100) {
     const x = X(dist);
     ctx.beginPath();
     ctx.moveTo(x, h - bottomMargin);
     ctx.lineTo(x, h - bottomMargin + 4 * dpr);
     ctx.stroke();
-    ctx.fillText(`${Math.round(dist)}m`, x, h - bottomMargin + 6 * dpr);
+    ctx.fillText(`${Math.round(dist)}`, x, h - bottomMargin + 6 * dpr);
   }
 
   // y축 눈금 (10km/h 단위)
@@ -618,6 +622,81 @@ function drawHUD(st) {
   // ctx.font = `${14 * dpr}px 'Orbitron', sans-serif`;
   // ctx.textAlign = "left";
   // ctx.fillText(`속도: ${(v0 * 3.6).toFixed(1)} km/h`, x_redline + 10 * dpr, Y(v0 * 3.6) - 10 * dpr);
+
+// 리본 너비, 높이, 위치
+const ribbonWidth = 16 * dpr;
+const ribbonHeight = h * 0.9;
+const ribbonX = w - rightMargin - ribbonWidth - 10 * dpr + 20;
+const ribbonY = ((h - ribbonHeight) / 2) - 12;
+
+// 리본 그리기
+ctx.fillStyle = "rgba(100, 100, 100, 0.1)";
+ctx.strokeStyle = "rgba(100, 100, 100, 0.3)";
+ctx.lineWidth = 1.5 * dpr;
+ctx.beginPath();
+ctx.rect(ribbonX, ribbonY, ribbonWidth, ribbonHeight);
+ctx.fill();
+ctx.stroke();
+
+// 리본 중앙 기준점 (0m) 표시용 작은 진한 회색 박스
+const centerY = (ribbonY + ribbonHeight / 2) - 5;
+const barHeight = 12 * dpr;
+ctx.fillStyle = "rgba(60, 60, 60, 0.9)";
+ctx.fillRect(ribbonX + 2 * dpr, centerY - barHeight / 2, ribbonWidth - 4 * dpr, barHeight);
+
+// 다이아몬드가 움직일 최대 픽셀 폭 (세로 방향)
+const ribbonTotalHeight = ribbonHeight; // 리본의 높이
+
+// 유저 입력 정차 거리 L (m)
+const L = st.L;
+
+// 현재 남은 거리 (m), 0~L 범위 제한
+const rem = Math.min(Math.max(st.remaining_m ?? L, -L), L); // rem 값이 -L ~ L 범위로 제한
+
+// 리본의 상단을 5m, 하단을 -5m로 설정
+const topLimit = 7;    // 리본 상단 (5m)
+const bottomLimit = -7; // 리본 하단 (-5m)
+
+// 다이아몬드의 세로 위치 계산
+// rem=0일 때 리본 중앙에 위치하고,
+// rem=5일 때 리본 상단에 위치하며,
+// rem=-5일 때 리본 하단에 위치하도록 설정
+const diamondWidth = 16 * dpr;
+const diamondHeight = 10 * dpr;
+
+const stopErrorRaw = st.stop_error_m ?? 0;
+const stopErrorM = Math.max(-5, Math.min(5, stopErrorRaw));
+
+// 다이아몬드 X 좌표는 고정
+const diamondX = ribbonX + ribbonWidth / 2;
+
+// 남은 거리 rem을 사용하여 다이아몬드의 Y 좌표 계산
+// rem=0일 때 중앙에 위치하고, rem=5일 때 상단, rem=-5일 때 하단에 위치하도록 계산
+const normalizedRem = (rem - bottomLimit) / (topLimit - bottomLimit); // -5 ~ 5 범위 -> 0 ~ 1 범위로 변환
+
+// 다이아몬드 Y 좌표 계산 (0일 때 중앙, 5일 때 상단, -5일 때 하단)
+// 오버런을 허용하려면 normalizedRem 계산을 일부 조정
+const diamondY = ribbonY + (ribbonHeight * (1 - normalizedRem)) - diamondHeight / 2;
+
+// 오버런도 표시하도록 다이아몬드가 리본의 상단 및 하단을 벗어날 수 있도록 추가
+const overflowLimit = 10 * dpr; // 오버런을 표현할 수 있는 한계
+
+// 다이아몬드가 리본을 넘어서 오버런 할 수 있도록 Y 값을 조정
+const adjustedDiamondY = Math.min(Math.max(diamondY, ribbonY - overflowLimit), ribbonY + ribbonHeight - diamondHeight + overflowLimit);
+
+ctx.fillStyle = "#444";
+ctx.strokeStyle = "#222";
+ctx.lineWidth = 2 * dpr;
+
+ctx.beginPath();
+ctx.moveTo(diamondX, adjustedDiamondY - diamondHeight / 2);
+ctx.lineTo(diamondX + diamondWidth / 2, adjustedDiamondY);
+ctx.lineTo(diamondX, adjustedDiamondY + diamondHeight / 2);
+ctx.lineTo(diamondX - diamondWidth / 2, adjustedDiamondY);
+ctx.closePath();
+ctx.fill();
+ctx.stroke();
+
 }
 
 // 애니메이션 루프 (초당 60fps)
@@ -627,8 +706,8 @@ function loop(timestamp) {
   const dt = (timestamp - lastTimestamp) / 1000;
   lastTimestamp = timestamp;
 
-  updateSimulation(dt);
-  drawHUD(st);
+  // updateSimulation(dt);
+  if (st) drawHUD(st);
 
   requestAnimationFrame(loop);
 }
@@ -639,11 +718,11 @@ const timerEl = document.getElementById("timer");
 
 let isFinished = false;  // 정지 완료 여부 전역 변수
 let overlayShowingResult = false;  // 정지 완료 여부 전역 변수
-
+let st = null;
 ws.onmessage = (ev) => {
   const msg = JSON.parse(ev.data);
   if (msg.type === "state") {
-    const st = msg.payload;
+    st = msg.payload;
 
     // 남은 거리 숫자 타입 보장
     const remRaw = st.remaining_m;
@@ -687,7 +766,7 @@ ws.onmessage = (ev) => {
             return "기본제동 (계단제동/완해) 미흡 - 단속적인 제동으로 인한 승객 쏠림 및 차량 진동 발생";
           },
         },
-        { key: "unnecessary_eb_usage", goodText: "EB 미사용 - 정상 제동범위 가용", badText: "불필요한 EB 사용 - 급쏠림 현상 발생" },
+        { key: "unnecessary_eb_usage", goodText: "영업 안전 제동범위 준수", badText: "불필요한 비상제동(EB) 사용 - 급감속으로 인한 충격 발생" },
       ];
 
       // 중복 제거: feedbacks를 한 번만 만듭니다
