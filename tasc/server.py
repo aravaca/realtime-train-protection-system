@@ -551,3 +551,8 @@ async def ws_endpoint(ws: WebSocket):
             await ws.close()
         except RuntimeError:
             pass
+        
+# /etc/nginx/conf.d/site.conf 의 server { ... } 안
+location ~* \.(json|js|css|png|jpg|jpeg|gif|svg|ico|woff2?)$ {
+    try_files $uri =404;
+}

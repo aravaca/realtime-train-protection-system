@@ -5,12 +5,20 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>TASC Stop Trainer</title>
 <style>
-  html, body {
+html, body {
   margin: 0;
   background: radial-gradient(circle at 50% 20%, #0b0f14, #05070a);
+  background-attachment: fixed; /* 스크롤 시 유지 */
   color: #e7f0ff;
   font-family: 'Orbitron', system-ui, Segoe UI, Roboto, Apple SD Gothic Neo, AppleGothic, sans-serif;
 }
+
+.game-background,
+.snow-background,
+.rain-background {
+  background: transparent !important;
+}
+
 
 #wrap {
   max-width: 960px;
@@ -1082,3 +1090,4 @@ ws.onmessage = (ev) => {
 </script>
 </body>
 </html>
+
