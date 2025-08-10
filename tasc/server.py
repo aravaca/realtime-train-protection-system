@@ -529,6 +529,12 @@ async def ws_endpoint(ws: WebSocket):
                         vehicle.update_mass(length)  # 차량의 질량 업데이트
                         print(f"Train length set to {length} cars.") 
                         sim.reset()
+                    elif name == "setMassTons":
+                        mass_tons = float(payload.get("mass_tons", 200.0))
+                        vehicle.mass_t = mass_tons / int(payload.get("length", 8))  # 차량 1량 기준 질량으로 재계산
+                        vehicle.mass_kg = mass_tons * 1000.0
+                        print(f"차량 전체 중량을 {mass_tons:.2f} 톤으로 업데이트 했습니다.")
+                        sim.reset()
                     elif name == "reset":
                         sim.reset()
             except asyncio.TimeoutError:

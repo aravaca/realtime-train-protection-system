@@ -361,6 +361,11 @@ body {
         <option value="눈옴">눈옴</option>
       </select>
     </label>
+    <label class="form-label">
+      승객 탑승률 (%)
+      <input id="inputLoadRate" type="number" value="70" min="0" max="120" step="1" class="form-input">
+    </label>
+
 
     <label class="form-label" for="trainLength">편성</label>
       <select class="form-input" id="trainLength" onchange="updateTrainLength()">
@@ -524,7 +529,34 @@ function updateTrainLength() {
         type: "cmd",
         payload: { name: "setTrainLength", length: trainLength }
     }));
+    sendLoadRate();
 }
+
+function sendLoadRate() {
+  const loadRate = parseFloat(document.getElementById("inputLoadRate").value) || 0;
+  const trainLength = parseInt(document.getElementById("trainLength").value) || 8;
+
+  // 차량 기본 중량(톤) - 1량 기준
+  const baseMassPerCar = 39.9;
+  // 만차 승객 무게 (톤) - 1량 기준
+  const maxPassengerMassPerCar = 10.5;
+
+  // 총 중량 계산
+  // 예: 70% 탑승률이면 baseMass + 0.7 * maxPassengerMass
+  const totalMassTons = trainLength * (baseMassPerCar + maxPassengerMassPerCar * (loadRate / 100));
+
+  // 서버로 전송
+  ws.send(JSON.stringify({
+    type: "cmd",
+    payload: {
+      name: "setMassTons",
+      mass_tons: totalMassTons
+    }
+  }));
+
+  console.log(`총 차량 중량 업데이트: ${totalMassTons.toFixed(2)} 톤 (탑승률: ${loadRate}%)`);
+}
+
 const inputSpeed = document.getElementById("inputSpeed");
 const inputDist = document.getElementById("inputDist");
 const inputGrade = document.getElementById("inputGrade");
@@ -1086,6 +1118,7 @@ ws.onmessage = (ev) => {
   }
 };
 
+document.getElementById("inputLoadRate").addEventListener("change", sendLoadRate);
 
 </script>
 <footer style="text-align:center; font-size:12px; color:#888; padding:8px 0; user-select:none;">
