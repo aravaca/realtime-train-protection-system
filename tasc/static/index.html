@@ -359,7 +359,8 @@ body {
 <div class="mobile-control-guide">
   📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>
   위쪽 터치 → 브레이크 강화 🔼<br>
-  아래쪽 터치 → 브레이크 완화 🔽
+  아래쪽 터치 → 브레이크 완화 🔽<br>
+  정차 후 아래 화면에서 피드백을 확인하세요.
 </div>
     <div class="card" style="flex:1 1 260px">
       <div id="carName" style="font-size:20px" class = "stat">차량 로딩 중...</div>
@@ -955,7 +956,7 @@ function drawHUD(st) {
     ctx.fillStyle = notch === lever ? "#ffae00" : "#3fa9ff";
     ctx.font = `${12 * dpr}px 'Orbitron', sans-serif`;
     const textX = X(s_brake);
-    if (notch == 8) {
+    if (notch == 9) {
       ctx.fillText(`EB`, textX + 5 * dpr, Y(0) + 12 * dpr);
       
     } else if (notch == 0) {
@@ -1106,7 +1107,7 @@ ws.onmessage = (ev) => {
     spdEl.textContent = (st.v * 3.6).toFixed(1);
     function notchText(notch) {
       if (notch === 0) return "N";
-      else if (notch === 8) return "EB"; 
+      else if (notch === 9) return "EB"; 
       else return `B${notch}`;
     }
     notchEl.textContent = notchText(st.lever_notch);
