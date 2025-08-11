@@ -638,9 +638,11 @@ btnStart.addEventListener("click", startRun);
 
 const btnMobileRestart = document.getElementById("btnMobileRestart");
 btnMobileRestart.addEventListener("click", () => {
-  if (isFinished) startRun();
+  // 모바일 재시작은 바로 시작하지 않고 설정 오버레이를 연다
+  overlay.classList.remove("hide");      // 오버레이 열기
+  overlayShowingResult = true;           // 결과/설정 표시 상태
+  btnMobileRestart.classList.add("hide"); // 오버레이 열렸으니 FAB 숨기기
 });
-
 
 // 날씨 변경 시 애니메이션과 배경색을 동적으로 변경
 weatherSelect.addEventListener("change", function() {
