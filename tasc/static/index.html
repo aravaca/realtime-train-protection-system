@@ -335,12 +335,32 @@ body {
   background: linear-gradient(135deg, #0072ff, #00c6ff);
   transform: translateX(-50%) translateY(-1px);
 }
-
+.mobile-control-guide {
+  display: none; /* 기본은 숨김 */
+  font-size: 14px;
+  color: #9fc5ff;
+  background: rgba(18, 24, 38, 0.7);
+  border: 1px solid rgba(0, 246, 255, 0.2);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+@media (max-width: 768px) {
+  .mobile-control-guide {
+    display: block; /* 모바일에서는 표시 */
+  }
+}
 </style>
 </head>
 <body>
 <div id="wrap" class="row" style="flex-direction:column">
   <div class="row" style="gap:16px;flex-wrap:wrap">
+
+<div class="mobile-control-guide">
+  📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>
+  위쪽 터치 → 브레이크 강화 🔼<br>
+  아래쪽 터치 → 브레이크 완화 🔽
+</div>
     <div class="card" style="flex:1 1 260px">
       <div id="carName" style="font-size:20px" class = "stat">차량 로딩 중...</div>
       <div>남은 거리 <span class="stat" id="rem">—</span> m</div>
