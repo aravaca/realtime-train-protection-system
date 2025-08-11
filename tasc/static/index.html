@@ -306,6 +306,25 @@ body {
   overflow: hidden; /* 애니메이션이 화면 밖으로 나가지 않도록 설정 */
 }
 
+.fab {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 12px 18px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  color: #fff;
+  border: none;
+  z-index: 10000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+.fab.hide { display: none; }
+.fab:hover {
+  background: linear-gradient(135deg, #0072ff, #00c6ff);
+  transform: translateX(-50%) translateY(-1px);
+}
 
 </style>
 </head>
@@ -560,26 +579,39 @@ function sendLoadRate() {
 const inputSpeed = document.getElementById("inputSpeed");
 const inputDist = document.getElementById("inputDist");
 const inputGrade = document.getElementById("inputGrade");
-btnStart.addEventListener("click", () => {
+
+function startRun() {
   const speed = Number(inputSpeed.value);
-  const dist = Number(inputDist.value);
+  const dist  = Number(inputDist.value);
   const grade = Number(inputGrade.value);
+  const weather = weatherSelect.value;
+
+  let mu = 1.0;
+  if (weather === "비옴") mu = 0.6;
+  else if (weather === "눈옴") mu = 0.3;
 
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
-      type: "cmd",
-      payload: {
-        name: "setInitial",
-        speed,
-        dist,
-        grade,
-      }
-    }));
+    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setInitial", speed, dist, grade } }));
+    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMu", value: mu }}));
+    ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" }}));
   }
 
-  sendCmd("start", 0);
   overlay.classList.add("hide");
+  isFinished = false;
+  overlayShowingResult = false;
+
+  // 모바일 FAB 숨기기
+  document.getElementById("btnMobileRestart")?.classList.add("hide");
+}
+
+btnStart.addEventListener("click", startRun);
+
+const btnMobileRestart = document.getElementById("btnMobileRestart");
+btnMobileRestart.addEventListener("click", () => {
+  if (isFinished) startRun();
 });
+
+
 // 날씨 변경 시 애니메이션과 배경색을 동적으로 변경
 weatherSelect.addEventListener("change", function() {
   const weather = this.value;
@@ -738,24 +770,23 @@ addEventListener("keydown", (e) => {
 });
 
 
-if (/Mobi|Android/i.test(navigator.userAgent)) {
-  window.addEventListener("touchstart", (e) => {
-    if (e.touches.length !== 1) return;  // 한 손가락만 터치되었을 때만 처리
-    const touch = e.touches[0];
-    const y = touch.clientY;  // 터치한 Y좌표
-    const h = window.innerHeight;  // 화면 높이
 
-    // 화면 상단을 터치했을 때
-    if (y < h / 2) {
-      sendCmd("applyNotch", +1);  // 브레이크 올리기
-      e.preventDefault();  // 터치 이벤트의 기본 동작을 막음
+if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+  const gameSurface = document.getElementById("hud");
+  gameSurface.addEventListener("touchstart", (e) => {
+    if (!overlay.classList.contains("hide")) return; // 오버레이 보이면 조작 안 함
+    if (e.touches.length !== 1) return; // 멀티터치 무시
+
+    const rect = gameSurface.getBoundingClientRect();
+    const y = e.touches[0].clientY - rect.top; // 캔버스 내부 Y좌표
+    const half = rect.height / 2;
+
+    if (y < half) {
+      sendCmd("applyNotch", +1); // 브레이크 강화
+    } else {
+      sendCmd("applyNotch", -1); // 브레이크 완화
     }
-    // 화면 하단을 터치했을 때
-    else {
-      sendCmd("applyNotch", -1);  // 브레이크 내리기
-      e.preventDefault();  // 터치 이벤트의 기본 동작을 막음
-    }
-  }, { passive: false });
+  }, { passive: true });
 }
 
 let prevMaxDistance = 0;
@@ -1110,6 +1141,11 @@ ws.onmessage = (ev) => {
         })
         .join("") + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S로 조작</div>`;
 
+if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+  document.getElementById("btnMobileRestart").classList.remove("hide");
+}
+
+
     } else {
       isFinished = true;
       fb.textContent = "Space로 시작. W/S로 브레이크 조절하세요.";
@@ -1124,6 +1160,7 @@ document.getElementById("inputLoadRate").addEventListener("change", sendLoadRate
 <footer style="text-align:center; font-size:12px; color:#888; padding:8px 0; user-select:none;">
   ©2025 Hyungsuk Choi, University of Maryland
 </footer>
+<button id="btnMobileRestart" class="fab hide">재시작</button>
 </body>
 </html>
 
