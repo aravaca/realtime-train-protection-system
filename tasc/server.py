@@ -110,6 +110,16 @@ def build_vref(L: float, a_ref: float):
     return vref
 
 
+def _mu_to_rr_factor(mu: float) -> float:
+    """
+    μ가 낮을수록(미끄러울수록) 구름저항 스케일을 낮춰 코스팅에서 더 미끄러지게.
+    맑음 μ=1.0 → 1.0, 비 μ=0.6 → ~0.88, 눈 μ=0.3 → ~0.79 (가벼운 효과)
+    필요 시 아래 계수를 조정해 체감 강도를 키우거나 줄여도 됨.
+    """
+    mu_clamped = max(0.0, min(1.0, float(mu)))
+    return 0.7 + 0.3 * mu_clamped
+
+
 # =========================
 # Simulator
 # =========================
@@ -147,6 +157,9 @@ class StoppingSim:
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"      # "build" → "relax" (완해 단계)
         self._tasc_peak_notch = 1
+
+        # 날씨가 코스팅에 미치는 효과(구름저항 스케일)
+        self.rr_factor = _mu_to_rr_factor(self.scn.mu)
 
     def _clamp_notch(self, n: int) -> int:
         return max(0, min(self.veh.notches - 1, n))
@@ -215,7 +228,7 @@ class StoppingSim:
         a = self.veh.notch_accels[notch]
         if a >= 0:
             return float('inf')
-        mu = max(0.1, float(self.scn.mu))
+        mu = max(0.1, float(self.scn.mu))  # TASC 판단 안정성 위해 하한 유지
         return (v * v) / (2.0 * abs(a) * mu)
 
     def step(self):
@@ -291,14 +304,15 @@ class StoppingSim:
 
         # 경사 가속도 (보정 포함)
         a_grade = -9.81 * (self.scn.grade_percent / 100.0)
-        a_grade /= 10.0
+        a_grade /= 10.0  # 체감 완화 보정(필요 시 조절)
 
-        # 구름 저항
+        # 구름 저항 (날씨 반영: rr_factor)
         g = 9.81
+        Crr_eff = self.veh.C_rr * self.rr_factor
         if st.v > 0:
-            a_rr = -g * self.veh.C_rr
+            a_rr = -g * Crr_eff
         elif st.v < 0:
-            a_rr = g * self.veh.C_rr
+            a_rr =  g * Crr_eff
         else:
             a_rr = 0.0
 
@@ -492,6 +506,9 @@ class StoppingSim:
             "score": getattr(st, "score", 0),
             "issues": getattr(st, "issues", {}),
             "tasc_enabled": getattr(self, "tasc_enabled", False),
+            # 클라 HUD 동기화를 원하면 사용
+            "mu": float(self.scn.mu),
+            "rr_factor": float(self.rr_factor),
         }
 
 
@@ -543,12 +560,14 @@ async def ws_endpoint(ws: WebSocket):
                         speed = payload.get("speed")
                         dist = payload.get("dist")
                         grade = payload.get("grade", 0.0)
-                        mu = payload.get("mu", 1.0)
+                        mu = float(payload.get("mu", 1.0))
                         if speed is not None and dist is not None:
                             sim.scn.v0 = float(speed) / 3.6
                             sim.scn.L = float(dist)
                             sim.scn.grade_percent = float(grade)
-                            sim.scn.mu = float(mu)
+                            sim.scn.mu = mu
+                            sim.rr_factor = _mu_to_rr_factor(mu)
+                            print(f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}, rr_factor={sim.rr_factor:.3f}")
                             sim.reset()
 
                     elif name == "start":
@@ -598,8 +617,9 @@ async def ws_endpoint(ws: WebSocket):
                     elif name == "setMu":
                         value = float(payload.get("value", 1.0))
                         sim.scn.mu = value
-                        print(f"마찰계수(mu)={value}로 설정")
-                        
+                        sim.rr_factor = _mu_to_rr_factor(value)
+                        print(f"마찰계수(mu)={value} / rr_factor={sim.rr_factor:.3f} 로 설정")
+                        sim.reset()
 
                     elif name == "reset":
                         sim.reset()
