@@ -599,6 +599,7 @@ async def ws_endpoint(ws: WebSocket):
                         value = float(payload.get("value", 1.0))
                         sim.scn.mu = value
                         print(f"마찰계수(mu)={value}로 설정")
+                        sim.reset()
 
                     elif name == "reset":
                         sim.reset()
