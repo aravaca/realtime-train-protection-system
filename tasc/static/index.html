@@ -1133,7 +1133,7 @@ ws.onmessage = (ev) => {
           badTextFunc: (issues) => {
             const overrun = issues.stop_error_m !== undefined && issues.stop_error_m <= -2;
             if (issues.stop_error_m !== undefined && issues.stop_error_m <= -2) {
-              return "기본제동 (계단제동/완해) 미흡 - 오버런";
+              return "기본제동 (계단제동/완해) 미흡 - 정차 위치 초과 및 운행 지연 발생";
             }
             return "기본제동 (계단제동/완해) 미흡 - 단속적인 제동으로 인한 승객 쏠림 및 차량 진동 발생";
           },
