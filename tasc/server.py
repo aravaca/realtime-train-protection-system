@@ -595,6 +595,11 @@ async def ws_endpoint(ws: WebSocket):
                             sim._tasc_peak_notch = 1
                         print(f"TASC set to {enabled}")
 
+                    elif name == "setMu":
+                        value = float(payload.get("value", 1.0))
+                        sim.scn.mu = value
+                        print(f"마찰계수(mu)={value}로 설정")
+
                     elif name == "reset":
                         sim.reset()
 
@@ -622,4 +627,3 @@ async def ws_endpoint(ws: WebSocket):
             await ws.close()
         except RuntimeError:
             pass
-
