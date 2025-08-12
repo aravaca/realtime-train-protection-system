@@ -8,7 +8,7 @@
 html, body {
   margin: 0;
   background: radial-gradient(circle at 50% 20%, #0b0f14, #05070a);
-  background-attachment: fixed; /* 스크롤 시 유지 */
+  background-attachment: fixed;
   color: #e7f0ff;
   font-family: 'Orbitron', system-ui, Segoe UI, Roboto, Apple SD Gothic Neo, AppleGothic, sans-serif;
 }
@@ -19,18 +19,8 @@ html, body {
   background: transparent !important;
 }
 
-
-#wrap {
-  max-width: 960px;
-  margin: 18px auto;
-  padding: 0 12px;
-}
-
-.row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
+#wrap { max-width: 960px; margin: 18px auto; padding: 0 12px; }
+.row { display: flex; gap: 12px; align-items: center; }
 
 .card {
   background: rgba(18, 24, 38, 0.7);
@@ -41,10 +31,7 @@ html, body {
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(0,0,0,0.7);
-}
+.card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,0.7); }
 
 canvas {
   width: 100%;
@@ -53,31 +40,9 @@ canvas {
   border-radius: 12px;
 }
 
-.kbd {
-  background: rgba(10, 18, 28, 0.8);
-  border: 1px solid #2b3f5f;
-  color: #9fc5ff;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 12px;
-}
-
-.stat {
-  font-size: 32px;
-  font-weight: 800;
-  color: #ffffff;
-  text-shadow: 0 0 4px rgba(0, 200, 255, 0.8);
-}
-
-.ok {
-  color: #9effb5;
-}
-.warn {
-  color: #ffd18f;
-}
-.bad {
-  color: #ff9b9b;
-}
+.kbd { background: rgba(10, 18, 28, 0.8); border: 1px solid #2b3f5f; color: #9fc5ff; padding: 2px 6px; border-radius: 6px; font-size: 12px; }
+.stat { font-size: 32px; font-weight: 800; color: #ffffff; text-shadow: 0 0 4px rgba(0, 200, 255, 0.8); }
+.ok { color: #9effb5; } .warn { color: #ffd18f; } .bad { color: #ff9b9b; }
 
 button, .btn-primary {
   background: linear-gradient(135deg, #00c6ff, #0072ff);
@@ -89,373 +54,103 @@ button, .btn-primary {
   font-weight: 600;
   transition: background 0.3s ease, transform 0.1s ease;
 }
-button:hover, .btn-primary:hover {
-  background: linear-gradient(135deg, #0072ff, #00c6ff);
-  transform: translateY(-1px);
-}
+button:hover, .btn-primary:hover { background: linear-gradient(135deg, #0072ff, #00c6ff); transform: translateY(-1px); }
 
 #overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px);
   z-index: 9999;
 }
+#overlay.hide { display: none; }
 
-#overlay.hide {
-  display: none;
-}
-
-.overlay-card {
-  background: rgba(18, 24, 38, 0.9);
-  padding: 24px 28px;
-  border-radius: 14px;
-  box-shadow: 0 0 20px rgba(0, 246, 255, 0.2);
-  text-align: center;
-  width: 300px;
-  border: 1px solid rgba(0, 246, 255, 0.2);
-}
-
-.title {
-  font-size: 1.4rem;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: #00f6ff;
-}
-
-.subtitle {
-  font-size: 0.9rem;
-  color: #9fc5ff;
-  margin-bottom: 16px;
-}
-
-.form-label {
-  display: block;
-  font-size: 0.85rem;
-  margin-bottom: 12px;
-  text-align: left;
-  font-weight: 500;
-  color: #cceaff;
-}
-
+.title { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; color: #00f6ff; }
+.subtitle { font-size: 0.9rem; color: #9fc5ff; margin-bottom: 16px; }
+.form-label { display: block; font-size: 0.85rem; margin-bottom: 12px; text-align: left; font-weight: 500; color: #cceaff; }
 .form-input {
-  width: 95%;
-  padding: 8px 10px;
-  font-size: 0.9rem;
+  width: 95%; padding: 8px 10px; font-size: 0.9rem;
   border: 1px solid rgba(0, 246, 255, 0.3);
-  border-radius: 8px;
-  margin-top: 4px;
-  background: rgba(10, 18, 28, 0.6);
-  color: #e7f0ff;
+  border-radius: 8px; margin-top: 4px; background: rgba(10, 18, 28, 0.6); color: #e7f0ff;
 }
-.form-input:focus {
-  border-color: #00f6ff;
-  outline: none;
+.form-input:focus { border-color: #00f6ff; outline: none; }
+.kbd-info { margin: 16px 0; font-size: 0.85rem; color: #9fc5ff; }
+
+@keyframes snow { 0% { transform: translateY(-20px);} 100%{ transform: translateY(100vh);} }
+@keyframes rain { 0% { transform: translateY(-20px);} 100%{ transform: translateY(100vh);} }
+
+.snowflakes, .raindrops {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; display: none; overflow: hidden;
 }
+.snowflakes { z-index: 9999; }
+.raindrops { z-index: 9998; }
+.snowflakes div { position: absolute; background-color: #fff; width: 10px; height:10px; border-radius: 50%; opacity: 0.8; animation: snow 5s linear infinite; }
+.raindrops div { position: absolute; background-color: rgba(173, 216, 230, 0.8); width: 2px; height: 15px; animation: rain 0.5s linear infinite; }
 
-.kbd-info {
-  margin: 16px 0;
-  font-size: 0.85rem;
-  color: #9fc5ff;
-}
-
-@keyframes neonGlow {
-  0%, 100% {
-    text-shadow:
-      0 0 5px #fff,
-      0 0 10px #fff,
-      0 0 20px currentColor,
-      0 0 30px currentColor,
-      0 0 40px currentColor,
-      0 0 55px currentColor,
-      0 0 75px currentColor;
-    opacity: 1;
-  }
-  50% {
-    text-shadow:
-      0 0 2px #fff,
-      0 0 5px #fff,
-      0 0 10px currentColor,
-      0 0 15px currentColor,
-      0 0 20px currentColor,
-      0 0 30px currentColor,
-      0 0 40px currentColor;
-    opacity: 0.8;
-  }
-}
-
-.grade-S, .grade-A {
-  animation: neonGlow 2s ease-in-out infinite;
-}
-
-.grade-S {
-  color: gold;
-}
-.grade-A {
-  color: #4CAF50;
-}
-
-
-
-  /* 눈 애니메이션 */
-  .snowflakes {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 9999;
-    display: none; /* 기본적으로 숨김 */
-    overflow:hidden;
-  }
-
-  .snowflakes div {
-    position: absolute;
-    background-color: #fff;
-    width: 10px;
-    height:10px;
-    border-radius: 50%;
-    opacity: 0.8;
-    animation: snow 5s linear infinite;
-  }
-
-  @keyframes snow {
-    0% {
-      transform: translateY(-20px);
-    }
-    100% {
-      transform: translateY(100vh);
-    }
-  }
-
-  /* 비 애니메이션 */
-  .raindrops {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 9998;
-    display: none; /* 기본적으로 숨김 */
-    overflow:hidden;
-
-  }
-
-  .raindrops div {
-    position: absolute;
-    background-color: rgba(173, 216, 230, 0.8);
-    width: 2px;
-    height: 15px;
-    animation: rain 0.5s linear infinite;
-  }
-
-  @keyframes rain {
-    0% {
-      transform: translateY(-20px);
-    }
-    100% {
-      transform: translateY(100vh);
-    }
-  }
-
-/* 눈 내리는 배경 */
-.snow-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1; /* 다른 요소 아래로 배치 */
-}
-
-.snow-background .snowflakes {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* 비 내리는 배경 */
-.rain-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1; /* 다른 요소 아래로 배치 */
-}
-
-.rain-background .raindrops {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* 기본적으로 가로 스크롤은 막고, 세로는 허용 */
-body {
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-/* 모바일에서 스크롤 자연스럽게 + FAB에 가리지 않게 */
+/* 스크롤/모바일 */
+body { overflow-x: hidden; overflow-y: auto; }
 @media (max-width: 768px) {
   html, body { height: 100%; }
-  body {
-    -webkit-overflow-scrolling: touch; /* iOS 부드러운 스크롤 */
-  }
-  #wrap { padding-bottom: 96px; } /* 하단 FAB 공간 확보 */
-  canvas#hud { height: 42vh; }    /* 모바일에서 캔버스 조금 줄임 */
+  body { -webkit-overflow-scrolling: touch; }
+  #wrap { padding-bottom: 96px; }
+  canvas#hud { height: 42vh; }
 }
 .fab {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
-  padding: 12px 18px;
-  font-weight: 700;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #00c6ff, #0072ff);
-  color: #fff;
-  border: none;
-  z-index: 10000;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  padding: 12px 18px; font-weight: 700; border-radius: 999px;
+  background: linear-gradient(135deg, #00c6ff, #0072ff); color: #fff; border: none;
+  z-index: 10000; box-shadow: 0 8px 24px rgba(0,0,0,0.35);
 }
 .fab.hide { display: none; }
-.fab:hover {
-  background: linear-gradient(135deg, #0072ff, #00c6ff);
-  transform: translateX(-50%) translateY(-1px);
-}
 .mobile-control-guide {
-  display: none; /* 기본은 숨김 */
-  font-size: 14px;
-  color: #9fc5ff;
-  background: rgba(18, 24, 38, 0.7);
-  border: 1px solid rgba(0, 246, 255, 0.2);
-  padding: 8px 12px;
-  border-radius: 8px;
-  margin-bottom: 12px;
+  display: none; font-size: 14px; color: #9fc5ff;
+  background: rgba(18, 24, 38, 0.7); border: 1px solid rgba(0, 246, 255, 0.2);
+  padding: 8px 12px; border-radius: 8px; margin-bottom: 12px;
 }
-@media (max-width: 768px) {
-  .mobile-control-guide {
-    display: block; /* 모바일에서는 표시 */
-  }
-}
-
-/* 오른쪽 상단 고정 */
-.tasc-toggle {
-  position: absolute;
-  top: 12px;
-  right: 16px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: 'Orbitron', sans-serif;
-  z-index: 1001; /* 오버레이 안에서 최상위 */
-}
-
-/* 텍스트 라벨 */
-.tasc-toggle .tasc-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #9fc5ff;
-  user-select: none;
-}
-
-/* 체크박스 숨기기 */
-.tasc-toggle input {
-  display: none;
-}
-
-/* 토글 바탕 */
-.tasc-toggle .slider {
-  position: relative;
-  display: inline-block;
-  width: 46px;
-  height: 24px;
-  background-color: rgba(255, 255, 255, 0.25);
-  border-radius: 24px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
-}
-
-/* 동그라미 */
-.tasc-toggle .slider::before {
-  content: "";
-  position: absolute;
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  border-radius: 50%;
-  transition: transform 0.3s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-}
-
-/* 켜짐 상태 */
-.tasc-toggle input:checked + .slider {
-  background: linear-gradient(135deg, #00c6ff, #0072ff);
-}
-
-.tasc-toggle input:checked + .slider::before {
-  transform: translateX(22px);
-}
-
+@media (max-width: 768px) { .mobile-control-guide { display: block; } }
 </style>
 </head>
 <body>
 <div id="wrap" class="row" style="flex-direction:column">
   <div class="row" style="gap:16px;flex-wrap:wrap">
 
-<div class="mobile-control-guide">
-  📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>
-  위쪽 터치 → 브레이크 강화 🔼<br>
-  아래쪽 터치 → 브레이크 완화 🔽<br>
-  정차 후 아래 화면에서 피드백을 확인하세요.
-</div>
+    <div class="mobile-control-guide">
+      📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>
+      위쪽 터치 → 브레이크 강화 🔼<br>
+      아래쪽 터치 → 브레이크 완화 🔽<br>
+      정차 후 아래 화면에서 피드백을 확인하세요.
+    </div>
+
     <div class="card" style="flex:1 1 260px">
-      <div id="carName" style="font-size:20px" class = "stat">차량 로딩 중...</div>
+      <div id="carName" style="font-size:20px" class="stat">차량 로딩 중...</div>
       <div>남은 거리 <span class="stat" id="rem">—</span> m</div>
       <div>속도 <span class="stat" id="spd">—</span> km/h</div>
       <div>노치 <span class="stat" id="notch">0.0</span></div>
       <div>구배 <span class="stat" id="grade_percent">—</span> %</div>
       <div>경과시간 <span class="stat" id="timer">0.000</span> s</div>
-      <div style="margin-top:8px">조작: <span class="kbd">Space</span> 시작 · <span class="kbd">W</span> 브레이크 강화(노치↑) · <span class="kbd">S</span> 완화(노치↓) · <span class="kbd">N</span> 해방</div>
+      <div style="margin-top:8px">
+        조작: <span class="kbd">Space</span> 시작 · <span class="kbd">W</span> 브레이크 강화(노치↑) ·
+        <span class="kbd">S</span> 완화(노치↓) · <span class="kbd">N</span> 해방
+      </div>
     </div>
 
     <div class="card" style="flex:2 1 520px">
       <canvas id="hud"></canvas>
     </div>
+
     <div class="card" style="flex:1 1 240px">
       <div><b>피드백</b></div>
       <div id="fb">Space를 눌러 시작하세요.</div>
     </div>
+
   </div>
 </div>
 
-<!-- HTML -->
 <div id="overlay">
   <div class="card">
-<!-- TASC ON/OFF 토글 -->
-<div class="tasc-toggle">
-  <input type="checkbox" id="tascToggle" />
-  <label for="tascToggle" class="slider"></label>
-  <span class="tasc-label">TASC</span>
-</div>
-
     <h2 class="title">🚉 TASC 기반 정차 트레이너</h2>
-    <p class="subtitle">초기값을 입력하고 TASC(오토파일럿) 버튼을 활성화 혹은 비활성화 후 <b>Space</b> 또는 아래 버튼을 눌러 시작하세요.</p>
+    <p class="subtitle">초기값을 입력하고 <b>Space</b> 또는 아래 버튼을 눌러 시작하세요.</p>
 
     <label class="form-label">
       초기 속도 (km/h)
@@ -480,30 +175,24 @@ body {
         <option value="눈옴">눈옴</option>
       </select>
     </label>
+
     <label class="form-label">
       승객 탑승률 (%)
       <input id="inputLoadRate" type="number" value="70" min="0" max="120" step="1" class="form-input">
     </label>
 
-
     <label class="form-label" for="trainLength">편성</label>
-      <select class="form-input" id="trainLength" onchange="updateTrainLength()">
-        <option value="4">4량 (JR 소부선 일부 구간)</option>
-        <option value="6">6량 (JR 야마노테선, JR 치요다선, JR 소부선, JR 게이힌도호쿠선)</option>
-        <option value="8">8량 (JR 도호쿠선, JR 요코스카선, JR 야마노테선, JR 게이힌도호쿠선)</option>
-        <option value="10">10량 (JR 도호쿠선 일부 구간, JR 주오선 일부 구간)</option>
-        <option value="12">12량 (JR 도호쿠선 주요 구간, JR 주오선 주요 구간)</option>
-        <option value="15">15량 (JR 도호쿠선 일부 구간, 고속 노선)</option>
-      </select>
+    <select class="form-input" id="trainLength" onchange="updateTrainLength()">
+      <option value="4">4량 (JR 소부선 일부 구간)</option>
+      <option value="6">6량 (JR 야마노테선, JR 치요다선, JR 소부선, JR 게이힌도호쿠선)</option>
+      <option value="8">8량 (JR 도호쿠선, JR 요코스카선, JR 야마노테선, JR 게이힌도호쿠선)</option>
+      <option value="10">10량 (JR 도호쿠선 일부 구간, JR 주오선 일부 구간)</option>
+      <option value="12">12량 (JR 도호쿠선 주요 구간, JR 주오선 주요 구간)</option>
+      <option value="15">15량 (JR 도호쿠선 일부 구간, 고속 노선)</option>
+    </select>
 
-
-    <!-- 게임 배경 -->
     <div class="game-background"></div>
-
-    <!-- 눈 애니메이션 -->
     <div class="snowflakes"></div>
-
-    <!-- 비 애니메이션 -->
     <div class="raindrops">
       <div style="animation-delay: 0s; left: 5%;"></div>
       <div style="animation-delay: 0.2s; left: 15%;"></div>
@@ -515,16 +204,11 @@ body {
       <div style="animation-delay: 1.4s; left: 75%;"></div>
       <div style="animation-delay: 1.6s; left: 85%;"></div>
       <div style="animation-delay: 1.8s; left: 95%;"></div>
-
-      <!-- 계속 추가... -->
     </div>
 
-    <!-- 다른 콘텐츠들... -->
-
-
     <div class="kbd-info">
-      <span class="kbd">W</span> 브레이크 강화 · 
-      <span class="kbd">S</span> 완화 · 
+      <span class="kbd">W</span> 브레이크 강화 ·
+      <span class="kbd">S</span> 완화 ·
       <span class="kbd">N</span> 해방
     </div>
 
@@ -533,59 +217,31 @@ body {
 </div>
 
 <button id="btnMobileRestart" class="fab hide">재시작</button>
+
 <script>
-
-const tascToggle = document.getElementById("tascToggle");
-tascToggle.addEventListener("change", () => {
-  const enabled = tascToggle.checked;
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled } }));
-  }
-});
-
-function forceManualOverride() {
-  if (tascToggle.checked) {
-    tascToggle.checked = false;
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled: false } }));
-    }
-  }
-}
-
-
 const snowflakesContainer = document.querySelector('.snowflakes');
 
-// 눈송이를 생성하는 함수
+// 눈송이 생성(이펙트)
 function generateSnowflake() {
   const snowflake = document.createElement('div');
-  const randomLeft = Math.floor(Math.random() * 101);  // Random left position from 0% to 100%
-  const animationDelay = Math.random() * 2;  // Random delay before starting (up to 2 seconds)
-  const animationDuration = (Math.random() * 5) + 5;  // 랜덤한 내리기 속도 (5~10초 사이)
-
-  // Set the random left position and animation duration
-  snowflake.style.animationDelay = animationDelay + 's';  // Add delay before starting to fall
+  const randomLeft = Math.floor(Math.random() * 101);
+  const animationDelay = Math.random() * 2;
+  const animationDuration = (Math.random() * 5) + 5;
+  snowflake.style.animationDelay = animationDelay + 's';
   snowflake.style.animationDuration = animationDuration + 's';
   snowflake.style.left = randomLeft + '%';
-
-  // Add snowflake styling
   snowflake.style.position = 'absolute';
-  snowflake.style.top = '-10px';  // 눈송이 시작 위치 (화면 상단)
-  snowflake.style.width = '10px';  // 눈송이 크기
-  snowflake.style.height = '10px';  // 눈송이 크기
-  snowflake.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';  // 흰색
-  snowflake.style.borderRadius = '50%';  // 원형으로 설정
-
-  // Append the snowflake to the container
+  snowflake.style.top = '-10px';
+  snowflake.style.width = '10px';
+  snowflake.style.height = '10px';
+  snowflake.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+  snowflake.style.borderRadius = '50%';
   snowflakesContainer.appendChild(snowflake);
-
-  // 일정 시간 뒤에 눈송이가 떨어지지 않도록 삭제
   setTimeout(() => {
     snowflakesContainer.removeChild(snowflake);
-  }, (animationDuration + animationDelay) * 1000);  // 눈송이가 끝나면 삭제
+  }, (animationDuration + animationDelay) * 1000);
 }
-
-// 눈송이를 일정 간격으로 생성
-setInterval(generateSnowflake, 200);  // 200ms마다 새로운 눈송이 생성
+setInterval(generateSnowflake, 200);
 
 let vehicle = null;
 let brakeDecels = {};
@@ -593,21 +249,16 @@ let brakeDecels = {};
 fetch('/carName.json')
   .then(res => res.json())
   .then(data => {
-    vehicle = data; // vehicle로 변수명 통일
+    vehicle = data;
     document.getElementById('carName').textContent = vehicle.name;
-
     if (vehicle.notch_accels && vehicle.notches) {
       brakeDecels = {};
-      for(let i=0; i < vehicle.notches; i++) {
-        // 감속값 배열 반대 순서로 넣기
+      for (let i=0; i < vehicle.notches; i++) {
         brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches - 1 - i] ?? 0);
-}
-
+      }
     }
   })
   .catch(console.error);
-
-
 
 const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
 const remEl=document.getElementById("rem");
@@ -623,33 +274,6 @@ const weatherSelect = document.getElementById("weatherSelect");
 const snowflakes = document.querySelector(".snowflakes");
 const raindrops = document.querySelector(".raindrops");
 
-weatherSelect.addEventListener("change", function() {
-  const weather = this.value;
-
-  if (weather === "눈옴") {
-    snowflakes.style.display = "block";  // 눈 애니메이션 표시
-    raindrops.style.display = "none";   // 비 애니메이션 숨김
-  } else if (weather === "비옴") {
-    raindrops.style.display = "block";  // 비 애니메이션 표시
-    snowflakes.style.display = "none";  // 눈 애니메이션 숨김
-  } else {
-    raindrops.style.display = "none";   // 비 애니메이션 숨김
-    snowflakes.style.display = "none";  // 눈 애니메이션 숨김
-  }
-});
-
-// 초기값에 따라 애니메이션 설정
-if (weatherSelect.value === "눈옴") {
-  snowflakes.style.display = "block";
-  raindrops.style.display = "none";
-} else if (weatherSelect.value === "비옴") {
-  snowflakes.style.display = "none";
-  raindrops.style.display = "block";
-} else {
-  snowflakes.style.display = "none";
-  raindrops.style.display = "none";
-}
-
 function resize(){
   canvas.width=canvas.clientWidth*devicePixelRatio;
   canvas.height=canvas.clientHeight*devicePixelRatio;
@@ -663,36 +287,18 @@ function sendCmd(name, delta) {
 }
 
 function updateTrainLength() {
-    const trainLength = document.getElementById("trainLength").value;
-    ws.send(JSON.stringify({
-        type: "cmd",
-        payload: { name: "setTrainLength", length: trainLength }
-    }));
-    sendLoadRate();
+  const trainLength = document.getElementById("trainLength").value;
+  ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTrainLength", length: trainLength }}));
+  sendLoadRate();
 }
 
 function sendLoadRate() {
   const loadRate = parseFloat(document.getElementById("inputLoadRate").value) || 0;
   const trainLength = parseInt(document.getElementById("trainLength").value) || 8;
-
-  // 차량 기본 중량(톤) - 1량 기준
   const baseMassPerCar = 39.9;
-  // 만차 승객 무게 (톤) - 1량 기준
   const maxPassengerMassPerCar = 10.5;
-
-  // 총 중량 계산
-  // 예: 70% 탑승률이면 baseMass + 0.7 * maxPassengerMass
   const totalMassTons = trainLength * (baseMassPerCar + maxPassengerMassPerCar * (loadRate / 100));
-
-  // 서버로 전송
-  ws.send(JSON.stringify({
-    type: "cmd",
-    payload: {
-      name: "setMassTons",
-      mass_tons: totalMassTons
-    }
-  }));
-
+  ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMassTons", mass_tons: totalMassTons }}));
   console.log(`총 차량 중량 업데이트: ${totalMassTons.toFixed(2)} 톤 (탑승률: ${loadRate}%)`);
 }
 
@@ -700,18 +306,27 @@ const inputSpeed = document.getElementById("inputSpeed");
 const inputDist = document.getElementById("inputDist");
 const inputGrade = document.getElementById("inputGrade");
 
+// μ 산출 & 전송
+function currentMu() {
+  const w = weatherSelect.value;
+  if (w === "비옴") return 0.6;
+  if (w === "눈옴") return 0.3;
+  return 1.0;
+}
+function sendMu() {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMu", value: currentMu() } }));
+  }
+}
+
 function startRun() {
   const speed = Number(inputSpeed.value);
   const dist  = Number(inputDist.value);
   const grade = Number(inputGrade.value);
-  const weather = weatherSelect.value;
-
-  let mu = 1.0;
-  if (weather === "비옴") mu = 0.6;
-  else if (weather === "눈옴") mu = 0.3;
+  const mu = currentMu();
 
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setInitial", speed, dist, grade } }));
+    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setInitial", speed, dist, grade, mu } }));
     ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMu", value: mu }}));
     ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" }}));
   }
@@ -719,171 +334,114 @@ function startRun() {
   overlay.classList.add("hide");
   isFinished = false;
   overlayShowingResult = false;
-
-  // 모바일 FAB 숨기기
   document.getElementById("btnMobileRestart")?.classList.add("hide");
 }
 
 btnStart.addEventListener("click", startRun);
 
-const btnMobileRestart = document.getElementById("btnMobileRestart");
-btnMobileRestart.addEventListener("click", () => {
-  // 모바일 재시작은 바로 시작하지 않고 설정 오버레이를 연다
-  overlay.classList.remove("hide");      // 오버레이 열기
-  overlayShowingResult = true;           // 결과/설정 표시 상태
-  btnMobileRestart.classList.add("hide"); // 오버레이 열렸으니 FAB 숨기기
-});
-
-// 날씨 변경 시 애니메이션과 배경색을 동적으로 변경
+// 날씨 변경: 이펙트 + 배경 + μ 전송 (단일 핸들러로 통합)
 weatherSelect.addEventListener("change", function() {
   const weather = this.value;
 
   if (weather === "눈옴") {
-    snowflakes.style.display = "block";  // 눈 애니메이션 표시
-    raindrops.style.display = "none";   // 비 애니메이션 숨김
-    document.documentElement.style.background = "#ffffff"; 
-    document.body.style.background = "#ffffff"; 
+    snowflakes.style.display = "block";
+    raindrops.style.display = "none";
+    document.documentElement.style.background = "#ffffff";
+    document.body.style.background = "#ffffff";
     document.body.classList.add('snow-background');
     document.body.classList.remove('rain-background');
   } else if (weather === "비옴") {
-    raindrops.style.display = "block";  // 비 애니메이션 표시
-    snowflakes.style.display = "none";  // 눈 애니메이션 숨김
-    document.documentElement.style.background = "#4b5d67"; 
-    document.body.style.background = "#4b5d67"; 
+    raindrops.style.display = "block";
+    snowflakes.style.display = "none";
+    document.documentElement.style.background = "#4b5d67";
+    document.body.style.background = "#4b5d67";
     document.body.classList.add('rain-background');
     document.body.classList.remove('snow-background');
   } else {
-    raindrops.style.display = "none";   // 비 애니메이션 숨김
-    snowflakes.style.display = "none";  // 눈 애니메이션 숨김
-    document.documentElement.style.background = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)"; 
+    raindrops.style.display = "none";
+    snowflakes.style.display = "none";
+    document.documentElement.style.background = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
     document.body.style.background = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
     document.body.classList.remove('snow-background');
     document.body.classList.remove('rain-background');
   }
+
+  // μ 즉시 반영
+  sendMu();
 });
 
-// 초기값 설정
-if (weatherSelect.value === "눈옴") {
-  snowflakes.style.display = "block";
-  raindrops.style.display = "none";
-  document.documentElement.style.background = "#ffffff";
-  document.body.style.background = "#ffffff"; 
-  document.body.classList.add('snow-background');
-  document.body.classList.remove('rain-background');
-} else if (weatherSelect.value === "비옴") {
-  snowflakes.style.display = "none";
-  raindrops.style.display = "block";
-  document.documentElement.style.background = "#4b5d67";
-  document.body.style.background = "#4b5d67"; 
-  document.body.classList.add('rain-background');
-  document.body.classList.remove('snow-background');
-} else {
-  snowflakes.style.display = "none";
-  raindrops.style.display = "none";
-  document.documentElement.style.background = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
-  document.body.style.background = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
-  document.body.classList.remove('snow-background');
-  document.body.classList.remove('rain-background');
-}
-
-
-btnStart.addEventListener("click", () => {
-  const speed = Number(inputSpeed.value);
-  const dist = Number(inputDist.value);
-  const grade = Number(inputGrade.value);
-  const weather = document.getElementById("weatherSelect").value;
-
-  let mu = 1.0;
-  if (weather === "비옴") mu = 0.6;
-  else if (weather === "눈옴") mu = 0.3;
-
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
-      type: "cmd",
-      payload: {
-        name: "setInitial",
-        speed,
-        dist,
-        grade,
-      }
-    }));
-
-    ws.send(JSON.stringify({
-      type: "cmd",
-      payload: {
-        name: "setMu",
-        value: mu,
-      }
-    }));
+// 초기 애니메이션/배경 설정 + μ 초기 전송
+(function initWeather() {
+  const weather = weatherSelect.value;
+  if (weather === "눈옴") {
+    snowflakes.style.display = "block";
+    raindrops.style.display = "none";
+    document.documentElement.style.background = "#ffffff";
+    document.body.style.background = "#ffffff";
+    document.body.classList.add('snow-background');
+    document.body.classList.remove('rain-background');
+  } else if (weather === "비옴") {
+    snowflakes.style.display = "none";
+    raindrops.style.display = "block";
+    document.documentElement.style.background = "#4b5d67";
+    document.body.style.background = "#4b5d67";
+    document.body.classList.add('rain-background');
+    document.body.classList.remove('snow-background');
+  } else {
+    snowflakes.style.display = "none";
+    raindrops.style.display = "none";
+    document.documentElement.style.background = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
+    document.body.style.background = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
+    document.body.classList.remove('snow-background');
+    document.body.classList.remove('rain-background');
   }
+  sendMu();
+})();
 
-  sendCmd("start", 0);
-  overlay.classList.add("hide");
+const btnMobileRestart = document.getElementById("btnMobileRestart");
+btnMobileRestart.addEventListener("click", () => {
+  overlay.classList.remove("hide");
+  overlayShowingResult = true;
+  btnMobileRestart.classList.add("hide");
 });
-
-
-// TASC 수동 해제 함수
-function forceManualOverride() {
-  if (tascToggle && tascToggle.checked) {
-    tascToggle.checked = false;
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled: false } }));
-    }
-  }
-}
 
 addEventListener("keydown", (e) => {
   if ([" ", "w", "W", "s", "S", "n", "N"].includes(e.key)) e.preventDefault();
   if (e.repeat) return;
 
-  // ★ 키 입력이 들어오면 우선 수동 전환
-  forceManualOverride();
-
   if (e.key === " ") {
     if (ws.readyState !== WebSocket.OPEN) return;
 
+    const speed = Number(inputSpeed.value);
+    const dist = Number(inputDist.value);
+    const grade = Number(inputGrade.value);
+    const mu = currentMu();
+
     if (overlay.classList.contains("hide")) {
-      // 오버레이 숨김 상태 → 게임 진행 중 또는 종료
       if (isFinished) {
-        // 결과 오버레이 보여주기
         overlay.classList.remove("hide");
         overlayShowingResult = true;
-        isFinished = false; // 결과창 상태 진입
+        isFinished = false;
       } else {
-        // 게임 도중에 다시 시작
-        const speed = Number(inputSpeed.value);
-        const dist = Number(inputDist.value);
-        const grade = Number(inputGrade.value);
-        ws.send(JSON.stringify({
-          type: "cmd",
-          payload: { name: "setInitial", speed, dist, grade }
-        }));
+        ws.send(JSON.stringify({ type: "cmd", payload: { name: "setInitial", speed, dist, grade, mu } }));
+        ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMu", value: mu } }));
         ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" } }));
         isFinished = false;
         overlayShowingResult = false;
       }
     } else {
-      // 오버레이가 보이는 상태 → 게임 시작
       overlay.classList.add("hide");
-      const speed = Number(inputSpeed.value);
-      const dist = Number(inputDist.value);
-      const grade = Number(inputGrade.value);
-      ws.send(JSON.stringify({
-        type: "cmd",
-        payload: { name: "setInitial", speed, dist, grade }
-      }));
+      ws.send(JSON.stringify({ type: "cmd", payload: { name: "setInitial", speed, dist, grade, mu } }));
+      ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMu", value: mu } }));
       ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" } }));
       isFinished = false;
       overlayShowingResult = false;
     }
-  } 
-  else if (e.key === "w" || e.key === "W") {
+  } else if (e.key === "w" || e.key === "W") {
     sendCmd("applyNotch", +1);
-  }
-  else if (e.key === "s" || e.key === "S") {
+  } else if (e.key === "s" || e.key === "S") {
     sendCmd("applyNotch", -1);
-  }
-  else if (e.key === "n" || e.key === "N") {
+  } else if (e.key === "n" || e.key === "N") {
     sendCmd("release", 0);
   }
 });
@@ -891,27 +449,17 @@ addEventListener("keydown", (e) => {
 if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
   const gameSurface = document.getElementById("hud");
   gameSurface.addEventListener("touchstart", (e) => {
-    if (!overlay.classList.contains("hide")) return; // 오버레이 보이면 조작 안 함
-    if (e.touches.length !== 1) return; // 멀티터치 무시
-
-    // ★ 터치 입력이 들어오면 우선 수동 전환
-    forceManualOverride();
-
+    if (!overlay.classList.contains("hide")) return;
+    if (e.touches.length !== 1) return;
     const rect = gameSurface.getBoundingClientRect();
-    const y = e.touches[0].clientY - rect.top; // 캔버스 내부 Y좌표
+    const y = e.touches[0].clientY - rect.top;
     const half = rect.height / 2;
-
-    if (y < half) {
-      sendCmd("applyNotch", +1); // 브레이크 강화
-    } else {
-      sendCmd("applyNotch", -1); // 브레이크 완화
-    }
+    if (y < half) sendCmd("applyNotch", +1);
+    else sendCmd("applyNotch", -1);
   }, { passive: true });
 }
 
 let prevMaxDistance = 0;
-
-
 
 // HUD 그리기
 function drawHUD(st) {
@@ -922,283 +470,140 @@ function drawHUD(st) {
   const lever = st.lever_notch;
   const currentPos = st.pos ?? 0;
   const stopPos = st.stopPos ?? 500;
-
   const remainingDistance = (typeof st.remaining_m === "number") ? Math.max(0, st.remaining_m) : Math.max(0, stopPos - currentPos);
 
-
-  const minL = 1;
-  const maxDecel = Math.max(...Object.values(brakeDecels));
+  const maxDecel = Math.max(...Object.values(brakeDecels), 0);
   const maxStopDist = maxDecel > 0 ? (v0 * v0) / (2 * maxDecel) : 0;
 
   const speedFactor = Math.max(0.3, Math.min(1, v0 / 10)); 
-
   const adjustedRemaining = remainingDistance * (1 + (1 - speedFactor) * 0.5);
-
-  // 축소 방지용 최소 거리 기준
-  const minX = 1; // 50m 이하로 축소 방지
-
-  // remainingDistance가 작을 때 급격한 축소 방지 (예: 제곱근 스케일링)
+  const minX = 1;
   const safeRemaining = Math.max(minX, Math.sqrt(adjustedRemaining) * 10);
   const s_b1 = (brakeDecels[1] ?? 0) > 0 ? (v0 * v0) / (2 * brakeDecels[1]) : 0;
   const s_b2 = (brakeDecels[2] ?? 0) > 0 ? (v0 * v0) / (2 * brakeDecels[2]) : 0;
 
-
-
-  const isStart = remainingDistance > 0;  // 시작 기준, 필요하면 조절
-
-
-  const smoothFactor = 0.1;  // 0~1, 클수록 빠르게 변화
-  const targetMaxDistance = Math.max(
-    minL,
-    maxStopDist * 1.5,          // 최대 제동 거리 기준
-    safeRemaining * 1.2,        // 남은 거리 기준
-    s_b1 * 1.1,                 // B1 표시도 들어오게
-    s_b2 * 1.1                  // B2 표시도 들어오게
-  );
-
-  let maxDistance;
-
-  if (prevMaxDistance === 0) {
-    // 첫 프레임 → 부드러운 보간 없이 바로 타겟 거리 사용
-    maxDistance = targetMaxDistance;
-  } else {
-    // 이후 프레임 → 부드러운 보간
-    maxDistance = prevMaxDistance * (1 - smoothFactor) + targetMaxDistance * smoothFactor;
-  }
-
+  const smoothFactor = 0.1;
+  const targetMaxDistance = Math.max(1, maxStopDist * 1.5, safeRemaining * 1.2, s_b1 * 1.1, s_b2 * 1.1);
+  let maxDistance = (prevMaxDistance === 0) ? targetMaxDistance : (prevMaxDistance * (1 - smoothFactor) + targetMaxDistance * smoothFactor);
   prevMaxDistance = maxDistance;
 
-
-  const leftMargin = 48 * dpr;
-  const rightMargin = 12 * dpr;
+  const leftMargin = 48 * dpr, rightMargin = 12 * dpr;
   const usableWidth = w - leftMargin - rightMargin;
   const X = dist => leftMargin + usableWidth * (dist / maxDistance);
 
   const vmax = Math.max(1, v0 * 3.6 * 1.2);
-
-  const bottomMargin = 28 * dpr;
-  const topMargin = 12 * dpr;
+  const bottomMargin = 28 * dpr, topMargin = 12 * dpr;
   const usableHeight = h - bottomMargin - topMargin;
   const Y = v => h - bottomMargin - usableHeight * (v / vmax);
 
-  // 축 그리기
+  // 축
   ctx.strokeStyle = "#20334d";
   ctx.lineWidth = 1 * dpr;
-  ctx.beginPath();
-  ctx.moveTo(leftMargin, topMargin);
-  ctx.lineTo(leftMargin, h - bottomMargin);
-  ctx.lineTo(w - rightMargin, h - bottomMargin);
-  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(leftMargin, topMargin); ctx.lineTo(leftMargin, h - bottomMargin); ctx.lineTo(w - rightMargin, h - bottomMargin); ctx.stroke();
 
-  // x축 눈금 (50m 단위)
-  ctx.fillStyle = "#888";
-  ctx.font = `${10 * dpr}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
+  // x축 눈금
+  ctx.fillStyle = "#888"; ctx.font = `${10 * dpr}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top";
   for (let dist = 0; dist <= maxDistance; dist += 100) {
-    const x = X(dist);
-    ctx.beginPath();
-    ctx.moveTo(x, h - bottomMargin);
-    ctx.lineTo(x, h - bottomMargin + 4 * dpr);
-    ctx.stroke();
-    ctx.fillText(`${Math.round(dist)}`, x, h - bottomMargin + 6 * dpr);
+    const x = X(dist); ctx.beginPath(); ctx.moveTo(x, h - bottomMargin); ctx.lineTo(x, h - bottomMargin + 4 * dpr); ctx.stroke(); ctx.fillText(`${Math.round(dist)}`, x, h - bottomMargin + 6 * dpr);
   }
 
-  // y축 눈금 (10km/h 단위)
-  ctx.textAlign = "right";
-  ctx.textBaseline = "middle";
+  // y축 눈금
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
   for (let speed_kmh = 0; speed_kmh <= vmax; speed_kmh += 10) {
-    const y = Y(speed_kmh);
-    ctx.beginPath();
-    ctx.moveTo(leftMargin - 4 * dpr, y);
-    ctx.lineTo(leftMargin, y);
-    ctx.stroke();
-    ctx.fillText(`${speed_kmh}`, leftMargin - 6 * dpr, y);
+    const y = Y(speed_kmh); ctx.beginPath(); ctx.moveTo(leftMargin - 4 * dpr, y); ctx.lineTo(leftMargin, y); ctx.stroke(); ctx.fillText(`${speed_kmh}`, leftMargin - 6 * dpr, y);
   }
 
-  // 브레이크 단계별 감속 곡선 그리기
+  // 브레이크 곡선
   ctx.lineWidth = 2 * dpr;
   const maxNotch = vehicle?.notches ?? 9;
-  for(let notch = 0; notch < maxNotch; notch++) {
-    const decel = brakeDecels[notch] ?? 0;
-    if(decel <= 0) continue;
-
+  for (let notch = 0; notch < maxNotch; notch++) {
+    const decel = brakeDecels[notch] ?? 0; if (decel <= 0) continue;
     const s_brake = (v0 * v0) / (2 * decel);
-
     ctx.beginPath();
     ctx.strokeStyle = notch === lever ? "#ffae00" : "#3fa9ff";
-
-    for(let i=0; i<=100; i++) {
+    for (let i=0; i<=100; i++) {
       const frac = i / 100;
       const s = s_brake * frac;
       const v_cur = Math.sqrt(Math.max(0, v0*v0 - 2*decel*s));
-      const x = X(s);
-      const y = Y(v_cur * 3.6);
-
-      if(i===0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      const x = X(s), y = Y(v_cur * 3.6);
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     ctx.stroke();
-
     ctx.fillStyle = notch === lever ? "#ffae00" : "#3fa9ff";
     ctx.font = `${12 * dpr}px 'Orbitron', sans-serif`;
     const textX = X(s_brake);
-    if (notch == 9) {
-      ctx.fillText(`EB`, textX + 5 * dpr, Y(0) + 12 * dpr);
-      
-    } else if (notch == 0) {
-      ctx.fillText(`N`, textX + 5 * dpr, Y(0) + 12 * dpr);
-      
-    } else{
-      ctx.fillText(`B${notch}`, textX + 5 * dpr, Y(0) + 12 * dpr);
-    }
+    if (notch == 9) ctx.fillText(`EB`, textX + 5 * dpr, Y(0) + 12 * dpr);
+    else if (notch == 0) ctx.fillText(`N`, textX + 5 * dpr, Y(0) + 12 * dpr);
+    else ctx.fillText(`B${notch}`, textX + 5 * dpr, Y(0) + 12 * dpr);
   }
 
-
-
-  // 빨간 세로선: 남은 거리 위치
+  // 빨간 세로선: 남은 거리
   const x_redline = X(remainingDistance);
-  ctx.strokeStyle = "#ff0000";
-  ctx.lineWidth = 1.5 * dpr;
-  ctx.beginPath();
-  ctx.moveTo(x_redline, Y(0));
-  ctx.lineTo(x_redline, Y(vmax));
-  ctx.stroke();
-
-  ctx.fillStyle = "#ff0000";
-  ctx.font = `${14 * dpr}px 'Orbitron', sans-serif`;
-  ctx.textAlign = "center";
+  ctx.strokeStyle = "#ff0000"; ctx.lineWidth = 1.5 * dpr;
+  ctx.beginPath(); ctx.moveTo(x_redline, Y(0)); ctx.lineTo(x_redline, Y(vmax)); ctx.stroke();
+  ctx.fillStyle = "#ff0000"; ctx.font = `${14 * dpr}px 'Orbitron', sans-serif`; ctx.textAlign = "center";
   ctx.fillText("남은 거리", x_redline, Y(vmax) - 18 * dpr);
 
-  // // 현재 속도 점 표시 (빨간선 위)
-  // ctx.fillStyle = "#ffd18f";
-  // ctx.beginPath();
-  // ctx.arc(x_redline, Y(v0 * 3.6), 6 * dpr, 0, 2 * Math.PI);
-  // ctx.fill();
+  // 우측 리본 + 다이아몬드(정지오차 시각화)
+  const ribbonWidth = 16 * dpr, ribbonHeight = h * 0.9;
+  const ribbonX = w - rightMargin - ribbonWidth - 10 * dpr + 20;
+  const ribbonY = ((h - ribbonHeight) / 2) - 12;
+  ctx.fillStyle = "rgba(100, 100, 100, 0.1)";
+  ctx.strokeStyle = "rgba(100, 100, 100, 0.3)";
+  ctx.lineWidth = 1.5 * dpr;
+  ctx.beginPath(); ctx.rect(ribbonX, ribbonY, ribbonWidth, ribbonHeight); ctx.fill(); ctx.stroke();
+  const barHeight = 12 * dpr;
+  ctx.fillStyle = "rgba(60, 60, 60, 0.9)";
+  ctx.fillRect(ribbonX + 2 * dpr, (ribbonY + ribbonHeight / 2) - 5 - barHeight / 2, ribbonWidth - 4 * dpr, barHeight);
 
-  // // 현재 속도 텍스트 (빨간선 오른쪽 위)
-  // ctx.fillStyle = "#ffd18f";
-  // ctx.font = `${14 * dpr}px 'Orbitron', sans-serif`;
-  // ctx.textAlign = "left";
-  // ctx.fillText(`속도: ${(v0 * 3.6).toFixed(1)} km/h`, x_redline + 10 * dpr, Y(v0 * 3.6) - 10 * dpr);
-
-// 리본 너비, 높이, 위치
-const ribbonWidth = 16 * dpr;
-const ribbonHeight = h * 0.9;
-const ribbonX = w - rightMargin - ribbonWidth - 10 * dpr + 20;
-const ribbonY = ((h - ribbonHeight) / 2) - 12;
-
-// 리본 그리기
-ctx.fillStyle = "rgba(100, 100, 100, 0.1)";
-ctx.strokeStyle = "rgba(100, 100, 100, 0.3)";
-ctx.lineWidth = 1.5 * dpr;
-ctx.beginPath();
-ctx.rect(ribbonX, ribbonY, ribbonWidth, ribbonHeight);
-ctx.fill();
-ctx.stroke();
-
-// 리본 중앙 기준점 (0m) 표시용 작은 진한 회색 박스
-const centerY = (ribbonY + ribbonHeight / 2) - 5;
-const barHeight = 12 * dpr;
-ctx.fillStyle = "rgba(60, 60, 60, 0.9)";
-ctx.fillRect(ribbonX + 2 * dpr, centerY - barHeight / 2, ribbonWidth - 4 * dpr, barHeight);
-
-// 다이아몬드가 움직일 최대 픽셀 폭 (세로 방향)
-const ribbonTotalHeight = ribbonHeight; // 리본의 높이
-
-// 유저 입력 정차 거리 L (m)
-const L = st.L;
-
-// 현재 남은 거리 (m), 0~L 범위 제한
-const rem = Math.min(Math.max(st.remaining_m ?? L, -L), L); // rem 값이 -L ~ L 범위로 제한
-
-// 리본의 상단을 5m, 하단을 -5m로 설정
-const topLimit = 7;    // 리본 상단 (5m)
-const bottomLimit = -7; // 리본 하단 (-5m)
-
-// 다이아몬드의 세로 위치 계산
-// rem=0일 때 리본 중앙에 위치하고,
-// rem=5일 때 리본 상단에 위치하며,
-// rem=-5일 때 리본 하단에 위치하도록 설정
-const diamondWidth = 16 * dpr;
-const diamondHeight = 10 * dpr;
-
-const stopErrorRaw = st.stop_error_m ?? 0;
-const stopErrorM = Math.max(-5, Math.min(5, stopErrorRaw));
-
-// 다이아몬드 X 좌표는 고정
-const diamondX = ribbonX + ribbonWidth / 2;
-
-// 남은 거리 rem을 사용하여 다이아몬드의 Y 좌표 계산
-// rem=0일 때 중앙에 위치하고, rem=5일 때 상단, rem=-5일 때 하단에 위치하도록 계산
-const normalizedRem = (rem - bottomLimit) / (topLimit - bottomLimit); // -5 ~ 5 범위 -> 0 ~ 1 범위로 변환
-
-// 다이아몬드 Y 좌표 계산 (0일 때 중앙, 5일 때 상단, -5일 때 하단)
-// 오버런을 허용하려면 normalizedRem 계산을 일부 조정
-const diamondY = ribbonY + (ribbonHeight * (1 - normalizedRem)) - diamondHeight / 2;
-
-// 오버런도 표시하도록 다이아몬드가 리본의 상단 및 하단을 벗어날 수 있도록 추가
-const overflowLimit = 10 * dpr; // 오버런을 표현할 수 있는 한계
-
-// 다이아몬드가 리본을 넘어서 오버런 할 수 있도록 Y 값을 조정
-const adjustedDiamondY = Math.min(Math.max(diamondY, ribbonY - overflowLimit), ribbonY + ribbonHeight - diamondHeight + overflowLimit);
-
-ctx.fillStyle = "#444";
-ctx.strokeStyle = "#222";
-ctx.lineWidth = 2 * dpr;
-
-ctx.beginPath();
-ctx.moveTo(diamondX, adjustedDiamondY - diamondHeight / 2);
-ctx.lineTo(diamondX + diamondWidth / 2, adjustedDiamondY);
-ctx.lineTo(diamondX, adjustedDiamondY + diamondHeight / 2);
-ctx.lineTo(diamondX - diamondWidth / 2, adjustedDiamondY);
-ctx.closePath();
-ctx.fill();
-ctx.stroke();
-
+  const L = st.L;
+  const rem = Math.min(Math.max(st.remaining_m ?? L, -L), L);
+  const topLimit = 7, bottomLimit = -7;
+  const diamondWidth = 16 * dpr, diamondHeight = 10 * dpr;
+  const diamondX = ribbonX + ribbonWidth / 2;
+  const normalizedRem = (rem - bottomLimit) / (topLimit - bottomLimit);
+  const diamondY = ribbonY + (ribbonHeight * (1 - normalizedRem)) - diamondHeight / 2;
+  const overflowLimit = 10 * dpr;
+  const adjustedDiamondY = Math.min(Math.max(diamondY, ribbonY - overflowLimit), ribbonY + ribbonHeight - diamondHeight + overflowLimit);
+  ctx.fillStyle = "#444"; ctx.strokeStyle = "#222"; ctx.lineWidth = 2 * dpr;
+  ctx.beginPath();
+  ctx.moveTo(diamondX, adjustedDiamondY - diamondHeight / 2);
+  ctx.lineTo(diamondX + diamondWidth / 2, adjustedDiamondY);
+  ctx.lineTo(diamondX, adjustedDiamondY + diamondHeight / 2);
+  ctx.lineTo(diamondX - diamondWidth / 2, adjustedDiamondY);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
 }
 
-// 애니메이션 루프 (초당 60fps)
-let lastTimestamp = 0;
+// 애니메이션 루프
+let lastTimestamp = 0, st = null;
 function loop(timestamp) {
   if (!lastTimestamp) lastTimestamp = timestamp;
-  const dt = (timestamp - lastTimestamp) / 1000;
   lastTimestamp = timestamp;
-
-  // updateSimulation(dt);
   if (st) drawHUD(st);
-
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
 const grade_percentEl = document.getElementById("grade_percent");
 const timerEl = document.getElementById("timer");
+let isFinished = false;
+let overlayShowingResult = false;
 
-let isFinished = false;  // 정지 완료 여부 전역 변수
-let overlayShowingResult = false;  // 정지 완료 여부 전역 변수
-let st = null;
 ws.onmessage = (ev) => {
   const msg = JSON.parse(ev.data);
   if (msg.type === "state") {
     st = msg.payload;
-
-    // 남은 거리 숫자 타입 보장
     const remRaw = st.remaining_m;
     const rem = typeof remRaw === "number" ? remRaw : parseFloat(remRaw);
-
-    remEl.textContent = rem >= 0
-      ? rem.toFixed(2)
-      : `-${Math.abs(rem).toFixed(2)}`;
-
+    remEl.textContent = rem >= 0 ? rem.toFixed(2) : `-${Math.abs(rem).toFixed(2)}`;
     spdEl.textContent = (st.v * 3.6).toFixed(1);
+
     function notchText(notch) {
       if (notch === 0) return "N";
-      else if (notch === 9) return "EB"; 
+      else if (notch === 9) return "EB";
       else return `B${notch}`;
     }
     notchEl.textContent = notchText(st.lever_notch);
-
     grade_percentEl.textContent = st.grade_percent.toFixed(2);
     timerEl.textContent = st.t.toFixed(3);
     drawHUD(st);
@@ -1206,81 +611,42 @@ ws.onmessage = (ev) => {
     if (st.finished) {
       isFinished = true;
       const issues = st.issues || {};
-
       const feedbackItems = [
         { key: "early_brake_too_short", goodText: "초기 제동을 수행함 - 승차감 양호", badText: "초기 제동을 게을리함 - 승차감 불쾌" },
-        {
-          key: "stop_not_b1",
-          goodText: "정차 시 B1로 정차함 - 승차감 양호",
-          badTextFunc: (issues) => issues.stop_not_b1_msg || "정차 시 B1로 정차하지 않음",
-        },
-        {
-          key: "step_brake_incomplete",
-          goodText: "기본제동 (계단제동/완해) 수행함",
-          badTextFunc: (issues) => {
-            const overrun = issues.stop_error_m !== undefined && issues.stop_error_m <= -2;
-            if (issues.stop_error_m !== undefined && issues.stop_error_m <= -2) {
-              return "기본제동 (계단제동/완해) 미흡 - 정차 위치 초과 및 운행 지연 발생";
-            }
-            return "기본제동 (계단제동/완해) 미흡 - 단속적인 제동으로 인한 승객 쏠림 및 차량 진동 발생";
-          },
-        },
-        { key: "unnecessary_eb_usage", goodText: "영업 안전 제동범위 준수", badText: "불필요한 비상제동(EB) 사용 - 급감속으로 인한 충격 발생" },
+        { key: "stop_not_b1", goodText: "정차 시 B1로 정차함 - 승차감 양호", badTextFunc: (i) => i.stop_not_b1_msg || "정차 시 B1로 정차하지 않음" },
+        { key: "step_brake_incomplete", goodText: "기본제동 (계단제동/완해) 수행함", badTextFunc: (i) => (i.stop_error_m !== undefined && i.stop_error_m <= -2) ? "기본제동 미흡 - 정차 위치 초과" : "기본제동 미흡 - 승객 쏠림/진동" },
+        { key: "unnecessary_eb_usage", goodText: "영업 안전 제동범위 준수", badText: "불필요한 비상제동(EB) 사용" },
       ];
-
-      // 중복 제거: feedbacks를 한 번만 만듭니다
       const feedbacks = feedbackItems.map(item => {
         const bad = issues[item.key];
-        if (!bad) {
-          return { text: item.goodText, isGood: true };
-        } else {
-          const badText = item.badTextFunc ? item.badTextFunc(issues) : item.badText;
-          return { text: badText, isGood: false, isBad: true };
-        }
+        if (!bad) return { text: item.goodText, isGood: true };
+        const badText = item.badTextFunc ? item.badTextFunc(issues) : item.badText;
+        return { text: badText, isGood: false, isBad: true };
       });
-
       const isStopErrorGood = Math.abs(st.stop_error_m || 0) <= 2;
+      feedbacks.push({ text: `정지 오차: ${st.stop_error_m.toFixed(2)} m`, isGood: isStopErrorGood });
+      feedbacks.push({ text: `최종 점수: ${st.score}점`, isGood: isStopErrorGood });
 
-      feedbacks.push({
-        text: `정지 오차: ${st.stop_error_m.toFixed(2)} m`,
-        isGood: isStopErrorGood,
-      });
+      fb.innerHTML = feedbacks.map(item => item.isBad
+        ? `<div class="bad">${item.text}</div>`
+        : `<div class="${item.isGood ? "ok" : "warn"}">${item.text}</div>`
+      ).join("") + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S로 조작</div>`;
 
-      feedbacks.push({
-        text: `최종 점수: ${st.score}점`,
-        isGood: isStopErrorGood,
-      });
-
-    
-      fb.innerHTML = feedbacks
-        .map(item => {
-          if (item.isBad) {
-            return `<div class="bad">${item.text}</div>`;
-          }
-          return `<div class="${item.isGood ? "ok" : "warn"}">${item.text}</div>`;
-        })
-        .join("") + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S로 조작</div>`;
-
-if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-  document.getElementById("btnMobileRestart").classList.remove("hide");
-}
-
-
+      if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        document.getElementById("btnMobileRestart").classList.remove("hide");
+      }
     } else {
       isFinished = true;
       fb.textContent = "Space로 시작. W/S로 브레이크 조절하세요.";
     }
-
   }
 };
 
 document.getElementById("inputLoadRate").addEventListener("change", sendLoadRate);
-
 </script>
+
 <footer style="text-align:center; font-size:12px; color:#888; padding:8px 0; user-select:none;">
   ©2025 Hyungsuk Choi, University of Maryland
 </footer>
-
 </body>
 </html>
-
