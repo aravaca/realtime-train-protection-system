@@ -628,12 +628,20 @@ function updateWeatherUI() {
     document.documentElement.style.background = "#ffffff";
     document.body.style.background = "#ffffff";
     overlayEl.style.background = "rgba(255,255,255,0.15)";   // ⬅ 추가(흰 기운)
+document.documentElement.style.background = "#ffffff";
+    document.body.style.background = "#ffffff";
+    overlayEl.style.background = "rgba(255,255,255,0.15)";
+    canvas.style.background = "#ffffff";                 // ⬅ 추가
   } else if (weather === "비옴") {
     raindrops.style.display = "block";
     snowflakes.style.display = "none";
     document.documentElement.style.background = "#4b5d67";
     document.body.style.background = "#4b5d67";
     overlayEl.style.background = "rgba(40,60,80,0.35)";      // ⬅ 추가(푸른 기운)
+document.documentElement.style.background = "#4b5d67";
+    document.body.style.background = "#4b5d67";
+    overlayEl.style.background = "rgba(40,60,80,0.35)";
+    canvas.style.background = "#4b5d67";                 // ⬅ 추가
   } else {
     raindrops.style.display = "none";
     snowflakes.style.display = "none";
@@ -641,6 +649,12 @@ function updateWeatherUI() {
     document.documentElement.style.background = grad;
     document.body.style.background = grad;
     overlayEl.style.background = "rgba(0,0,0,0.6)";          // ⬅ 기본값
+const grad = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
+    document.documentElement.style.background = grad;
+    document.body.style.background = grad;
+    overlayEl.style.background = "rgba(0,0,0,0.6)";
+    canvas.style.background = "linear-gradient(#0b0f14, #0a1019)"; // ⬅ 추가
+  }
   }
 }
 weatherSelect.addEventListener("change", () => {
