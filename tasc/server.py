@@ -273,7 +273,13 @@ class StoppingSim:
                     desired = 1
 
             if dwell_ok and desired != st.lever_notch:
-                st.lever_notch = self._clamp_notch(desired)
+                new_notch = desired
+
+                # *** 말기 급완해 방지: 완해 방향(노치 내림)일 때 한 번에 1단계만 허용 ***
+                if new_notch < st.lever_notch:
+                    new_notch = max(new_notch, st.lever_notch - 1)
+
+                st.lever_notch = self._clamp_notch(new_notch)
                 self._tasc_last_change_t = st.t
 
         # 제동 감속 (음수, μ 적용)
@@ -359,9 +365,21 @@ class StoppingSim:
                 st.issues["stop_not_b1"] = True
                 st.issues["stop_not_b1_msg"] = "정차 시 B2 이상으로 정차함 - 승차감 불쾌"
 
+            # *** 0cm 정차 보너스(+100) ***
+            if abs(st.stop_error_m or 0.0) < 0.005:  # 0.5cm 이내를 0cm로 간주
+                score += 100
+
             # 계단 패턴 점수
-            if self.is_stair_pattern(self.notch_history):
+            if self.tasc_enabled and not self.manual_override:
+                stair_ok = True  # TASC가 건너뛰어도 인정
+            else:
+                stair_ok = self.is_stair_pattern(self.notch_history)
+
+            if stair_ok:
                 score += 500
+                st.issues["step_brake_incomplete"] = False
+            else:
+                st.issues["step_brake_incomplete"] = True
 
             # 정지 오차 점수 (0m → 500점, 10m → 0점)
             err_abs = abs(st.stop_error_m or 0.0)
@@ -370,7 +388,6 @@ class StoppingSim:
 
             # 이슈 플래그들
             st.issues["early_brake_too_short"] = not self.first_brake_done
-            st.issues["step_brake_incomplete"] = not self.is_stair_pattern(self.notch_history)
             st.issues["stop_error_m"] = st.stop_error_m
 
             # 저크 기록
