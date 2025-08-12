@@ -210,29 +210,49 @@ class StoppingSim:
         """기록에서 EB(최대 인덱스) 사용 여부 확인"""
         return any(n == self.veh.notches - 1 for n in self.notch_history)
 
-    # --------- TASC Core: 원하는 노치 선택 ----------
+    # --------- TASC Core: 노치 선택 (수정) ----------
     def _tasc_choose_notch(self, v: float, rem: float) -> int:
         """
-        현재 속도 v(m/s), 남은거리 rem(m)에서
-        s_brake = v^2 / (2*|a|) >= rem - margin
-        을 만족하는 '가장 낮은 노치'를 반환.
-        0=N, 1=B1 ... 마지막=EB
+        요구 감속 a_req = v^2 / (2*rem)을 계산해서
+        그 값을 '만족할 수 있는' 가장 낮은(약한) 브레이크 단계 반환.
+        없으면 일반최대(EB-1), 그래도 부족하면 EB.
         """
-        margin = max(0.0, rem - self.tasc_deadband_m)
         if rem <= 0.0:
-            return 1  # 도착 직전~이하: B1 마무리
+            return 1
 
-        best = 0  # 기본 완해
-        for notch, a in enumerate(self.veh.notch_accels):
-            if notch == 0:
-                continue  # N 스킵
-            if a >= 0:
-                continue  # 제동 아닌 값 무시
-            s_brake = (v * v) / (2.0 * abs(a))
-            if s_brake >= margin:
-                best = notch
+        eps = 0.10
+        rem_eff = max(rem, eps)
+
+        a_req = (v * v) / (2.0 * rem_eff)          # 필요한 감속(+) 크기
+        a_req *= 1.02                               # 약간 보수적으로 (+2%) 오버런 방지
+        mu = max(0.1, float(self.scn.mu))          # 안전
+
+        # 각 노치의 '유효' 감속 크기(|a|*mu)
+        eff = []
+        for i, a in enumerate(self.veh.notch_accels):
+            if i == 0:
+                eff.append(0.0)                    # N
+            else:
+                eff.append(abs(a) * mu)
+
+        # a_eff >= a_req 를 만족하는 가장 낮은 노치 선택
+        eb_idx = self.veh.notches - 1
+        best = None
+        for i in range(1, eb_idx):  # 일반제동 범위(EB 제외)
+            if eff[i] >= a_req:
+                best = i
                 break
-        return best
+
+        if best is not None:
+            return best
+
+        # 일반제동으로 부족하면 EB-1 시도
+        if eff[eb_idx - 1] > 0:
+            if eff[eb_idx - 1] >= a_req:
+                return eb_idx - 1
+
+        # 그래도 부족하면 EB
+        return eb_idx
 
     def step(self):
         st = self.state
@@ -242,12 +262,12 @@ class StoppingSim:
         while self._cmd_queue and self._cmd_queue[0]["t"] <= st.t:
             self._apply_command(self._cmd_queue.popleft())
 
-        # 기록 & 초제동(B1/B2) 1초 체크(사용자 조작에 대비해 일반 판정도 유지)
+        # 기록 & 초제동(B1/B2) 1초 체크(사용자 조작 대비)
         self.notch_history.append(st.lever_notch)
         self.time_history.append(st.t)
 
         if not self.first_brake_done:
-            if st.lever_notch in (1, 2):  # B1 또는 B2
+            if st.lever_notch in (1, 2):
                 if self.first_brake_start is None:
                     self.first_brake_start = time.time()
                 elif time.time() - self.first_brake_start >= 1.0:
@@ -257,30 +277,26 @@ class StoppingSim:
 
         # ---------- TASC 자동 제동 ----------
         if self.tasc_enabled and not self.manual_override and not st.finished:
-            # 현재 남은거리/속도
             rem_now = self.scn.L - st.s
             speed_kmh = st.v * 3.6
 
-            # (A) 초제동 1초 ‘확실히’ 고정 (시뮬레이션 시간 기준)
+            # (A) 초제동 1초 ‘확실히’ 고정 (시뮬 시간 기준)
             if not self.first_brake_done:
-                # 1) 초제동 목표 확정 (최초 1회)
                 if self.first_brake_target is None:
                     self.first_brake_target = 2 if speed_kmh >= 70.0 else 1
-                    # 즉시 목표로 세팅할 수 있게 변경 시각 과거로 밀어둠
                     self._tasc_last_change_t = st.t - 999.0
 
                 desired = self.first_brake_target
 
-                # 2) 목표 노치로 실제 맞추기(한 단계씩만 변경)
-                dwell_ok = True
-                if dwell_ok and desired != st.lever_notch:
+                # 목표 노치로 맞추기(한 단계씩)
+                if desired != st.lever_notch:
                     if desired > st.lever_notch:
                         st.lever_notch = self._clamp_notch(st.lever_notch + 1)
-                    elif desired < st.lever_notch:
+                    else:
                         st.lever_notch = self._clamp_notch(st.lever_notch - 1)
                     self._tasc_last_change_t = st.t
 
-                # 3) 목표 노치(B1/B2)에 ‘연속 1초’ 머물렀는지 시뮬시간으로 판정
+                # B1/B2에 연속 1초 머물렀는지 시뮬 시간으로 판정
                 if st.lever_notch in (1, 2):
                     if self.first_brake_hold_t0 is None:
                         self.first_brake_hold_t0 = st.t
@@ -290,19 +306,19 @@ class StoppingSim:
                     self.first_brake_hold_t0 = None
 
             else:
-                # (B) 본 제동 구간: 곡선-빨간선 매칭으로 목표 노치 선택
+                # (B) 본 제동: 필요한 감속 기반으로 목표 노치 산출
                 desired = self._tasc_choose_notch(st.v, rem_now)
 
                 # 너무 이른 B1 방지: 거의 정지 근처에서만 B1 허용
                 if not (rem_now < 2.0 and speed_kmh < 3.0):
                     if desired == 1:
-                        desired = max(2, desired)  # 최소 B2 유지
+                        desired = 2
 
                 # 노치별 최소 유지시간(특히 B3/B2 급완해 방지)
                 def hold_required(n):
-                    if n in (2, 3):  # B2, B3
+                    if n in (2, 3):
                         return 0.90
-                    if n == 1:       # B1
+                    if n == 1:
                         return 0.60
                     return 0.40
 
@@ -418,7 +434,6 @@ class StoppingSim:
 
             # 계단 패턴 점수
             def stair_ok():
-                # TASC ON & 수동개입 없음이면 계단으로 간주(감점 회피)
                 if self.tasc_enabled and not self.manual_override:
                     return True
                 return self.is_stair_pattern(self.notch_history)
@@ -434,7 +449,7 @@ class StoppingSim:
             score += error_score
 
             # 0cm 정차 보너스 (+100)
-            if abs(st.stop_error_m or 0.0) <= 0.001:  # 1mm 이하
+            if abs(st.stop_error_m or 0.0) <= 0.001:
                 score += 100
                 st.issues["perfect_stop_bonus"] = True
 
@@ -483,11 +498,9 @@ class StoppingSim:
                 return False
 
             if not peak_reached:
-                # 상승 구간(증가 또는 유지). 감소가 시작되면 꼭 내리막으로 유지되어야 함
                 if cur < prev:
                     peak_reached = True
             else:
-                # 내리막 구간. 다시 오르면 실패
                 if cur > prev:
                     return False
 
@@ -636,7 +649,6 @@ async def ws_endpoint(ws: WebSocket):
 
                     elif name == "setMassTons":
                         mass_tons = float(payload.get("mass_tons", 200.0))
-                        # 차량 1량 질량 갱신(정보 목적), 총질량은 mass_kg에 반영
                         vehicle.mass_t = mass_tons / int(payload.get("length", 8))
                         vehicle.mass_kg = mass_tons * 1000.0
                         print(f"차량 전체 중량을 {mass_tons:.2f} 톤으로 업데이트 했습니다.")
