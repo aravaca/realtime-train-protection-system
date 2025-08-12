@@ -644,10 +644,10 @@ function updateWeatherUI() {
   }
 }
 weatherSelect.addEventListener("change", () => {
-  updateWeatherUI(); // 기존 호출 유지
+  updateWeatherUI(); // 배경/애니메이션
   const mu = muFromWeather(weatherSelect.value);
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMu", value: mu } }));
+    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMu", value: mu } })); // ⬅ 추가 (핵심)
   }
 });
 updateWeatherUI(); // 초기 적용
