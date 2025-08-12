@@ -620,43 +620,40 @@ btnStart.addEventListener("click", startRun);
 
 function updateWeatherUI() {
   const weather = weatherSelect.value;
-  const overlayEl = document.getElementById("overlay"); // ⬅ 추가
+  const overlayEl = document.getElementById("overlay");
 
   if (weather === "눈옴") {
+    // 애니메이션
     snowflakes.style.display = "block";
     raindrops.style.display = "none";
+    // 배경(전체)
     document.documentElement.style.background = "#ffffff";
     document.body.style.background = "#ffffff";
-    overlayEl.style.background = "rgba(255,255,255,0.15)";   // ⬅ 추가(흰 기운)
-document.documentElement.style.background = "#ffffff";
-    document.body.style.background = "#ffffff";
     overlayEl.style.background = "rgba(255,255,255,0.15)";
-    canvas.style.background = "#ffffff";                 // ⬅ 추가
+    // 캔버스도 밝게
+    canvas.style.background = "#ffffff";
   } else if (weather === "비옴") {
-    raindrops.style.display = "block";
     snowflakes.style.display = "none";
+    raindrops.style.display = "block";
     document.documentElement.style.background = "#4b5d67";
     document.body.style.background = "#4b5d67";
-    overlayEl.style.background = "rgba(40,60,80,0.35)";      // ⬅ 추가(푸른 기운)
-document.documentElement.style.background = "#4b5d67";
-    document.body.style.background = "#4b5d67";
     overlayEl.style.background = "rgba(40,60,80,0.35)";
-    canvas.style.background = "#4b5d67";                 // ⬅ 추가
+    // 캔버스도 어둡게(우중충 톤)
+    canvas.style.background = "#4b5d67";
   } else {
-    raindrops.style.display = "none";
+    // 맑음: 기본 그라데이션으로 복귀
     snowflakes.style.display = "none";
+    raindrops.style.display = "none";
     const grad = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
     document.documentElement.style.background = grad;
     document.body.style.background = grad;
-    overlayEl.style.background = "rgba(0,0,0,0.6)";          // ⬅ 기본값
-const grad = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
-    document.documentElement.style.background = grad;
-    document.body.style.background = grad;
     overlayEl.style.background = "rgba(0,0,0,0.6)";
-    canvas.style.background = "linear-gradient(#0b0f14, #0a1019)"; // ⬅ 추가
-  }
+    // 캔버스도 원래 그라데이션으로 복귀
+    canvas.style.background = "linear-gradient(#0b0f14, #0a1019)";
   }
 }
+
+
 weatherSelect.addEventListener("change", () => {
   updateWeatherUI(); // 배경/애니메이션
   const mu = muFromWeather(weatherSelect.value);
