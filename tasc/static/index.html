@@ -350,6 +350,68 @@ body {
     display: block; /* 모바일에서는 표시 */
   }
 }
+
+/* 오른쪽 상단 고정 */
+.tasc-toggle {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Orbitron', sans-serif;
+  z-index: 1001; /* 오버레이 안에서 최상위 */
+}
+
+/* 텍스트 라벨 */
+.tasc-toggle .tasc-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9fc5ff;
+  user-select: none;
+}
+
+/* 체크박스 숨기기 */
+.tasc-toggle input {
+  display: none;
+}
+
+/* 토글 바탕 */
+.tasc-toggle .slider {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 24px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
+}
+
+/* 동그라미 */
+.tasc-toggle .slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+/* 켜짐 상태 */
+.tasc-toggle input:checked + .slider {
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+}
+
+.tasc-toggle input:checked + .slider::before {
+  transform: translateX(22px);
+}
+
 </style>
 </head>
 <body>
@@ -385,6 +447,13 @@ body {
 <!-- HTML -->
 <div id="overlay">
   <div class="card">
+<!-- TASC ON/OFF 토글 -->
+<div class="tasc-toggle">
+  <input type="checkbox" id="tascToggle" />
+  <label for="tascToggle" class="slider"></label>
+  <span class="tasc-label">TASC</span>
+</div>
+
     <h2 class="title">🚉 TASC 기반 정차 트레이너</h2>
     <p class="subtitle">초기값을 입력하고 <b>Space</b> 또는 아래 버튼을 눌러 시작하세요.</p>
 
@@ -427,6 +496,7 @@ body {
         <option value="15">15량 (JR 도호쿠선 일부 구간, 고속 노선)</option>
       </select>
 
+
     <!-- 게임 배경 -->
     <div class="game-background"></div>
 
@@ -464,6 +534,25 @@ body {
 
 <button id="btnMobileRestart" class="fab hide">재시작</button>
 <script>
+
+const tascToggle = document.getElementById("tascToggle");
+tascToggle.addEventListener("change", () => {
+  const enabled = tascToggle.checked;
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled } }));
+  }
+});
+
+function forceManualOverride() {
+  if (tascToggle.checked) {
+    tascToggle.checked = false;
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled: false } }));
+    }
+  }
+}
+
+
 const snowflakesContainer = document.querySelector('.snowflakes');
 
 // 눈송이를 생성하는 함수
@@ -733,9 +822,22 @@ btnStart.addEventListener("click", () => {
 });
 
 
+// TASC 수동 해제 함수
+function forceManualOverride() {
+  if (tascToggle && tascToggle.checked) {
+    tascToggle.checked = false;
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled: false } }));
+    }
+  }
+}
+
 addEventListener("keydown", (e) => {
   if ([" ", "w", "W", "s", "S", "n", "N"].includes(e.key)) e.preventDefault();
   if (e.repeat) return;
+
+  // ★ 키 입력이 들어오면 우선 수동 전환
+  forceManualOverride();
 
   if (e.key === " ") {
     if (ws.readyState !== WebSocket.OPEN) return;
@@ -754,17 +856,9 @@ addEventListener("keydown", (e) => {
         const grade = Number(inputGrade.value);
         ws.send(JSON.stringify({
           type: "cmd",
-          payload: {
-            name: "setInitial",
-            speed,
-            dist,
-            grade,
-          }
+          payload: { name: "setInitial", speed, dist, grade }
         }));
-        ws.send(JSON.stringify({
-          type: "cmd",
-          payload: { name: "start" }
-        }));
+        ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" } }));
         isFinished = false;
         overlayShowingResult = false;
       }
@@ -776,17 +870,9 @@ addEventListener("keydown", (e) => {
       const grade = Number(inputGrade.value);
       ws.send(JSON.stringify({
         type: "cmd",
-        payload: {
-          name: "setInitial",
-          speed,
-          dist,
-          grade,
-        }
+        payload: { name: "setInitial", speed, dist, grade }
       }));
-      ws.send(JSON.stringify({
-        type: "cmd",
-        payload: { name: "start" }
-      }));
+      ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" } }));
       isFinished = false;
       overlayShowingResult = false;
     }
@@ -802,13 +888,14 @@ addEventListener("keydown", (e) => {
   }
 });
 
-
-
 if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
   const gameSurface = document.getElementById("hud");
   gameSurface.addEventListener("touchstart", (e) => {
     if (!overlay.classList.contains("hide")) return; // 오버레이 보이면 조작 안 함
     if (e.touches.length !== 1) return; // 멀티터치 무시
+
+    // ★ 터치 입력이 들어오면 우선 수동 전환
+    forceManualOverride();
 
     const rect = gameSurface.getBoundingClientRect();
     const y = e.touches[0].clientY - rect.top; // 캔버스 내부 Y좌표
