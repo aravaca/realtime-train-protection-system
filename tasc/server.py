@@ -142,10 +142,10 @@ class StoppingSim:
         self.tasc_enabled = False
         self.manual_override = False
         # 곡선-추종 파라미터
-        self.tasc_deadband_m = 0.5      # 밴드(±) : 너무 작으면 헌팅, 너무 크면 둔해짐
-        self.tasc_hold_min_s = 0.25     # 최소 유지시간: 변화 과속 방지
+        self.tasc_deadband_m = 0.5      # 밴드(±). 너무 크면 둔감, 작으면 헌팅
+        self.tasc_hold_min_s = 0.25     # 최소 유지시간(s). 과도한 스위칭 방지
         self._tasc_last_change_t = 0.0
-        self._tasc_phase = "build"      # "build" → "relax" (최대치 도달 후 완해 단계)
+        self._tasc_phase = "build"      # "build" → "relax" (완해 단계)
         self._tasc_peak_notch = 1
 
     def _clamp_notch(self, n: int) -> int:
@@ -218,25 +218,6 @@ class StoppingSim:
         mu = max(0.1, float(self.scn.mu))
         return (v * v) / (2.0 * abs(a) * mu)
 
-    # ------ choose target notch by closest curve ------
-    def _tasc_target_notch_by_curve(self, v: float, rem: float) -> int:
-        """
-        '남은거리(rem)'와 각 노치 정지거리 s_brake(n)의 차이가 가장 작은 n을 목표로 선택.
-        EB(최대)와 N(0)은 제외, 1..(EB-1) 범위.
-        """
-        best_n = 1
-        best_err = float('inf')
-        max_normal_notch = self.veh.notches - 2  # EB-1 까지만 정상 영역
-        for n in range(1, max_normal_notch + 1):
-            s = self._stopping_distance(n, v)
-            if not math.isfinite(s):
-                continue
-            err = abs(s - rem)
-            if err < best_err:
-                best_err = err
-                best_n = n
-        return best_n
-
     def step(self):
         st = self.state
         dt = self.scn.dt
@@ -263,34 +244,43 @@ class StoppingSim:
             dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
             rem_now = self.scn.L - st.s
             speed_kmh = st.v * 3.6
+            cur = st.lever_notch
+            max_normal_notch = self.veh.notches - 2  # EB-1까지
 
             # 1) 초제동: 70km/h 이상이면 B2, 아니면 B1을 최소 1초
             if not self.first_brake_done:
                 desired = 2 if speed_kmh >= 70.0 else 1
+                if dwell_ok and cur != desired:
+                    step = 1 if desired > cur else -1
+                    st.lever_notch = self._clamp_notch(cur + step)
+                    self._tasc_last_change_t = st.t
+
             else:
-                # 2) 본 제동/완해: "가장 가까운 곡선"을 목표로 (모든 노치 동일 규칙)
-                desired = self._tasc_target_notch_by_curve(st.v, rem_now)
+                # build/relax 명시적 규칙
+                s_cur = self._stopping_distance(cur, st.v) if cur > 0 else float('inf')
+                s_up  = self._stopping_distance(cur + 1, st.v) if cur + 1 <= max_normal_notch else 0.0
+                s_dn  = self._stopping_distance(cur - 1, st.v) if cur - 1 >= 1 else float('inf')
 
-                # phase 전환 감지: 최대 노치 갱신 시점 이후는 relax만 허용
-                if desired > self._tasc_peak_notch:
-                    self._tasc_peak_notch = desired
-                if st.lever_notch < self._tasc_peak_notch and desired <= st.lever_notch:
-                    self._tasc_phase = "relax"
+                changed = False
 
-                # relax 단계에서는 "아래로만" 1단씩, build 단계에서는 "위로만" 1단씩
-                if self._tasc_phase == "build" and desired < st.lever_notch:
-                    desired = st.lever_notch
-                if self._tasc_phase == "relax" and desired > st.lever_notch:
-                    desired = st.lever_notch
+                if self._tasc_phase == "build":
+                    # 더 강한 제동이 필요하면 한 단계 강화
+                    if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
+                        if dwell_ok:
+                            st.lever_notch = self._clamp_notch(cur + 1)
+                            self._tasc_last_change_t = st.t
+                            self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
+                            changed = True
+                    else:
+                        # 충분히 맞아떨어지면 relax로 전환
+                        self._tasc_phase = "relax"
 
-                # 마지막 미세조정은 사람 몫이므로, B1 진입 제한은 두지 않음
-                # (= 다른 노치처럼 rem≈s_brake(1)일 때 B1로 완해)
-
-            if dwell_ok and desired != st.lever_notch:
-                # 계단제동/완해: 한 단계씩만 이동
-                step = 1 if desired > st.lever_notch else -1
-                st.lever_notch = self._clamp_notch(st.lever_notch + step)
-                self._tasc_last_change_t = st.t
+                if self._tasc_phase == "relax" and not changed:
+                    # 더 약한 제동으로도 충분(곡선 만나거나 위)하면 한 단계 완해
+                    if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
+                        if dwell_ok:
+                            st.lever_notch = self._clamp_notch(cur - 1)
+                            self._tasc_last_change_t = st.t
 
         # ====== 동역학 ======
         # 제동 감속 (음수, μ 적용)
@@ -380,7 +370,6 @@ class StoppingSim:
             if self.is_stair_pattern(self.notch_history):
                 score += 500
             else:
-                # TASC가 켜진 동안의 변화는 '계단으로 간주' (사람 개입시엔 패널티 유지)
                 if self.tasc_enabled and not self.manual_override:
                     score += 500
 
