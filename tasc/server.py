@@ -139,6 +139,13 @@ class StoppingSim:
         self.prev_a = 0.0
         self.jerk_history: List[float] = []
 
+        # ---------- TASC (자동 정차) ----------
+        self.tasc_enabled = False
+        self.manual_override = False
+        self.tasc_deadband_m = 2.0        # 목표 대비 여유(m) → 헌팅 방지
+        self.tasc_hold_min_s = 0.40       # 노치 최소 유지시간(s)
+        self._tasc_last_change_t = 0.0
+
     def _clamp_notch(self, n: int) -> int:
         return max(0, min(self.veh.notches - 1, n))
 
@@ -181,6 +188,10 @@ class StoppingSim:
         self.prev_a = 0.0
         self.jerk_history = []
 
+        # 수동 개입 플래그 초기화(오토 유지)
+        self.manual_override = False
+        # self.tasc_enabled 은 유지 (UI 토글 상태 그대로)
+
         print("Simulation reset")
 
     def start(self):
@@ -191,6 +202,30 @@ class StoppingSim:
     def eb_used_from_history(self) -> bool:
         """기록에서 EB(최대 인덱스) 사용 여부 확인"""
         return any(n == self.veh.notches - 1 for n in self.notch_history)
+
+    # --------- TASC Core: 원하는 노치 선택 ----------
+    def _tasc_choose_notch(self, v: float, rem: float) -> int:
+        """
+        현재 속도 v(m/s), 남은거리 rem(m)에서
+        s_brake = v^2 / (2*|a|) >= rem - margin
+        을 만족하는 '가장 낮은 노치'를 반환.
+        0=N, 1=B1 ... 마지막=EB
+        """
+        margin = max(0.0, rem - self.tasc_deadband_m)
+        if rem <= 0.0:
+            return 1  # 도착 직전~이하: B1 마무리
+
+        best = 0  # 기본 완해
+        for notch, a in enumerate(self.veh.notch_accels):
+            if notch == 0:
+                continue  # N 스킵
+            if a >= 0:
+                continue  # 제동 아닌 값 무시
+            s_brake = (v * v) / (2.0 * abs(a))
+            if s_brake >= margin:
+                best = notch
+                break
+        return best
 
     def step(self):
         st = self.state
@@ -212,6 +247,24 @@ class StoppingSim:
                     self.first_brake_done = True
             else:
                 self.first_brake_start = None
+
+        # ---------- TASC 자동 제동 ----------
+        if self.tasc_enabled and not self.manual_override and not st.finished:
+            dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
+            rem_now = self.scn.L - st.s
+            desired = self._tasc_choose_notch(st.v, rem_now)
+
+            # 초제동 1초 보장: 아직 완료 전이면 최소 B1 유지
+            if not self.first_brake_done and desired < 1:
+                desired = 1
+
+            # 저속/근거리 마무리 바이어스(선택적이지만 승차감↑)
+            if rem_now < 5.0 and st.v * 3.6 < 5.0:
+                desired = max(1, min(desired, 1))
+
+            if dwell_ok and desired != st.lever_notch:
+                st.lever_notch = self._clamp_notch(desired)
+                self._tasc_last_change_t = st.t
 
         # 제동 감속 (음수, μ 적용)
         if st.lever_notch < len(self.veh.notch_accels):
@@ -410,12 +463,13 @@ class StoppingSim:
             "v_ref": self.vref(st.s),
             "finished": st.finished,
             "stop_error_m": st.stop_error_m,
-            "residual_speed_kmh": st.residual_speed_kmh,
+            "residual_speed_kmh": st.v * 3.6,
             "running": self.running,
             "grade_percent": self.scn.grade_percent,
             "grade": getattr(st, "grade", None),
             "score": getattr(st, "score", 0),
             "issues": getattr(st, "issues", {}),
+            "tasc_enabled": getattr(self, "tasc_enabled", False),
         }
 
 
@@ -480,12 +534,19 @@ async def ws_endpoint(ws: WebSocket):
 
                     elif name in ("stepNotch", "applyNotch"):
                         delta = int(payload.get("delta", 0))
+                        # 수동 개입 → TASC 해제
+                        sim.manual_override = True
+                        sim.tasc_enabled = False
                         sim.queue_command("stepNotch", delta)
 
                     elif name == "release":
+                        sim.manual_override = True
+                        sim.tasc_enabled = False
                         sim.queue_command("release", 0)
 
                     elif name == "emergencyBrake":
+                        sim.manual_override = True
+                        sim.tasc_enabled = False
                         sim.queue_command("emergencyBrake", 0)
 
                     elif name == "setTrainLength":
@@ -501,6 +562,13 @@ async def ws_endpoint(ws: WebSocket):
                         vehicle.mass_kg = mass_tons * 1000.0
                         print(f"차량 전체 중량을 {mass_tons:.2f} 톤으로 업데이트 했습니다.")
                         sim.reset()
+
+                    elif name == "setTASC":
+                        enabled = bool(payload.get("enabled", False))
+                        sim.tasc_enabled = enabled
+                        if enabled:
+                            sim.manual_override = False
+                        print(f"TASC set to {enabled}")
 
                     elif name == "reset":
                         sim.reset()
