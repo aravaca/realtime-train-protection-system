@@ -1,4 +1,3 @@
-
 import math
 import json
 import asyncio
@@ -203,29 +202,37 @@ class StoppingSim:
         """기록에서 EB(최대 인덱스) 사용 여부 확인"""
         return any(n == self.veh.notches - 1 for n in self.notch_history)
 
-    # --------- TASC Core: 원하는 노치 선택 ----------
+    # --------- TASC Core: rem에 가장 근접한 노치 선택 ----------
     def _tasc_choose_notch(self, v: float, rem: float) -> int:
         """
         현재 속도 v(m/s), 남은거리 rem(m)에서
-        s_brake = v^2 / (2*|a|) >= rem - margin
-        을 만족하는 '가장 낮은 노치'를 반환.
+        s_brake = v^2 / (2*|a|) 가 rem 이하인 후보 중 rem에 가장 가까운(가장 큰 s_brake) 노치를 고른다.
+        하나도 rem 이하가 없으면(=어떤 노치로도 그 거리 안에 못 섬) 최강 노치(EB)를 반환.
         0=N, 1=B1 ... 마지막=EB
         """
-        margin = max(0.0, rem - self.tasc_deadband_m)
         if rem <= 0.0:
-            return 1  # 도착 직전~이하: B1 마무리
+            return 1  # 도착 직전: B1 마무리
 
-        best = 0  # 기본 완해
-        for notch, a in enumerate(self.veh.notch_accels):
-            if notch == 0:
-                continue  # N 스킵
+        best_notch = None
+        best_s = -1.0
+
+        # 0=N은 제외하고 브레이크 노치만 탐색
+        for notch in range(1, self.veh.notches):
+            a = self.veh.notch_accels[notch]
             if a >= 0:
-                continue  # 제동 아닌 값 무시
+                continue  # 제동 아닌 값 제외
             s_brake = (v * v) / (2.0 * abs(a))
-            if s_brake >= margin:
-                best = notch
-                break
-        return best
+
+            # rem 이하로 설 수 있는 후보들 중에서 rem에 가장 근접(값이 큰 것)을 고름
+            if s_brake <= rem and s_brake > best_s:
+                best_s = s_brake
+                best_notch = notch
+
+        if best_notch is not None:
+            return best_notch
+
+        # 어떤 노치로도 rem 이내 정지가 불가하면 최강 제동(EB)
+        return self.veh.notches - 1
 
     def step(self):
         st = self.state
@@ -252,15 +259,18 @@ class StoppingSim:
         if self.tasc_enabled and not self.manual_override and not st.finished:
             dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
             rem_now = self.scn.L - st.s
-            desired = self._tasc_choose_notch(st.v, rem_now)
 
-            # 초제동 1초 보장: 아직 완료 전이면 최소 B1 유지
-            if not self.first_brake_done and desired < 1:
+            if not self.first_brake_done:
+                # 초제동 1초 확보: 기본 B1 고정(고속일 때 B2 허용하고 싶으면 조건 추가)
                 desired = 1
+                # 예) if st.v*3.6 >= 80: desired = 2
+            else:
+                # 초제동 완료 후엔 'redline 교차' 기준으로 가장 근접한 노치 선택
+                desired = self._tasc_choose_notch(st.v, rem_now)
 
-            # 저속/근거리 마무리 바이어스(선택적이지만 승차감↑)
-            if rem_now < 5.0 and st.v * 3.6 < 5.0:
-                desired = max(1, min(desired, 1))
+                # 저속/근거리 마무리 바이어스: 남은거리 작고 저속이면 B1로 정리
+                if rem_now < 5.0 and st.v * 3.6 < 5.0:
+                    desired = 1
 
             if dwell_ok and desired != st.lever_notch:
                 st.lever_notch = self._clamp_notch(desired)
