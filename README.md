@@ -72,9 +72,14 @@
 ---
 
 ## 🔧 Project Structure
-
-
-├── scenario.json          # 시나리오(거리 L, 초기속도 v0, 경사, 마찰 등) ├── vehicle.json           # 차량 제원(질량, notch_accels, 시간상수 등) ├── server.py              # FastAPI + WebSocket 서버, TASC 로직 포함 └── static/ ├── index.html         # UI (HUD/오버레이/TASC 스위치/애니메이션) └── carName.json       # 차량 이름 표시용
+```
+├── scenario.json          # 시나리오(거리 L, 초기속도 v0, 경사, 마찰 등)
+├── vehicle.json           # 차량 제원(질량, notch_accels, 시간상수 등)
+├── server.py              # FastAPI + WebSocket 서버, TASC 로직 포함
+└── static/
+    ├── index.html         # UI (HUD/오버레이/TASC 스위치/애니메이션)
+    └── carName.json       # 차량 이름 표시용
+```
 
 ---
 
@@ -82,134 +87,72 @@
 1. (선택) 가상환경 준비 후 패키지 설치
 ```bash
 pip install fastapi uvicorn
-
+```
 2. 서버 실행
-
-
-
+```bash
 uvicorn server:app --host 0.0.0.0 --port 8000 --reload
-
-3. 브라우저에서 접속
-http://localhost:8000/ → HUD/오버레이 UI 실행
-
-
+```
+3. 브라우저에서 접속  
+[http://localhost:8000/](http://localhost:8000/) → HUD/오버레이 UI 실행
 
 > 배포 환경(Nginx/Route53/AWS EC2)은 서비스 설정에 따라 달라질 수 있습니다.
 
+---
 
-
+## 🧪 How TASC Works (알고리즘 요약)
+- **초제동**:
+  - 속도 ≥ 70km/h → **B2** 1초 유지
+  - 속도 < 70km/h → **B1** 1초 유지
+- **계단 제동 (build)**:
+  - 현재 노치 정지거리 `s_cur` > `(rem - 데드밴드)` → 한 단계 강화(↑)
+  - 충분해지면 **완해 단계로 전환**
+- **계단 완해 (relax)**:
+  - 한 단계 아래 노치 정지거리 `s_dn` ≤ `(rem + 데드밴드)` → 한 단계 완해(↓)
+  - 이를 반복, **B1**로 마무리
+- **안정화 장치**:
+  - **데드밴드(±m)**와 **최소 유지시간(s)**으로 헌팅/덜컹 방지
+  - 저속/근거리에서 **B1 바이어스**로 승차감 개선
 
 ---
 
-🧪 How TASC Works (알고리즘 요약)
-
-초제동:
-
-속도 ≥ 70km/h → B2 1초 유지
-
-속도 < 70km/h → B1 1초 유지
-
-
-계단 제동 (build):
-
-현재 노치 정지거리 s_cur > (rem - 데드밴드) → 한 단계 강화(↑)
-
-충분해지면 완해 단계로 전환
-
-
-계단 완해 (relax):
-
-한 단계 아래 노치 정지거리 s_dn ≤ (rem + 데드밴드) → 한 단계 완해(↓)
-
-이를 반복, B1로 마무리
-
-
-안정화 장치:
-
-**데드밴드(±m)**와 **최소 유지시간(s)**으로 헌팅/덜컹 방지
-
-저속/근거리에서 B1 바이어스로 승차감 개선
-
-
-
+## ⚙️ Configuration (설정 포인트)
+- **vehicle.json**
+  - `notch_accels`: `[N, B1, B2, ..., EB]` 순서(서버에서 반전 사용)
+  - `tau_cmd_ms`, `tau_brk_ms`: 제어/제동 지연 상수
+  - `mass_t`: 1량 기준 질량 (총질량=편성 수 × 탑승률)
+- **scenario.json**
+  - `L`(정차 목표 거리), `v0`(초기 속도), `grade_percent`, `mu`(마찰)
 
 ---
 
-⚙️ Configuration (설정 포인트)
-
-vehicle.json
-
-notch_accels: [N, B1, B2, ..., EB] 순서(서버에서 반전 사용)
-
-tau_cmd_ms, tau_brk_ms: 제어/제동 지연 상수
-
-mass_t: 1량 기준 질량 (총질량=편성 수 × 탑승률)
-
-
-scenario.json
-
-L(정차 목표 거리), v0(초기 속도), grade_percent, mu(마찰)
-
-
-
+## 🛡 Troubleshooting
+- **웹에 이전 버전이 보임**:
+  - 브라우저 캐시/서비스워커/CloudFront 캐시 삭제
+  - Nginx/EC2에서 `static/` 최신 배포 확인
+- **HUD에 EB 곡선 미표시**:
+  - `vehicle.notches` / `notch_accels` 길이와 프론트 렌더 순서 확인
+  - 서버는 `[N..EB]` 배열을 **반전** 사용
+- **TASC 완해 안 됨**:
+  - `tasc_deadband_m`을 0.3~0.8로 조정
+  - `tasc_hold_min_s`를 0.2~0.35로 조정
 
 ---
 
-🛡 Troubleshooting
-
-웹에 이전 버전이 보임:
-
-브라우저 캐시/서비스워커/CloudFront 캐시 삭제
-
-Nginx/EC2에서 static/ 최신 배포 확인
-
-
-HUD에 EB 곡선 미표시:
-
-vehicle.notches / notch_accels 길이와 프론트 렌더 순서 확인
-
-서버는 [N..EB] 배열을 반전 사용
-
-
-TASC 완해 안 됨:
-
-tasc_deadband_m을 0.3~0.8로 조정
-
-tasc_hold_min_s를 0.2~0.35로 조정
-
-
-
+## 🗺 Roadmap
+- 곡선/정차 위치 학습(ML) 기반 **TASC 적응형 파라미터 튜닝**
+- 차종별 제동특성/열차 길이 프리셋
+- 더 세밀한 **승차감 모델**(좌우 흔들림/슬립 탐지)
+- 리플레이/고스트 오버레이(자기 최고 기록과 비교)
 
 ---
 
-🗺 Roadmap
-
-곡선/정차 위치 학습(ML) 기반 TASC 적응형 파라미터 튜닝
-
-차종별 제동특성/열차 길이 프리셋
-
-더 세밀한 승차감 모델(좌우 흔들림/슬립 탐지)
-
-리플레이/고스트 오버레이(자기 최고 기록과 비교)
-
-
-
----
-
-📄 License
-
+## 📄 License
 MIT License © 2025 Hyungsuk Choi, University of Maryland
 
-
 ---
 
-📌 교육·연습 활용 팁
-
-브레이크 내비 캔버스에서 “빨간선과 곡선이 만나는 지점”을 노려 계단 제동·완해 타이밍을 읽어보세요.
-
-TASC ON 상태에서 자동 프로파일을 관찰한 뒤, 수동으로 동일한 패턴을 재현해보면 실력이 빠르게 향상됩니다.
-
-0cm 정차 보너스를 노리며 저크 점수도 신경 쓰면, 정확도+승차감 둘 다 잡을 수 있습니다.
-
-
+## 📌 교육·연습 활용 팁
+- **브레이크 내비 캔버스**에서 “빨간선과 곡선이 만나는 지점”을 노려 **계단 제동·완해 타이밍**을 읽어보세요.
+- TASC ON 상태에서 자동 프로파일을 관찰한 뒤, **수동으로 동일한 패턴을 재현**해보면 실력이 빠르게 향상됩니다.
+- **0cm 정차 보너스**를 노리며 저크 점수도 신경 쓰면, 정확도+승차감 **둘 다** 잡을 수 있습니다.
 
