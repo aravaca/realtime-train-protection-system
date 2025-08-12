@@ -142,8 +142,16 @@ class StoppingSim:
         self.tasc_enabled = False
         self.manual_override = False
         self.tasc_deadband_m = 2.0        # 목표 대비 여유(m) → 헌팅 방지
-        self.tasc_hold_min_s = 0.40       # 노치 최소 유지시간(s)
+        self.tasc_hold_min_s = 0.40       # 기본 노치 최소 유지시간(s)
         self._tasc_last_change_t = 0.0
+
+    # 저노치 구간 홀드시간(마무리 급완해 방지)
+    def _tasc_hold_required(self, notch: int) -> float:
+        if notch in (2, 3):      # B2, B3
+            return 0.90
+        if notch == 1:           # B1은 약간 길게
+            return 0.60
+        return 0.40              # 그외 기본
 
     def _clamp_notch(self, n: int) -> int:
         return max(0, min(self.veh.notches - 1, n))
@@ -202,37 +210,29 @@ class StoppingSim:
         """기록에서 EB(최대 인덱스) 사용 여부 확인"""
         return any(n == self.veh.notches - 1 for n in self.notch_history)
 
-    # --------- TASC Core: rem에 가장 근접한 노치 선택 ----------
+    # --------- TASC Core: 원하는 노치 선택 ----------
     def _tasc_choose_notch(self, v: float, rem: float) -> int:
         """
         현재 속도 v(m/s), 남은거리 rem(m)에서
-        s_brake = v^2 / (2*|a|) 가 rem 이하인 후보 중 rem에 가장 가까운(가장 큰 s_brake) 노치를 고른다.
-        하나도 rem 이하가 없으면(=어떤 노치로도 그 거리 안에 못 섬) 최강 노치(EB)를 반환.
+        s_brake = v^2 / (2*|a|) >= rem - margin
+        을 만족하는 '가장 낮은 노치'를 반환.
         0=N, 1=B1 ... 마지막=EB
         """
+        margin = max(0.0, rem - self.tasc_deadband_m)
         if rem <= 0.0:
-            return 1  # 도착 직전: B1 마무리
+            return 1  # 도착 직전~이하: B1 마무리
 
-        best_notch = None
-        best_s = -1.0
-
-        # 0=N은 제외하고 브레이크 노치만 탐색
-        for notch in range(1, self.veh.notches):
-            a = self.veh.notch_accels[notch]
+        best = 0  # 기본 완해
+        for notch, a in enumerate(self.veh.notch_accels):
+            if notch == 0:
+                continue  # N 스킵
             if a >= 0:
-                continue  # 제동 아닌 값 제외
+                continue  # 제동 아닌 값 무시
             s_brake = (v * v) / (2.0 * abs(a))
-
-            # rem 이하로 설 수 있는 후보들 중에서 rem에 가장 근접(값이 큰 것)을 고름
-            if s_brake <= rem and s_brake > best_s:
-                best_s = s_brake
-                best_notch = notch
-
-        if best_notch is not None:
-            return best_notch
-
-        # 어떤 노치로도 rem 이내 정지가 불가하면 최강 제동(EB)
-        return self.veh.notches - 1
+            if s_brake >= margin:
+                best = notch
+                break
+        return best
 
     def step(self):
         st = self.state
@@ -257,30 +257,50 @@ class StoppingSim:
 
         # ---------- TASC 자동 제동 ----------
         if self.tasc_enabled and not self.manual_override and not st.finished:
-            dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
+            # 노치별 최소 유지시간 적용
+            hold_need = self._tasc_hold_required(st.lever_notch)
+            dwell_ok = (st.t - self._tasc_last_change_t) >= hold_need
+
             rem_now = self.scn.L - st.s
+            speed_kmh = st.v * 3.6
 
             if not self.first_brake_done:
-                # 초제동 1초 확보: 기본 B1 고정(고속일 때 B2 허용하고 싶으면 조건 추가)
-                desired = 1
-                # 예) if st.v*3.6 >= 80: desired = 2
+                # 속도 70km/h 이상이면 초제동은 B2 이상으로 시작
+                desired = 2 if speed_kmh >= 70.0 else 1
             else:
-                # 초제동 완료 후엔 'redline 교차' 기준으로 가장 근접한 노치 선택
                 desired = self._tasc_choose_notch(st.v, rem_now)
 
-                # 저속/근거리 마무리 바이어스: 남은거리 작고 저속이면 B1로 정리
-                if rem_now < 5.0 and st.v * 3.6 < 5.0:
+                # 마무리 바이어스(완화): 너무 일찍 B1 강제하지 않기
+                if rem_now < 2.0 and speed_kmh < 3.0:
                     desired = 1
 
             if dwell_ok and desired != st.lever_notch:
                 new_notch = desired
 
-                # *** 말기 급완해 방지: 완해 방향(노치 내림)일 때 한 번에 1단계만 허용 ***
+                # *** 완해 방향 제한: 한 번에 1단계 + 85% 소진 gate ***
                 if new_notch < st.lever_notch:
-                    new_notch = max(new_notch, st.lever_notch - 1)
+                    cur_a = self.veh.notch_accels[st.lever_notch]
+                    if cur_a < 0:
+                        s_cur = (st.v * st.v) / (2.0 * abs(cur_a))
+                    else:
+                        s_cur = float('inf')
 
-                st.lever_notch = self._clamp_notch(new_notch)
-                self._tasc_last_change_t = st.t
+                    # 현재 노치로 설 수 있는 거리의 85%는 써야 다음 단계로 내려감
+                    release_gate_ok = rem_now <= 0.85 * s_cur
+
+                    if not release_gate_ok:
+                        new_notch = st.lever_notch  # 아직 일러서 유지
+                    else:
+                        # 한 단계만 내리기
+                        new_notch = max(new_notch, st.lever_notch - 1)
+
+                # *** 강화 방향도 한 단계만(승차감 보호) ***
+                if new_notch > st.lever_notch:
+                    new_notch = min(new_notch, st.lever_notch + 1)
+
+                if new_notch != st.lever_notch:
+                    st.lever_notch = self._clamp_notch(new_notch)
+                    self._tasc_last_change_t = st.t
 
         # 제동 감속 (음수, μ 적용)
         if st.lever_notch < len(self.veh.notch_accels):
@@ -365,29 +385,22 @@ class StoppingSim:
                 st.issues["stop_not_b1"] = True
                 st.issues["stop_not_b1_msg"] = "정차 시 B2 이상으로 정차함 - 승차감 불쾌"
 
-            # *** 0cm 정차 보너스(+100) ***
-            if abs(st.stop_error_m or 0.0) < 0.005:  # 0.5cm 이내를 0cm로 간주
-                score += 100
-
             # 계단 패턴 점수
-            if self.tasc_enabled and not self.manual_override:
-                stair_ok = True  # TASC가 건너뛰어도 인정
-            else:
-                stair_ok = self.is_stair_pattern(self.notch_history)
-
-            if stair_ok:
+            if self.is_stair_pattern(self.notch_history):
                 score += 500
-                st.issues["step_brake_incomplete"] = False
-            else:
-                st.issues["step_brake_incomplete"] = True
 
             # 정지 오차 점수 (0m → 500점, 10m → 0점)
             err_abs = abs(st.stop_error_m or 0.0)
             error_score = max(0, 500 - int(err_abs * 500))
             score += error_score
 
+            # ★ 0 cm 정차 보너스(±0.5cm 이내면 +100)
+            if abs(st.stop_error_m or 0.0) <= 0.005:
+                score += 100
+
             # 이슈 플래그들
             st.issues["early_brake_too_short"] = not self.first_brake_done
+            st.issues["step_brake_incomplete"] = not self.is_stair_pattern(self.notch_history)
             st.issues["stop_error_m"] = st.stop_error_m
 
             # 저크 기록
@@ -407,7 +420,11 @@ class StoppingSim:
             print(f"Simulation finished. Score: {score}")
 
     def is_stair_pattern(self, notches: List[int]) -> bool:
-        """초기(B1/B2)에서 시작해 한 번만 올라갔다 내려오고, 마지막이 B1인지 체크"""
+        """
+        초제동(B1/B2)에서 시작해 한 번만 올라갔다 내려오고, 마지막이 B1인지 체크.
+        - TASC ON & 수동개입 없음: 단계 건너뛰어도(증감폭>1) 허용 (오토파일럿 패턴 인정)
+        - 사람이 개입(manual_override=True)하거나 TASC OFF: 기존처럼 한 단계씩만 허용
+        """
         if len(notches) < 3:
             return False
 
@@ -420,22 +437,24 @@ class StoppingSim:
         if first_brake_notch not in (1, 2):
             return False
 
+        allow_skip = self.tasc_enabled and not self.manual_override  # 오토파일럿은 건너뛰기 허용
         peak_reached = False
         prev = notches[0]
+
         for i in range(1, len(notches)):
             cur = notches[i]
             diff = cur - prev
 
-            # 노치 증감은 1단계 이하
-            if abs(diff) > 1:
+            # 수동 상황에서는 한 단계씩
+            if not allow_skip and abs(diff) > 1:
                 return False
 
             if not peak_reached:
-                # 상승 구간(증가 또는 유지). 감소가 시작되면 꼭 내리막으로 유지되어야 함
+                # 상승 구간: 감소가 나오면 내리막 시작
                 if cur < prev:
                     peak_reached = True
             else:
-                # 내리막 구간. 다시 오르면 실패
+                # 내리막 구간: 다시 오르면 실패
                 if cur > prev:
                     return False
 
