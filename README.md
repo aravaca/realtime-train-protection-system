@@ -73,7 +73,8 @@
 
 ## 🔧 Project Structure
 
-. ├── scenario.json          # 시나리오(거리 L, 초기속도 v0, 경사, 마찰 등) ├── vehicle.json           # 차량 제원(질량, notch_accels, 시간상수 등) ├── server.py              # FastAPI + WebSocket 서버, TASC 로직 포함 └── static/ ├── index.html         # UI (HUD/오버레이/TASC 스위치/애니메이션) └── carName.json       # 차량 이름 표시용
+
+├── scenario.json          # 시나리오(거리 L, 초기속도 v0, 경사, 마찰 등) ├── vehicle.json           # 차량 제원(질량, notch_accels, 시간상수 등) ├── server.py              # FastAPI + WebSocket 서버, TASC 로직 포함 └── static/ ├── index.html         # UI (HUD/오버레이/TASC 스위치/애니메이션) └── carName.json       # 차량 이름 표시용
 
 ---
 
