@@ -618,29 +618,38 @@ function startRun() {
 
 btnStart.addEventListener("click", startRun);
 
-// 날씨 UI/배경/애니메이션 업데이트(단일 진실원천)
 function updateWeatherUI() {
   const weather = weatherSelect.value;
+  const overlayEl = document.getElementById("overlay"); // ⬅ 추가
 
   if (weather === "눈옴") {
     snowflakes.style.display = "block";
     raindrops.style.display = "none";
     document.documentElement.style.background = "#ffffff";
     document.body.style.background = "#ffffff";
+    overlayEl.style.background = "rgba(255,255,255,0.15)";   // ⬅ 추가(흰 기운)
   } else if (weather === "비옴") {
     raindrops.style.display = "block";
     snowflakes.style.display = "none";
     document.documentElement.style.background = "#4b5d67";
     document.body.style.background = "#4b5d67";
+    overlayEl.style.background = "rgba(40,60,80,0.35)";      // ⬅ 추가(푸른 기운)
   } else {
     raindrops.style.display = "none";
     snowflakes.style.display = "none";
     const grad = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
     document.documentElement.style.background = grad;
     document.body.style.background = grad;
+    overlayEl.style.background = "rgba(0,0,0,0.6)";          // ⬅ 기본값
   }
 }
-weatherSelect.addEventListener("change", updateWeatherUI);
+weatherSelect.addEventListener("change", () => {
+  updateWeatherUI(); // 기존 호출 유지
+  const mu = muFromWeather(weatherSelect.value);
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMu", value: mu } }));
+  }
+});
 updateWeatherUI(); // 초기 적용
 
 const btnMobileRestart = document.getElementById("btnMobileRestart");
