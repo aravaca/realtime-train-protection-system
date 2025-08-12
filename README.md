@@ -1,5 +1,5 @@
 # Advanced TASC-Based Stop Training Simulator for JR East E233 Series
-**JR East E233 시리즈 TASC 기반 정차 훈련 시뮬레이터**
+**JR East E233 시리즈 전차의 TASC 기반 정차 훈련 시뮬레이터**
 
 이 풀스택 프로젝트는 **JR East E233**를 모델로 한 정차 훈련용 시뮬레이터입니다.  
 프론트엔드(HTML/CSS/JS) + 백엔드(FastAPI WebSocket)를 통합하여, **브레이크 내비게이션 캔버스**(거리-속도 곡선)와 **TASC(자동 정차 보조)**를 활용한 **실시간 제동 연습**과 **피드백/점수 평가**를 제공합니다.
