@@ -84,18 +84,8 @@
 ---
 
 ## 🚀 Run (로컬 실행)
-1. (선택) 가상환경 준비 후 패키지 설치
-```bash
-pip install fastapi uvicorn
-```
-2. 서버 실행
-```bash
-uvicorn server:app --host 0.0.0.0 --port 8000 --reload
-```
-3. 브라우저에서 접속  
-[http://localhost:8000/](http://localhost:8000/) → HUD/오버레이 UI 실행
-
-> 배포 환경(Nginx/Route53/AWS EC2)은 서비스 설정에 따라 달라질 수 있습니다.
+1. 브라우저에서 접속  
+[바로 체험해보기](http:/18.222.103.182/) → HUD/오버레이 UI 실행
 
 ---
 
