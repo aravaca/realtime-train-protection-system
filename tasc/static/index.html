@@ -655,10 +655,13 @@ function updateWeatherUI() {
 
 
 weatherSelect.addEventListener("change", () => {
-  updateWeatherUI(); // 배경/애니메이션
+  updateWeatherUI(); // 배경/애니메이션 업데이트
   const mu = muFromWeather(weatherSelect.value);
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMu", value: mu } })); // ⬅ 추가 (핵심)
+    ws.send(JSON.stringify({
+      type: "cmd",
+      payload: { name: "setMu", value: mu }
+    })); // ← 여기서 서버에 setMu 전송
   }
 });
 updateWeatherUI(); // 초기 적용
