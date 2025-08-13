@@ -164,7 +164,7 @@ class StoppingSim:
         # ---------- TASC (자동 정차) ----------
         self.tasc_enabled = False
         self.manual_override = False
-        self.tasc_deadband_m = 0.6
+        self.tasc_deadband_m = 0.5
         self.tasc_hold_min_s = 0.25
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"      # "build" → "relax"
