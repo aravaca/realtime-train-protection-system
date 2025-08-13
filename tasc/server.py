@@ -222,14 +222,25 @@ class StoppingSim:
 
     # ------ stopping distance helper ------
     def _stopping_distance(self, notch: int, v: float) -> float:
-        """해당 노치에서 현재 속도 v(m/s)로 완전 정지하는 데 필요한 s_brake(m)"""
+        """
+        해당 노치에서 현재 속도 v(m/s)로 완전 정지하는 데 필요한 s_brake(m).
+        TASC가 사용하는 정지거리 추정치를 '동역학에서 쓰는 감속 모델'과 일치시켜
+        (특히 비/눈에서) 과대 제동을 방지.
+        """
         if notch <= 0 or notch >= len(self.veh.notch_accels):
             return float('inf')
-        a = self.veh.notch_accels[notch]
-        if a >= 0:
+        base = float(self.veh.notch_accels[notch])  # 음수 또는 0
+        if base >= 0:
             return float('inf')
-        mu = max(0.1, float(self.scn.mu))  # TASC 판단 안정성 위해 하한 유지
-        return (v * v) / (2.0 * abs(a) * mu)
+        # 서비스 제동용 접착 한계(동역학과 동일한 클램프 로직: EB는 TASC가 쓰지 않음)
+        mu = max(0.0, min(1.0, float(self.scn.mu)))
+        k_srv = 0.70
+        a_cap = -k_srv * mu * 9.81  # 음수
+        a_eff = max(base, a_cap)    # 더 약한(절댓값 작은) 쪽 적용
+        # 안전장치: 만약 a_eff가 거의 0에 가깝다면 inf 반환
+        if a_eff >= -1e-6:
+            return float('inf')
+        return (v * v) / (2.0 * abs(a_eff))
 
     def step(self):
         st = self.state
@@ -269,7 +280,7 @@ class StoppingSim:
                     self._tasc_last_change_t = st.t
 
             else:
-                # build/relax 명시적 규칙
+                # build/relax 명시적 규칙 (정지거리 추정은 _stopping_distance -> a_eff 클램프 기반)
                 s_cur = self._stopping_distance(cur, st.v) if cur > 0 else float('inf')
                 s_up  = self._stopping_distance(cur + 1, st.v) if cur + 1 <= max_normal_notch else 0.0
                 s_dn  = self._stopping_distance(cur - 1, st.v) if cur - 1 >= 1 else float('inf')
@@ -296,7 +307,7 @@ class StoppingSim:
                             self._tasc_last_change_t = st.t
 
         # ====== 동역학 ======
-        # 제동 감속 (클램프 모델: 장비 한계 vs 접착 한계 중 작은 쪽으로 제한)  # CHANGED
+        # 제동 감속 (클램프 모델: 장비 한계 vs 접착 한계 중 작은 쪽으로 제한)
         if st.lever_notch < len(self.veh.notch_accels):
             base = float(self.veh.notch_accels[st.lever_notch])  # 음수(0은 N)
             # 접착 한계 (서비스/EB 차등): 너무 미끄러워도 EB가 과하게 약해지지 않도록 캡만 적용
@@ -422,7 +433,7 @@ class StoppingSim:
             st.score = score
             self.running = False
             print(f"Avg jerk: {avg_jerk:.4f}, jerk_score: {jerk_score:.2f}, final score: {score}")
-            print(f"Simulation finished. Score: {score}")
+            print(f"Simulation finished: stop_error={st.stop_error_m:.3f} m, score={score}")
 
     def is_stair_pattern(self, notches: List[int]) -> bool:
         """초기(B1/B2)에서 시작해 한 번만 올라갔다 내려오고, 마지막이 B1인지 체크"""
