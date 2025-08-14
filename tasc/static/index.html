@@ -292,63 +292,25 @@ ws.onmessage=(ev)=>{
     timerEl.textContent = st.t.toFixed(3);
     drawHUD(st);
 
-    if (st.finished) {
-      isFinished = true;
-      const issues = st.issues || {};
-
-      const feedbackItems = [
-        { key: "early_brake_too_short", goodText: "초기 제동을 수행함 - 승차감 양호", badText: "초기 제동을 게을리함 - 승차감 불쾌" },
-        {
-          key: "stop_not_b1",
-          goodText: "정차 시 B1로 정차함 - 승차감 양호",
-          badTextFunc: (issues) => issues.stop_not_b1_msg || "정차 시 B1로 정차하지 않음",
-        },
-        {
-          key: "step_brake_incomplete",
-          goodText: "기본제동 (계단제동/완해) 수행함",
-          badTextFunc: (issues) => {
-            const overrun = issues.stop_error_m !== undefined && issues.stop_error_m <= -2;
-            if (issues.stop_error_m !== undefined && issues.stop_error_m <= -2) {
-              return "기본제동 (계단제동/완해) 미흡 - 정차 위치 초과 및 운행 지연 발생";
-            }
-            return "기본제동 (계단제동/완해) 미흡 - 단속적인 제동으로 인한 승객 쏠림 및 차량 진동 발생";
-          },
-        },
-        { key: "unnecessary_eb_usage", goodText: "영업 안전 제동범위 준수", badText: "불필요한 비상제동(EB) 사용 - 급감속으로 인한 충격 발생" },
+    if(st.finished){
+      isFinished=true;
+      const issues=st.issues||{};
+      const items=[
+        {k:"early_brake_too_short",good:"초기 제동 수행 - 승차감 양호",bad:"초기 제동 미흡 - 승차감 불쾌"},
+        {k:"stop_not_b1",good:"정차 시 B1 유지 - 양호",bad:(is)=>is.stop_not_b1_msg||"정차 시 B1 미유지"},
+        {k:"step_brake_incomplete",good:"계단제동/완해 수행",bad:(is)=>(is.stop_error_m!==undefined && is.stop_error_m<=-2)?"기본제동 미흡 - 초과 정차":"기본제동 미흡 - 승객 쏠림"},
+        {k:"unnecessary_eb_usage",good:"안전 제동범위 준수",bad:"불필요한 EB 사용"}
       ];
-
-      const feedbacks = feedbackItems.map(item => {
-        const bad = issues[item.key];
-        if (!bad) return { text: item.goodText, isGood: true };
-        const badText = item.badTextFunc ? item.badTextFunc(issues) : item.badText;
-        return { text: badText, isGood: false, isBad: true };
-      });
-
-      const isStopErrorGood = Math.abs(st.stop_error_m || 0) <= 2;
-
-      feedbacks.push({
-        text: `정지 오차: ${st.stop_error_m.toFixed(2)} m`,
-        isGood: isStopErrorGood,
-      });
-
-      feedbacks.push({
-        text: `최종 점수: ${st.score}점`,
-        isGood: isStopErrorGood,
-      });
-
-      fb.innerHTML = feedbacks
-        .map(item => item.isBad
-          ? `<div class="bad">${item.text}</div>`
-          : `<div class="${item.isGood ? "ok" : "warn"}">${item.text}</div>`
-        )
-        .join("") + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S로 조작</div>`;
-
-      if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-        document.getElementById("btnMobileRestart").classList.remove("hide");
-      }
+      const parts=items.map(it=> issues[it.k] ? `<div class="bad">${typeof it.bad==="function"?it.bad(issues):it.bad}</div>`
+                                                : `<div class="ok">${it.good}</div>`);
+      const goodErr=Math.abs(st.stop_error_m||0)<=2;
+      parts.push(`<div class="${goodErr?"ok":"warn"}">정지 오차: ${st.stop_error_m.toFixed(2)} m</div>`);
+      parts.push(`<div class="${goodErr?"ok":"warn"}">최종 점수: ${st.score}점</div>`);
+      fb.innerHTML = parts.join("") + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S 조작</div>`;
+      // 모바일/데스크톱 모두 노출
+      btnMobileRestart.classList.remove("hide");
     } else {
-      isFinished = true;
-      fb.textContent = "Space로 시작. W/S로 브레이크 조절하세요.";
+      fb.textContent="Space로 시작. W/S로 브레이크 조절하세요.";
     }
   }
 };
