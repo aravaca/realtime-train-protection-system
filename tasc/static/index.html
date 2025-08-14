@@ -531,7 +531,7 @@ function populateSeries(){
   list.forEach((s,i)=>{
     const opt=document.createElement('option');
     opt.value=s.file; opt.dataset.lengths=JSON.stringify(s.lengths);
-    opt.textContent=`JR EAST ${s.code} (${s.lines})`;
+    opt.textContent=`JR ${s.code} (${s.lines})`;
     if(i===0) opt.selected=true;
     trainSeriesEl.appendChild(opt);
   });
