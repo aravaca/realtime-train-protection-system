@@ -70,7 +70,8 @@ body{overflow-x:hidden;overflow-y:auto}
   <div class="row" style="gap:16px;flex-wrap:wrap">
     <div class="mobile-control-guide">
       📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>
-      위쪽 터치 → 브레이크 강화 🔼 / 아래쪽 터치 → 완화 🔽
+      위쪽 터치 → 브레이크 강화 🔼 / 아래쪽 터치 → 완화 🔽<br>
+정차 후 아래 화면에서 피드백을 확인하세요.
     </div>
 
     <div class="card" style="flex:1 1 260px">
@@ -294,11 +295,25 @@ ws.onmessage=(ev)=>{
     if(st.finished){
       isFinished=true;
       const issues=st.issues||{};
-      const items=[
-        {k:"early_brake_too_short",good:"초기 제동 수행 - 승차감 양호",bad:"초기 제동 미흡 - 승차감 불쾌"},
-        {k:"stop_not_b1",good:"정차 시 B1 유지 - 양호",bad:(is)=>is.stop_not_b1_msg||"정차 시 B1 미유지"},
-        {k:"step_brake_incomplete",good:"계단제동/완해 수행",bad:(is)=>(is.stop_error_m!==undefined && is.stop_error_m<=-2)?"기본제동 미흡 - 초과 정차":"기본제동 미흡 - 승객 쏠림"},
-        {k:"unnecessary_eb_usage",good:"안전 제동범위 준수",bad:"불필요한 EB 사용"}
+      const items = [
+        { key: "early_brake_too_short", goodText: "초기 제동을 수행함 - 승차감 양호", badText: "초기 제동을 게을리함 - 승차감 불쾌" },
+        {
+          key: "stop_not_b1",
+          goodText: "정차 시 B1로 정차함 - 승차감 양호",
+          badTextFunc: (issues) => issues.stop_not_b1_msg || "정차 시 B1로 정차하지 않음",
+        },
+        {
+          key: "step_brake_incomplete",
+          goodText: "기본제동 (계단제동/완해) 수행함",
+          badTextFunc: (issues) => {
+            const overrun = issues.stop_error_m !== undefined && issues.stop_error_m <= -2;
+            if (issues.stop_error_m !== undefined && issues.stop_error_m <= -2) {
+              return "기본제동 (계단제동/완해) 미흡 - 정차 위치 초과 및 운행 지연 발생";
+            }
+            return "기본제동 (계단제동/완해) 미흡 - 단속적인 제동으로 인한 승객 쏠림 및 차량 진동 발생";
+          },
+        },
+        { key: "unnecessary_eb_usage", goodText: "영업 안전 제동범위 준수", badText: "불필요한 비상제동(EB) 사용 - 급감속으로 인한 충격 발생" },
       ];
       const parts=items.map(it=> issues[it.k] ? `<div class="bad">${typeof it.bad==="function"?it.bad(issues):it.bad}</div>`
                                                 : `<div class="ok">${it.good}</div>`);
