@@ -12,127 +12,57 @@ html, body {
   color: #e7f0ff;
   font-family: 'Orbitron', system-ui, Segoe UI, Roboto, Apple SD Gothic Neo, AppleGothic, sans-serif;
 }
-
-.game-background,
-.snow-background,
-.rain-background { background: transparent !important; }
-
-#wrap { max-width: 960px; margin: 18px auto; padding: 0 12px; }
-.row { display: flex; gap: 12px; align-items: center; }
-
-.card {
-  background: rgba(18, 24, 38, 0.7);
-  border: 1px solid rgba(0, 246, 255, 0.15);
-  border-radius: 16px;
-  padding: 16px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+.game-background,.snow-background,.rain-background{background:transparent!important}
+#wrap{max-width:960px;margin:18px auto;padding:0 12px}
+.row{display:flex;gap:12px;align-items:center}
+.card{
+  background:rgba(18,24,38,.7);border:1px solid rgba(0,246,255,.15);border-radius:16px;padding:16px;
+  backdrop-filter:blur(10px);box-shadow:0 8px 24px rgba(0,0,0,.5);transition:transform .2s,box-shadow .2s
 }
-.card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,0.7); }
-
-canvas {
-  width: 100%; height: 320px;
-  background: linear-gradient(#0b0f14, #0a1019);
-  border-radius: 12px;
+.card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.7)}
+canvas{width:100%;height:320px;background:linear-gradient(#0b0f14,#0a1019);border-radius:12px}
+.kbd{background:rgba(10,18,28,.8);border:1px solid #2b3f5f;color:#9fc5ff;padding:2px 6px;border-radius:6px;font-size:12px}
+.stat{font-size:32px;font-weight:800;color:#fff;text-shadow:0 0 4px rgba(0,200,255,.8)}
+.ok{color:#9effb5}.warn{color:#ffd18f}.bad{color:#ff9b9b}
+button,.btn-primary{background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:15px;font-weight:600;transition:.3s background,.1s transform}
+button:hover,.btn-primary:hover{background:linear-gradient(135deg,#0072ff,#00c6ff);transform:translateY(-1px)}
+#overlay{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);
+  backdrop-filter:blur(8px);z-index:9999;overflow-y:auto;-webkit-overflow-scrolling:touch
 }
-
-.kbd { background: rgba(10, 18, 28, 0.8); border: 1px solid #2b3f5f; color: #9fc5ff; padding: 2px 6px; border-radius: 6px; font-size: 12px; }
-.stat { font-size: 32px; font-weight: 800; color: #fff; text-shadow: 0 0 4px rgba(0, 200, 255, 0.8); }
-.ok { color: #9effb5; } .warn { color: #ffd18f; } .bad { color: #ff9b9b; }
-
-button, .btn-primary {
-  background: linear-gradient(135deg, #00c6ff, #0072ff);
-  color: #fff; border: none; border-radius: 12px;
-  padding: 10px 16px; font-size: 15px; font-weight: 600;
-  transition: background 0.3s ease, transform 0.1s ease;
-}
-button:hover, .btn-primary:hover { background: linear-gradient(135deg, #0072ff, #00c6ff); transform: translateY(-1px); }
-
-#overlay {
-  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-  background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); z-index: 9999;
-  overflow-y: auto; -webkit-overflow-scrolling: touch;
-}
-#overlay.hide { display: none; }
-#overlay .card { max-height: 90vh; overflow-y: auto; }
-
-.overlay-card {
-  background: rgba(18, 24, 38, 0.9); padding: 24px 28px; border-radius: 14px;
-  box-shadow: 0 0 20px rgba(0, 246, 255, 0.2); text-align: center; width: 300px;
-  border: 1px solid rgba(0, 246, 255, 0.2);
-}
-
-.title { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; color: #00f6ff; }
-.subtitle { font-size: 0.9rem; color: #9fc5ff; margin-bottom: 16px; }
-
-.form-label { display: block; font-size: 0.85rem; margin-bottom: 12px; text-align: left; font-weight: 500; color: #cceaff; }
-.form-input {
-  width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 0.9rem;
-  border: 1px solid rgba(0, 246, 255, 0.3); border-radius: 8px; margin-top: 4px;
-  background: rgba(10, 18, 28, 0.6); color: #e7f0ff;
-}
-.form-input:focus { border-color: #00f6ff; outline: none; }
-
-.kbd-info { margin: 16px 0; font-size: 0.85rem; color: #9fc5ff; }
-
-/* Glow */
-@keyframes neonGlow { 0%,100%{text-shadow:0 0 5px #fff,0 0 10px #fff,0 0 20px currentColor,0 0 30px currentColor,0 0 40px currentColor,0 0 55px currentColor,0 0 75px currentColor;opacity:1}50%{text-shadow:0 0 2px #fff,0 0 5px #fff,0 0 10px currentColor,0 0 15px currentColor,0 0 20px currentColor,0 0 30px currentColor,0 0 40px currentColor;opacity:.8}}
-.grade-S,.grade-A{animation:neonGlow 2s ease-in-out infinite}
-.grade-S{color:gold}.grade-A{color:#4CAF50}
-
-/* 눈/비 */
-.snowflakes,.raindrops{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none;overflow:hidden}
-.snowflakes div{position:absolute;background-color:#fff;width:10px;height:10px;border-radius:50%;opacity:.8;animation:snow 5s linear infinite}
+#overlay.hide{display:none}
+#overlay .card{max-height:90vh;overflow-y:auto}
+.title{font-size:1.4rem;font-weight:600;margin-bottom:4px;color:#00f6ff}
+.subtitle{font-size:.9rem;color:#9fc5ff;margin-bottom:16px}
+.form-label{display:block;font-size:.85rem;margin-bottom:12px;text-align:left;font-weight:500;color:#cceaff}
+.form-input{width:100%;box-sizing:border-box;padding:8px 10px;font-size:.9rem;border:1px solid rgba(0,246,255,.3);border-radius:8px;margin-top:4px;background:rgba(10,18,28,.6);color:#e7f0ff}
+.form-input:focus{border-color:#00f6ff;outline:none}
 @keyframes snow{0%{transform:translateY(-20px)}100%{transform:translateY(100vh)}}
+.snowflakes,.raindrops{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none;overflow:hidden}
+.snowflakes div{position:absolute;background:#fff;width:10px;height:10px;border-radius:50%;opacity:.8;animation:snow 5s linear infinite}
 .raindrops{z-index:9998}
-.raindrops div{position:absolute;background-color:rgba(173,216,230,.8);width:2px;height:15px;animation:rain .5s linear infinite}
+.raindrops div{position:absolute;background:rgba(173,216,230,.8);width:2px;height:15px;animation:rain .5s linear infinite}
 @keyframes rain{0%{transform:translateY(-20px)}100%{transform:translateY(100vh)}}
-
-body { overflow-x: hidden; overflow-y: auto; }
-
-/* 모바일 */
-@media (max-width: 768px) {
-  html, body { height: 100%; }
-  body { -webkit-overflow-scrolling: touch; }
-  #wrap { padding-bottom: 96px; }
-  canvas#hud { height: 42vh; }
+body{overflow-x:hidden;overflow-y:auto}
+@media (max-width:768px){html,body{height:100%}body{-webkit-overflow-scrolling:touch}#wrap{padding-bottom:96px}canvas#hud{height:42vh}}
+/* 재시작 FAB – 최상단, 클릭 확실하게 */
+.fab{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:12px 18px;font-weight:700;border-radius:999px;
+  background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;z-index:10001; /* ↑ 최상위 */
+  box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer;pointer-events:auto
 }
-
-/* FAB */
-.fab {
-  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
-  padding: 12px 18px; font-weight: 700; border-radius: 999px;
-  background: linear-gradient(135deg, #00c6ff, #0072ff); color: #fff; border: none;
-  z-index: 10000; box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-}
-.fab.hide { display: none; }
-.fab:hover { background: linear-gradient(135deg, #0072ff, #00c6ff); transform: translateX(-50%) translateY(-1px); }
-
-.mobile-control-guide { display:none; font-size:14px; color:#9fc5ff; background:rgba(18,24,38,0.7); border:1px solid rgba(0,246,255,0.2); padding:8px 12px; border-radius:8px; margin-bottom:12px; }
-@media (max-width: 768px) { .mobile-control-guide { display:block; } }
-
-/* ▼ TASC 토글: 위치 조금 아래로 내림 */
-.tasc-toggle {
-  position: absolute;
-  top: 48px;   /* 12px → 48px */
-  right: 16px;
-  display: flex; align-items: center; gap: 6px;
-  font-family: 'Orbitron', sans-serif; z-index: 1001;
-}
-.tasc-toggle .tasc-label { font-size: 12px; font-weight: 600; color: #9fc5ff; user-select: none; }
-.tasc-toggle input { display: none; }
-.tasc-toggle .slider {
-  position: relative; display: inline-block; width: 46px; height: 24px;
-  background-color: rgba(255, 255, 255, 0.25); border-radius: 24px; cursor: pointer;
-  transition: background-color 0.3s; box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
-}
-.tasc-toggle .slider::before {
-  content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px;
-  background-color: white; border-radius: 50%; transition: transform 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-}
-.tasc-toggle input:checked + .slider { background: linear-gradient(135deg, #00c6ff, #0072ff); }
-.tasc-toggle input:checked + .slider::before { transform: translateX(22px); }
+.fab.hide{display:none}
+.fab:hover{background:linear-gradient(135deg,#0072ff,#00c6ff);transform:translateX(-50%) translateY(-1px)}
+.mobile-control-guide{display:none;font-size:14px;color:#9fc5ff;background:rgba(18,24,38,.7);border:1px solid rgba(0,246,255,.2);padding:8px 12px;border-radius:8px;margin-bottom:12px}
+@media (max-width:768px){.mobile-control-guide{display:block}}
+/* TASC 토글 – 살짝 아래 */
+.tasc-toggle{position:absolute;top:48px;right:16px;display:flex;align-items:center;gap:6px;font-family:'Orbitron',sans-serif;z-index:1001}
+.tasc-toggle .tasc-label{font-size:12px;font-weight:600;color:#9fc5ff;user-select:none}
+.tasc-toggle input{display:none}
+.tasc-toggle .slider{position:relative;display:inline-block;width:46px;height:24px;background:rgba(255,255,255,.25);border-radius:24px;cursor:pointer;transition:background-color .3s;box-shadow:inset 0 0 4px rgba(0,0,0,.3)}
+.tasc-toggle .slider::before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .3s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.tasc-toggle input:checked + .slider{background:linear-gradient(135deg,#00c6ff,#0072ff)}
+.tasc-toggle input:checked + .slider::before{transform:translateX(22px)}
 </style>
 </head>
 <body>
@@ -140,9 +70,7 @@ body { overflow-x: hidden; overflow-y: auto; }
   <div class="row" style="gap:16px;flex-wrap:wrap">
     <div class="mobile-control-guide">
       📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>
-      위쪽 터치 → 브레이크 강화 🔼<br>
-      아래쪽 터치 → 브레이크 완화 🔽<br>
-      정차 후 아래 화면에서 피드백을 확인하세요.
+      위쪽 터치 → 브레이크 강화 🔼 / 아래쪽 터치 → 완화 🔽
     </div>
 
     <div class="card" style="flex:1 1 260px">
@@ -152,23 +80,18 @@ body { overflow-x: hidden; overflow-y: auto; }
       <div>노치 <span class="stat" id="notch">0.0</span></div>
       <div>구배 <span class="stat" id="grade_percent">—</span> %</div>
       <div>경과시간 <span class="stat" id="timer">0.000</span> s</div>
-      <div style="margin-top:8px">조작: <span class="kbd">Space</span> 시작 · <span class="kbd">W</span> 브레이크 강화(노치↑) · <span class="kbd">S</span> 완화(노치↓) · <span class="kbd">N</span> 해방</div>
+      <div style="margin-top:8px">조작: <span class="kbd">Space</span> 시작 · <span class="kbd">W</span> 강화 · <span class="kbd">S</span> 완화 · <span class="kbd">N</span> 해방</div>
     </div>
 
-    <div class="card" style="flex:2 1 520px">
-      <canvas id="hud"></canvas>
-    </div>
-    <div class="card" style="flex:1 1 240px">
-      <div><b>피드백</b></div>
-      <div id="fb">Space를 눌러 시작하세요.</div>
-    </div>
+    <div class="card" style="flex:2 1 520px"><canvas id="hud"></canvas></div>
+    <div class="card" style="flex:1 1 240px"><div><b>피드백</b></div><div id="fb">Space를 눌러 시작하세요.</div></div>
   </div>
 </div>
 
 <!-- 오버레이 -->
 <div id="overlay">
   <div class="card">
-    <!-- TASC ON/OFF -->
+    <!-- TASC -->
     <div class="tasc-toggle">
       <input type="checkbox" id="tascToggle" />
       <label for="tascToggle" class="slider"></label>
@@ -176,59 +99,43 @@ body { overflow-x: hidden; overflow-y: auto; }
     </div>
 
     <h2 class="title">🚉 TASC 기반 정차 트레이너</h2>
-    <p class="subtitle">초기값을 먼저 입력하고 우측 상단 <b>TASC</b> 버튼을 설정한 뒤 <b>Space</b> 또는 아래 버튼으로 시작하세요.</p>
+    <p class="subtitle">초기값 입력 후 <b>TASC</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요.</p>
 
-    <!-- ▼ 전동차 / 시리즈 -->
-    <label class="form-label">
-      전동차
+    <!-- 전동차 / 시리즈 -->
+    <label class="form-label">전동차
       <select id="trainFamily" class="form-input">
         <option value="E233" selected>E233</option>
         <option value="E235">E235</option>
       </select>
     </label>
-
-    <label class="form-label">
-      시리즈
+    <label class="form-label">시리즈
       <select id="trainSeries" class="form-input"></select>
     </label>
-    <!-- ▲ 전동차 / 시리즈 -->
 
-    <label class="form-label">
-      초기 속도 (km/h)
+    <label class="form-label">초기 속도 (km/h)
       <input id="inputSpeed" type="number" value="70" min="10" max="130" step="1" class="form-input">
     </label>
-
-    <label class="form-label">
-      거리 (m)
+    <label class="form-label">거리 (m)
       <input id="inputDist" type="number" value="200" min="10" max="900" step="1" class="form-input">
     </label>
-
-    <label class="form-label">
-      경사도 (%)
+    <label class="form-label">경사도 (%)
       <input id="inputGrade" type="number" value="0.0" min="-4" max="4" step="0.1" class="form-input">
     </label>
 
-    <label class="form-label">
-      날씨
+    <label class="form-label">날씨
       <select id="weatherSelect" class="form-input">
-        <option value="맑음">맑음</option>
-        <option value="비옴">비옴</option>
-        <option value="눈옴">눈옴</option>
+        <option value="맑음">맑음</option><option value="비옴">비옴</option><option value="눈옴">눈옴</option>
       </select>
     </label>
-
-    <label class="form-label">
-      승객 탑승률 (%)
+    <label class="form-label">승객 탑승률 (%)
       <input id="inputLoadRate" type="number" value="70" min="0" max="120" step="1" class="form-input">
     </label>
 
-    <!-- 편성 (시리즈별 제한 적용) -->
-    <label class="form-label">
-      편성
+    <!-- 편성 (시리즈별로만 고정 노출) -->
+    <label class="form-label">편성
       <select class="form-input" id="trainLength" onchange="updateTrainLength()"></select>
     </label>
 
-    <!-- 배경/이펙트 -->
     <div class="game-background"></div>
     <div class="snowflakes"></div>
     <div class="raindrops">
@@ -239,17 +146,16 @@ body { overflow-x: hidden; overflow-y: auto; }
       <div style="animation-delay:1.6s;left:85%"></div><div style="animation-delay:1.8s;left:95%"></div>
     </div>
 
-    <div class="kbd-info">
-      <span class="kbd">W</span> 브레이크 강화 · <span class="kbd">S</span> 완화 · <span class="kbd">N</span> 해방
-    </div>
-    <button id="btnStart" class="btn-primary">Start (Space)</button>
+    <div class="kbd-info"><span class="kbd">W</span> 강화 · <span class="kbd">S</span> 완화 · <span class="kbd">N</span> 해방</div>
+    <button id="btnStart" class="btn-primary" type="button">Start (Space)</button>
   </div>
 </div>
 
-<button id="btnMobileRestart" class="fab hide">재시작</button>
+<!-- 재시작 FAB -->
+<button id="btnMobileRestart" class="fab hide" type="button">재시작</button>
 
 <script>
-/* ========== WS & 토글 ========== */
+/* ===== WebSocket & TASC ===== */
 const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
 const tascToggle = document.getElementById("tascToggle");
 tascToggle.addEventListener("change", () => {
@@ -258,189 +164,129 @@ tascToggle.addEventListener("change", () => {
     ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled } }));
   }
 });
-function forceManualOverride() {
-  if (tascToggle.checked) {
-    tascToggle.checked = false;
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled: false } }));
+function forceManualOverride(){
+  if (tascToggle.checked){
+    tascToggle.checked=false;
+    if (ws.readyState===WebSocket.OPEN){
+      ws.send(JSON.stringify({type:"cmd",payload:{name:"setTASC",enabled:false}}));
     }
   }
 }
 
-/* ========== 이펙트 ========== */
-const snowflakesContainer = document.querySelector('.snowflakes');
-function generateSnowflake() {
-  const snowflake = document.createElement('div');
-  snowflake.style.animationDelay = (Math.random()*2)+'s';
-  snowflake.style.animationDuration = (Math.random()*5+5)+'s';
-  snowflake.style.left = Math.floor(Math.random()*101)+'%';
-  snowflake.style.position='absolute'; snowflake.style.top='-10px';
-  snowflake.style.width='10px'; snowflake.style.height='10px';
-  snowflake.style.backgroundColor='rgba(255,255,255,.8)'; snowflake.style.borderRadius='50%';
-  snowflakesContainer.appendChild(snowflake);
-  setTimeout(()=>snowflakesContainer.removeChild(snowflake), 7000);
+/* ===== 날씨 이펙트 ===== */
+const snowflakesContainer=document.querySelector('.snowflakes');
+function generateSnowflake(){
+  const s=document.createElement('div');
+  s.style.animationDelay=(Math.random()*2)+'s';
+  s.style.animationDuration=(Math.random()*5+5)+'s';
+  s.style.left=Math.floor(Math.random()*101)+'%';
+  s.style.position='absolute';s.style.top='-10px';s.style.width='10px';s.style.height='10px';s.style.backgroundColor='rgba(255,255,255,.8)';s.style.borderRadius='50%';
+  snowflakesContainer.appendChild(s);
+  setTimeout(()=>snowflakesContainer.removeChild(s),7000);
 }
-setInterval(generateSnowflake, 200);
+setInterval(generateSnowflake,200);
 
-/* ========== 차량 JSON 로드(캐시 무시) ========== */
-let vehicle = null;
-let brakeDecels = {};
-const cacheBust = () => `?v=${Date.now()}`;
-
-/* 초기 carName.json 로드(유지) + 캐시 무시 */
-fetch('/carName.json'+cacheBust(), {cache:'no-store'})
-  .then(res => res.json())
-  .then(data => {
-    vehicle = data;
-    document.getElementById('carName').textContent = vehicle.name;
-    if (vehicle.notch_accels && vehicle.notches) {
-      brakeDecels = {};
-      for(let i=0; i < vehicle.notches; i++) {
-        brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches - 1 - i] ?? 0);
-      }
+/* ===== 차량 JSON 로드 (캐시 무시) ===== */
+let vehicle=null; let brakeDecels={};
+const cacheBust=()=>`?v=${Date.now()}`;
+fetch('/carName.json'+cacheBust(),{cache:'no-store'})
+  .then(r=>r.json()).then(data=>{
+    vehicle=data; document.getElementById('carName').textContent=vehicle.name;
+    if(vehicle.notch_accels && vehicle.notches){
+      brakeDecels={}; for(let i=0;i<vehicle.notches;i++){ brakeDecels[i]=Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0); }
     }
-  })
-  .catch(console.error);
+  }).catch(console.error);
 
-/* ========== DOM 바인딩 ========== */
-const remEl=document.getElementById("rem");
-const spdEl=document.getElementById("spd");
-const notchEl=document.getElementById("notch");
-const fb=document.getElementById("fb");
-const overlay=document.getElementById("overlay");
-const btnStart=document.getElementById("btnStart");
-const canvas=document.getElementById("hud");
-const ctx=canvas.getContext("2d");
+/* ===== DOM ===== */
+const remEl=document.getElementById("rem"), spdEl=document.getElementById("spd"), notchEl=document.getElementById("notch"), fb=document.getElementById("fb");
+const overlay=document.getElementById("overlay"), btnStart=document.getElementById("btnStart"), canvas=document.getElementById("hud"), ctx=canvas.getContext("2d");
+const weatherSelect=document.getElementById("weatherSelect"), snowflakes=document.querySelector(".snowflakes"), raindrops=document.querySelector(".raindrops");
+function resize(){ canvas.width=canvas.clientWidth*devicePixelRatio; canvas.height=canvas.clientHeight*devicePixelRatio; } addEventListener("resize",resize); resize();
 
-const weatherSelect = document.getElementById("weatherSelect");
-const snowflakes = document.querySelector(".snowflakes");
-const raindrops = document.querySelector(".raindrops");
-
-function resize(){ canvas.width=canvas.clientWidth*devicePixelRatio; canvas.height=canvas.clientHeight*devicePixelRatio; }
-addEventListener("resize", resize); resize();
-
-function sendCmd(name, delta) {
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({type:"cmd", payload:{name, delta}}));
-  }
+function sendCmd(name,delta){ if(ws.readyState===WebSocket.OPEN){ ws.send(JSON.stringify({type:"cmd",payload:{name,delta}})); } }
+function updateTrainLength(){ const L=document.getElementById("trainLength").value; ws.send(JSON.stringify({type:"cmd",payload:{name:"setTrainLength",length:L}})); sendLoadRate(); }
+function sendLoadRate(){
+  const loadRate=parseFloat(document.getElementById("inputLoadRate").value)||0;
+  const trainLength=parseInt(document.getElementById("trainLength").value)||8;
+  const base=39.9, pax=10.5; const total=trainLength*(base+pax*(loadRate/100));
+  ws.send(JSON.stringify({type:"cmd",payload:{name:"setMassTons",mass_tons:total}}));
 }
 
-function updateTrainLength() {
-  const trainLength = document.getElementById("trainLength").value;
-  ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTrainLength", length: trainLength }}));
-  sendLoadRate();
-}
+/* 입력 보정 */
+const inputSpeed=document.getElementById("inputSpeed"), inputDist=document.getElementById("inputDist"), inputGrade=document.getElementById("inputGrade");
+const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
+function enforceInt(el,min,max){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^\d-]/g,'');}); el.addEventListener('change',()=>{let v=parseInt(el.value,10); if(isNaN(v)){el.value='';return;} el.value=String(clamp(v,min,max));});}
+function enforceFloat(el,min,max,d=1){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^0-9.\-]/g,'');}); el.addEventListener('change',()=>{let v=parseFloat(el.value); if(isNaN(v)){el.value='';return;} v=clamp(v,min,max); el.value=v.toFixed(d);});}
+enforceInt(inputSpeed,10,130); enforceInt(inputDist,10,900); enforceFloat(inputGrade,-4,4,1);
+document.getElementById("inputLoadRate").addEventListener("change",sendLoadRate);
 
-function sendLoadRate() {
-  const loadRate = parseFloat(document.getElementById("inputLoadRate").value) || 0;
-  const trainLength = parseInt(document.getElementById("trainLength").value) || 8;
-  const baseMassPerCar = 39.9;        // 유지
-  const maxPassengerMassPerCar = 10.5;// 유지
-  const totalMassTons = trainLength * (baseMassPerCar + maxPassengerMassPerCar * (loadRate / 100));
-  ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMassTons", mass_tons: totalMassTons }}));
-  console.log(`총 차량 중량 업데이트: ${totalMassTons.toFixed(2)} 톤 (탑승률: ${loadRate}%)`);
-}
-
-/* 입력 강제(유지) */
-const inputSpeed = document.getElementById("inputSpeed");
-const inputDist = document.getElementById("inputDist");
-const inputGrade = document.getElementById("inputGrade");
-const clamp = (v,min,max)=>Math.min(max,Math.max(min,v));
-function enforceInt(input,min,max){
-  input.addEventListener('input',()=>{ input.value=input.value.replace(/[^\d-]/g,''); });
-  input.addEventListener('change',()=>{ let v=parseInt(input.value,10); if(isNaN(v)){input.value='';return;} input.value=String(clamp(v,min,max)); });
-}
-function enforceFloat(input,min,max,d=1){
-  input.addEventListener('input',()=>{ input.value=input.value.replace(/[^0-9.\-]/g,''); });
-  input.addEventListener('change',()=>{ let v=parseFloat(input.value); if(isNaN(v)){input.value='';return;} v=clamp(v,min,max); input.value=v.toFixed(d); });
-}
-enforceInt(inputSpeed,10,130); enforceInt(inputDist,10,900);
-document.getElementById("inputLoadRate") && enforceInt(document.getElementById("inputLoadRate"),0,120);
-enforceFloat(inputGrade,-4.0,4.0,1);
-
-/* 날씨 마찰/배경(유지) */
-function muFromWeather(w){ if(w==="비옴") return 0.6; if(w==="눈옴") return 0.3; return 1.0; }
+/* 날씨 UI */
+function muFromWeather(w){return w==="비옴"?0.6:(w==="눈옴"?0.3:1.0)}
 function updateWeatherUI(){
-  const w=weatherSelect.value, overlayEl=document.getElementById("overlay");
-  if(w==="눈옴"){ snowflakes.style.display="block"; raindrops.style.display="none";
-    document.documentElement.style.background="#ffffff"; document.body.style.background="#ffffff";
-    overlayEl.style.background="rgba(255,255,255,0.15)"; canvas.style.background="#ffffff";
-  } else if(w==="비옴"){ snowflakes.style.display="none"; raindrops.style.display="block";
-    document.documentElement.style.background="#4b5d67"; document.body.style.background="#4b5d67";
-    overlayEl.style.background="rgba(40,60,80,0.35)"; canvas.style.background="#4b5d67";
-  } else {
-    snowflakes.style.display="none"; raindrops.style.display="none";
-    const grad="radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
-    document.documentElement.style.background=grad; document.body.style.background=grad; overlayEl.style.background="rgba(0,0,0,0.6)";
-    canvas.style.background="linear-gradient(#0b0f14, #0a1019)";
-  }
+  const w=weatherSelect.value, ov=document.getElementById("overlay");
+  if(w==="눈옴"){snowflakes.style.display="block";raindrops.style.display="none";document.documentElement.style.background="#fff";document.body.style.background="#fff";ov.style.background="rgba(255,255,255,.15)";canvas.style.background="#fff";}
+  else if(w==="비옴"){snowflakes.style.display="none";raindrops.style.display="block";document.documentElement.style.background="#4b5d67";document.body.style.background="#4b5d67";ov.style.background="rgba(40,60,80,.35)";canvas.style.background="#4b5d67";}
+  else{snowflakes.style.display="none";raindrops.style.display="none";const g="radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";document.documentElement.style.background=g;document.body.style.background=g;ov.style.background="rgba(0,0,0,.6)";canvas.style.background="linear-gradient(#0b0f14,#0a1019)";}
 }
-weatherSelect.addEventListener("change",()=>{
-  updateWeatherUI();
-  const mu=muFromWeather(weatherSelect.value);
-  if(ws.readyState===WebSocket.OPEN){ ws.send(JSON.stringify({type:"cmd",payload:{name:"setMu",value:mu}})); }
-});
+weatherSelect.addEventListener("change",()=>{updateWeatherUI();const mu=muFromWeather(weatherSelect.value); if(ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({type:"cmd",payload:{name:"setMu",value:mu}}));}});
 updateWeatherUI();
 
-/* 시작 */
+/* 시작/재시작 */
 function startRun(){
-  inputSpeed.dispatchEvent(new Event('change'));
-  inputDist.dispatchEvent(new Event('change'));
-  inputGrade.dispatchEvent(new Event('change'));
+  inputSpeed.dispatchEvent(new Event('change')); inputDist.dispatchEvent(new Event('change')); inputGrade.dispatchEvent(new Event('change'));
   const speed=Number(inputSpeed.value), dist=Number(inputDist.value), grade=Number(inputGrade.value), mu=muFromWeather(weatherSelect.value);
-  if(ws.readyState===WebSocket.OPEN){
-    ws.send(JSON.stringify({ type:"cmd", payload:{ name:"setInitial", speed, dist, grade, mu }}));
-    ws.send(JSON.stringify({ type:"cmd", payload:{ name:"start" }}));
-  }
+  if(ws.readyState===WebSocket.OPEN){ ws.send(JSON.stringify({type:"cmd",payload:{name:"setInitial",speed,dist,grade,mu}})); ws.send(JSON.stringify({type:"cmd",payload:{name:"start"}})); }
   overlay.classList.add("hide"); isFinished=false; overlayShowingResult=false;
-  document.getElementById("btnMobileRestart")?.classList.add("hide");
+  btnMobileRestart.classList.add("hide");
 }
-document.getElementById("btnStart").addEventListener("click", startRun);
+btnStart.addEventListener("click", startRun);
 
-/* 모바일 탭 조작(유지) */
-if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-  const gameSurface = document.getElementById("hud");
-  gameSurface.addEventListener("touchstart",(e)=>{
+const btnMobileRestart=document.getElementById("btnMobileRestart");
+btnMobileRestart.addEventListener("click", ()=>{
+  // 혹시 오버레이가 이미 떠 있으면 중복 방지
+  if(!overlay.classList.contains("hide")) overlay.classList.add("hide");
+  overlay.classList.remove("hide");
+  overlayShowingResult=true;
+  btnMobileRestart.classList.add("hide");
+});
+
+/* 모바일 터치 조작 */
+if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
+  const game=document.getElementById("hud");
+  game.addEventListener("touchstart",(e)=>{
     if(!overlay.classList.contains("hide")) return;
     if(e.touches.length!==1) return;
     forceManualOverride();
-    const rect=gameSurface.getBoundingClientRect(); const y=e.touches[0].clientY-rect.top; const half=rect.height/2;
+    const r=game.getBoundingClientRect(), y=e.touches[0].clientY-r.top, half=r.height/2;
     if(y<half) sendCmd("applyNotch",+1); else sendCmd("applyNotch",-1);
   },{passive:true});
 }
 
-/* 키보드(유지) */
+/* 키보드 */
 addEventListener("keydown",(e)=>{
   if([" ","w","W","s","S","n","N"].includes(e.key)) e.preventDefault();
   if(e.repeat) return;
   forceManualOverride();
-  if(e.key===" "){
-    if(ws.readyState!==WebSocket.OPEN) return;
-    if(overlay.classList.contains("hide")){
-      if(isFinished){ overlay.classList.remove("hide"); overlayShowingResult=true; isFinished=false; }
-      else { startRun(); }
-    } else { startRun(); }
-  } else if(e.key==="w"||e.key==="W"){ sendCmd("applyNotch",+1); }
+  if(e.key===" "){ if(ws.readyState!==WebSocket.OPEN) return; startRun(); }
+  else if(e.key==="w"||e.key==="W"){ sendCmd("applyNotch",+1); }
   else if(e.key==="s"||e.key==="S"){ sendCmd("applyNotch",-1); }
   else if(e.key==="n"||e.key==="N"){ sendCmd("release",0); }
 });
 
-/* HUD(유지) */
-const grade_percentEl=document.getElementById("grade_percent");
-const timerEl=document.getElementById("timer");
+/* HUD & 상태 */
+const grade_percentEl=document.getElementById("grade_percent"), timerEl=document.getElementById("timer");
 let isFinished=false, overlayShowingResult=false, st=null, lastTimestamp=0, prevMaxDistance=0;
-function loop(ts){ if(!lastTimestamp) lastTimestamp=ts; const dt=(ts-lastTimestamp)/1000; lastTimestamp=ts; if(st) drawHUD(st); requestAnimationFrame(loop); }
+function loop(ts){ if(!lastTimestamp) lastTimestamp=ts; lastTimestamp=ts; if(st) drawHUD(st); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 
 ws.onmessage=(ev)=>{
   const msg=JSON.parse(ev.data);
   if(msg.type==="state"){
     st=msg.payload;
-    const remRaw=st.remaining_m; const rem=typeof remRaw==="number"?remRaw:parseFloat(remRaw);
+    const remRaw=st.remaining_m, rem=typeof remRaw==="number"?remRaw:parseFloat(remRaw);
     remEl.textContent = rem>=0 ? rem.toFixed(2) : `-${Math.abs(rem).toFixed(2)}`;
     spdEl.textContent = (st.v*3.6).toFixed(1);
-    function notchText(n){ if(n===0) return "N"; else if(n===9) return "EB"; else return `B${n}`; }
-    notchEl.textContent = notchText(st.lever_notch);
+    notchEl.textContent = (st.lever_notch===0?"N":(st.lever_notch===9?"EB":`B${st.lever_notch}`));
     grade_percentEl.textContent = st.grade_percent.toFixed(2);
     timerEl.textContent = st.t.toFixed(3);
     drawHUD(st);
@@ -448,119 +294,98 @@ ws.onmessage=(ev)=>{
     if(st.finished){
       isFinished=true;
       const issues=st.issues||{};
-      const feedbackItems=[
-        {key:"early_brake_too_short",goodText:"초기 제동을 수행함 - 승차감 양호",badText:"초기 제동을 게을리함 - 승차감 불쾌"},
-        {key:"stop_not_b1",goodText:"정차 시 B1로 정차함 - 승차감 양호",badTextFunc:(is)=>is.stop_not_b1_msg||"정차 시 B1로 정차하지 않음"},
-        {key:"step_brake_incomplete",goodText:"기본제동 (계단제동/완해) 수행함",badTextFunc:(is)=> (is.stop_error_m!==undefined && is.stop_error_m<=-2) ? "기본제동 미흡 - 정차 위치 초과 및 운행 지연" : "기본제동 미흡 - 승객 쏠림/진동"},
-        {key:"unnecessary_eb_usage",goodText:"영업 안전 제동범위 준수",badText:"불필요한 비상제동(EB) 사용 - 급감속 충격"}
+      const items=[
+        {k:"early_brake_too_short",good:"초기 제동 수행 - 승차감 양호",bad:"초기 제동 미흡 - 승차감 불쾌"},
+        {k:"stop_not_b1",good:"정차 시 B1 유지 - 양호",bad:(is)=>is.stop_not_b1_msg||"정차 시 B1 미유지"},
+        {k:"step_brake_incomplete",good:"계단제동/완해 수행",bad:(is)=>(is.stop_error_m!==undefined && is.stop_error_m<=-2)?"기본제동 미흡 - 초과 정차":"기본제동 미흡 - 승객 쏠림"},
+        {k:"unnecessary_eb_usage",good:"안전 제동범위 준수",bad:"불필요한 EB 사용"}
       ];
-      const feedbacks=feedbackItems.map(it=>{ const bad=issues[it.key]; if(!bad) return {text:it.goodText,isGood:true}; const badText=it.badTextFunc?it.badTextFunc(issues):it.badText; return {text:badText,isGood:false,isBad:true}; });
-      const isStopErrorGood=Math.abs(st.stop_error_m||0)<=2;
-      feedbacks.push({text:`정지 오차: ${st.stop_error_m.toFixed(2)} m`, isGood:isStopErrorGood});
-      feedbacks.push({text:`최종 점수: ${st.score}점`, isGood:isStopErrorGood});
-      fb.innerHTML = feedbacks.map(it=> it.isBad ? `<div class="bad">${it.text}</div>` : `<div class="${it.isGood?"ok":"warn"}">${it.text}</div>`).join("")
-        + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S로 조작</div>`;
-      if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){ document.getElementById("btnMobileRestart").classList.remove("hide"); }
+      const parts=items.map(it=> issues[it.k] ? `<div class="bad">${typeof it.bad==="function"?it.bad(issues):it.bad}</div>`
+                                                : `<div class="ok">${it.good}</div>`);
+      const goodErr=Math.abs(st.stop_error_m||0)<=2;
+      parts.push(`<div class="${goodErr?"ok":"warn"}">정지 오차: ${st.stop_error_m.toFixed(2)} m</div>`);
+      parts.push(`<div class="${goodErr?"ok":"warn"}">최종 점수: ${st.score}점</div>`);
+      fb.innerHTML = parts.join("") + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S 조작</div>`;
+      // 모바일/데스크톱 모두 노출
+      btnMobileRestart.classList.remove("hide");
     } else {
-      isFinished=true; fb.textContent="Space로 시작. W/S로 브레이크 조절하세요.";
+      fb.textContent="Space로 시작. W/S로 브레이크 조절하세요.";
     }
   }
 };
 
-document.getElementById("inputLoadRate").addEventListener("change", sendLoadRate);
-
-/* ======== 그래프(유지) ======== */
+/* HUD 그리기 (원본 유지) */
 function drawHUD(st){
   const dpr=devicePixelRatio||1, w=canvas.width, h=canvas.height;
   ctx.clearRect(0,0,w,h);
-
   const v0=st.v, lever=st.lever_notch, currentPos=st.pos??0, stopPos=st.stopPos??500;
-  const remainingDistance=(typeof st.remaining_m==="number")?Math.max(0,st.remaining_m):Math.max(0,stopPos-currentPos);
+  const remaining=(typeof st.remaining_m==="number")?Math.max(0,st.remaining_m):Math.max(0,stopPos-currentPos);
+  const maxDecel=Math.max(...Object.values(brakeDecels)); const maxStop=maxDecel>0?(v0*v0)/(2*maxDecel):0;
+  const speedFactor=Math.max(.3,Math.min(1,v0/10)); const adjusted=remaining*(1+(1-speedFactor)*.5);
+  const s_b1=(brakeDecels[1]??0)>0?(v0*v0)/(2*brakeDecels[1]):0, s_b2=(brakeDecels[2]??0)>0?(v0*v0)/(2*brakeDecels[2]):0;
+  const target=Math.max(1,maxStop*1.5,Math.max(1,Math.sqrt(adjusted)*10)*1.2,s_b1*1.1,s_b2*1.1);
+  prevMaxDistance = prevMaxDistance===0 ? target : prevMaxDistance*.9 + target*.1;
 
-  const minL=1; const maxDecel=Math.max(...Object.values(brakeDecels)); const maxStopDist=maxDecel>0?(v0*v0)/(2*maxDecel):0;
-  const speedFactor=Math.max(0.3,Math.min(1,v0/10));
-  const adjustedRemaining=remainingDistance*(1+(1-speedFactor)*0.5);
-  const minX=1; const safeRemaining=Math.max(minX,Math.sqrt(adjustedRemaining)*10);
-  const s_b1=(brakeDecels[1]??0)>0?(v0*v0)/(2*brakeDecels[1]):0;
-  const s_b2=(brakeDecels[2]??0)>0?(v0*v0)/(2*brakeDecels[2]):0;
-
-  const smoothFactor=0.1;
-  const targetMaxDistance=Math.max(minL,maxStopDist*1.5,safeRemaining*1.2,s_b1*1.1,s_b2*1.1);
-  let maxDistance; if(prevMaxDistance===0) maxDistance=targetMaxDistance; else maxDistance=prevMaxDistance*(1-smoothFactor)+targetMaxDistance*smoothFactor;
-  prevMaxDistance=maxDistance;
-
-  const leftMargin=48*dpr, rightMargin=12*dpr, usableWidth=w-leftMargin-rightMargin, X=dist=>leftMargin+usableWidth*(dist/maxDistance);
+  const left=48*dpr, right=12*dpr, usableW=w-left-right, X=d=>left+usableW*(d/prevMaxDistance);
   const vmax=Math.max(1,v0*3.6*1.2);
-  const bottomMargin=28*dpr, topMargin=12*dpr, usableHeight=h-bottomMargin-topMargin, Y=v=>h-bottomMargin-usableHeight*(v/vmax);
+  const bottom=28*dpr, top=12*dpr, usableH=h-bottom-top, Y=v=>h-bottom-usableH*(v/vmax);
 
-  ctx.strokeStyle="#20334d"; ctx.lineWidth=1*dpr; ctx.beginPath(); ctx.moveTo(leftMargin,topMargin); ctx.lineTo(leftMargin,h-bottomMargin); ctx.lineTo(w-rightMargin,h-bottomMargin); ctx.stroke();
+  ctx.strokeStyle="#20334d"; ctx.lineWidth=1*dpr; ctx.beginPath(); ctx.moveTo(left,top); ctx.lineTo(left,h-bottom); ctx.lineTo(w-right,h-bottom); ctx.stroke();
 
   ctx.fillStyle="#888"; ctx.font=`${10*dpr}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="top";
-  for(let dist=0; dist<=maxDistance; dist+=100){ const x=X(dist); ctx.beginPath(); ctx.moveTo(x,h-bottomMargin); ctx.lineTo(x,h-bottomMargin+4*dpr); ctx.stroke(); ctx.fillText(`${Math.round(dist)}`, x, h-bottomMargin+6*dpr); }
-
+  for(let d=0; d<=prevMaxDistance; d+=100){ const x=X(d); ctx.beginPath(); ctx.moveTo(x,h-bottom); ctx.lineTo(x,h-bottom+4*dpr); ctx.stroke(); ctx.fillText(`${Math.round(d)}`,x,h-bottom+6*dpr); }
   ctx.textAlign="right"; ctx.textBaseline="middle";
-  for(let k=0; k<=vmax; k+=10){ const y=Y(k); ctx.beginPath(); ctx.moveTo(leftMargin-4*dpr,y); ctx.lineTo(leftMargin,y); ctx.stroke(); ctx.fillText(`${k}`, leftMargin-6*dpr, y); }
+  for(let k=0;k<=vmax;k+=10){ const y=Y(k); ctx.beginPath(); ctx.moveTo(left-4*dpr,y); ctx.lineTo(left,y); ctx.stroke(); ctx.fillText(`${k}`,left-6*dpr,y); }
 
-  ctx.lineWidth=2*dpr;
-  const maxNotch=vehicle?.notches??9;
+  ctx.lineWidth=2*dpr; const maxNotch=vehicle?.notches??9;
   for(let n=0;n<maxNotch;n++){
-    const decel=brakeDecels[n]??0; if(decel<=0) continue;
-    const s=(v0*v0)/(2*decel);
+    const a=brakeDecels[n]??0; if(a<=0) continue;
+    const s=(v0*v0)/(2*a);
     ctx.beginPath(); ctx.strokeStyle = n===lever ? "#ffae00" : "#3fa9ff";
     for(let i=0;i<=100;i++){
-      const f=i/100; const ds=s*f; const v_cur=Math.sqrt(Math.max(0,v0*v0-2*decel*ds));
-      const x=X(ds); const y=Y(v_cur*3.6);
-      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      const f=i/100, ds=s*f, v=Math.sqrt(Math.max(0,v0*v0-2*a*ds));
+      const x=X(ds), y=Y(v*3.6); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
     }
     ctx.stroke();
-    ctx.fillStyle = n===lever ? "#ffae00" : "#3fa9ff";
-    ctx.font = `${12*dpr}px 'Orbitron', sans-serif`;
-    const textX=X(s);
-    if(n==9) ctx.fillText(`EB`, textX+5*dpr, Y(0)+12*dpr);
-    else if(n==0) ctx.fillText(`N`, textX+5*dpr, Y(0)+12*dpr);
-    else ctx.fillText(`B${n}`, textX+5*dpr, Y(0)+12*dpr);
+    ctx.fillStyle=n===lever?"#ffae00":"#3fa9ff"; ctx.font=`${12*dpr}px 'Orbitron', sans-serif`;
+    const tX=X(s); ctx.fillText(n==9?"EB":(n==0?"N":`B${n}`), tX+5*dpr, Y(0)+12*dpr);
   }
 
-  const x_redline=X(remainingDistance);
-  ctx.strokeStyle="#ff0000"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(x_redline, Y(0)); ctx.lineTo(x_redline, Y(vmax)); ctx.stroke();
-  ctx.fillStyle="#ff0000"; ctx.font=`${14*dpr}px 'Orbitron', sans-serif`; ctx.textAlign="center"; ctx.fillText("남은 거리", x_redline, Y(vmax)-18*dpr);
+  const xRed=X(remaining); ctx.strokeStyle="#f00"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(xRed,Y(0)); ctx.lineTo(xRed,Y(vmax)); ctx.stroke();
+  ctx.fillStyle="#f00"; ctx.font=`${14*dpr}px 'Orbitron', sans-serif`; ctx.textAlign="center"; ctx.fillText("남은 거리", xRed, Y(vmax)-18*dpr);
 
-  const ribbonWidth=16*dpr, ribbonHeight=h*0.9, ribbonX=w-rightMargin-ribbonWidth-10*dpr+20, ribbonY=((h-ribbonHeight)/2)-32;
-  ctx.fillStyle="rgba(100,100,100,0.1)"; ctx.strokeStyle="rgba(100,100,100,0.3)"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.rect(ribbonX,ribbonY,ribbonWidth,ribbonHeight); ctx.fill(); ctx.stroke();
-  const centerY=(ribbonY+ribbonHeight/2)-14, barHeight=12*dpr;
-  ctx.fillStyle="rgba(60,60,60,0.9)"; ctx.fillRect(ribbonX+2*dpr, centerY-barHeight/2, ribbonWidth-4*dpr, barHeight);
+  const ribbonW=16*dpr, ribbonH=h*.9, ribbonX=w-right-ribbonW-10*dpr+20, ribbonY=((h-ribbonH)/2)-32;
+  ctx.fillStyle="rgba(100,100,100,.1)"; ctx.strokeStyle="rgba(100,100,100,.3)"; ctx.lineWidth=1.5*dpr;
+  ctx.beginPath(); ctx.rect(ribbonX,ribbonY,ribbonW,ribbonH); ctx.fill(); ctx.stroke();
 
-  const ribbonTotalHeight=ribbonHeight, L=st.L;
-  const rem = Math.min(Math.max(st.remaining_m??L, -L), L);
-  const diamondWidth=16*dpr, diamondHeight=10*dpr;
-  const diamondX=ribbonX+ribbonWidth/2;
-  const normalizedRem=(rem-(-7))/(7-(-7));
-  const diamondY=ribbonY+(ribbonHeight*(1-normalizedRem))-diamondHeight/2;
-  const adjustedDiamondY=Math.min(Math.max(diamondY, ribbonY-10*dpr), ribbonY+ribbonHeight-diamondHeight+10*dpr);
+  const centerY=(ribbonY+ribbonH/2)-14, barH=12*dpr;
+  ctx.fillStyle="rgba(60,60,60,.9)"; ctx.fillRect(ribbonX+2*dpr, centerY-barH/2, ribbonW-4*dpr, barH);
 
+  const rem=Math.min(Math.max(st.remaining_m??st.L,-st.L), st.L);
+  const diamondW=16*dpr, diamondH=10*dpr, dX=ribbonX+ribbonW/2;
+  const normalized=(rem-(-7))/(7-(-7));
+  const dY=ribbonY+(ribbonH*(1-normalized))-diamondH/2;
+  const adjY=Math.min(Math.max(dY, ribbonY-10*dpr), ribbonY+ribbonH-diamondH+10*dpr);
   ctx.fillStyle="#444"; ctx.strokeStyle="#222"; ctx.lineWidth=2*dpr; ctx.beginPath();
-  ctx.moveTo(diamondX, adjustedDiamondY-diamondHeight/2);
-  ctx.lineTo(diamondX+diamondWidth/2, adjustedDiamondY);
-  ctx.lineTo(diamondX, adjustedDiamondY+diamondHeight/2);
-  ctx.lineTo(diamondX-diamondWidth/2, adjustedDiamondY);
+  ctx.moveTo(dX, adjY-diamondH/2); ctx.lineTo(dX+diamondW/2, adjY); ctx.lineTo(dX, adjY+diamondH/2); ctx.lineTo(dX-diamondW/2, adjY);
   ctx.closePath(); ctx.fill(); ctx.stroke();
 }
 
-/* ========== 전동차/시리즈/편성 매핑(사진 기준) ========== */
-const TRAIN_DB = {
-  E233: [
-    { code:"E233-0",    lines:"주오쾌속·소부쾌속",                       file:"/e233_0000.json",  lengths:[10] },
-    { code:"E233-1000", lines:"게이힌토호쿠·네기시",                     file:"/e233_1000.json",  lengths:[10] },
-    { code:"E233-2000", lines:"조반 각역·쾌속",                          file:"/e233_2000.json",  lengths:[10] },
-    { code:"E233-3000", lines:"도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file:"/e233_3000.json",  lengths:[5,10,12,15] },
-    { code:"E233-5000", lines:"게이요",                                  file:"/e233_5000.json",  lengths:[4,6,10] },
-    { code:"E233-6000", lines:"요코하마",                                file:"/e233_6000.json",  lengths:[8] },
-    { code:"E233-7000", lines:"사이쿄·가와고에·쇼난신주쿠 일부",           file:"/e233_7000.json",  lengths:[8,10] },
-    { code:"E233-8000", lines:"난부",                                    file:"/e233_8000.json",  lengths:[6,8] }
+/* ===== 전동차/시리즈/편성: 사진 스펙 고정 ===== */
+const TRAIN_DB={
+  E233:[
+    {code:"E233-0",    lines:"주오쾌속·소부쾌속",                                 file:"/e233_0000.json",  lengths:[10,12]}, // 요청대로
+    {code:"E233-1000", lines:"게이힌토호쿠·네기시",                               file:"/e233_1000.json",  lengths:[10]},
+    {code:"E233-2000", lines:"조반 각역·쾌속",                                    file:"/e233_2000.json",  lengths:[10]},
+    {code:"E233-3000", lines:"도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file:"/e233_3000.json",  lengths:[5,10,12,15]},
+    {code:"E233-5000", lines:"게이요",                                            file:"/e233_5000.json",  lengths:[4,6,10]},
+    {code:"E233-6000", lines:"요코하마",                                          file:"/e233_6000.json",  lengths:[8]},
+    {code:"E233-7000", lines:"사이쿄·가와고에·쇼난신주쿠 일부",                     file:"/e233_7000.json",  lengths:[10]},
+    {code:"E233-8000", lines:"난부",                                              file:"/e233_8000.json",  lengths:[6,8]}
   ],
-  E235: [
-    { code:"E235-0",    lines:"야마노테",                                file:"/e235_0.json",     lengths:[11] },
-    { code:"E235-1000", lines:"요코스카·소부쾌속",                       file:"/e235_1000.json",  lengths:[4,11] }
+  E235:[
+    {code:"E235-0",    lines:"야마노테",                                          file:"/e235_0.json",     lengths:[11]},
+    {code:"E235-1000", lines:"요코스카·소부쾌속",                                 file:"/e235_1000.json",  lengths:[4,11]}
   ]
 };
 
@@ -568,63 +393,48 @@ const trainFamilyEl=document.getElementById('trainFamily');
 const trainSeriesEl=document.getElementById('trainSeries');
 const trainLengthEl=document.getElementById('trainLength');
 
-function populateSeries(){
-  const fam=trainFamilyEl.value;
-  const list=TRAIN_DB[fam]||[];
-  trainSeriesEl.innerHTML="";
-  list.forEach((s,i)=>{
-    const opt=document.createElement('option');
-    opt.value=s.file;
-    opt.dataset.lengths=JSON.stringify(s.lengths);
-    opt.textContent=`JR EAST ${s.code} (${s.lines})`;
-    if(i===0) opt.selected=true;
-    trainSeriesEl.appendChild(opt);
-  });
-  const first=list[0];
-  if(first){ setTrainLengthOptions(first.lengths); loadVehicleFile(first.file); }
-}
-
 function setTrainLengthOptions(lengths){
   trainLengthEl.innerHTML="";
   lengths.forEach(len=>{
     const opt=document.createElement('option');
-    opt.value=String(len);
-    opt.textContent=`${len}량`;
+    opt.value=String(len); opt.textContent=`${len}량`;
     trainLengthEl.appendChild(opt);
   });
   updateTrainLength();
 }
-
 function loadVehicleFile(filePath){
-  fetch(filePath+cacheBust(), {cache:'no-store'})
+  fetch(filePath+cacheBust(),{cache:'no-store'})
     .then(res=>res.json())
     .then(data=>{
       vehicle=data;
-      document.getElementById('carName').textContent = vehicle.name;
+      document.getElementById('carName').textContent=vehicle.name;
       brakeDecels={};
       if(vehicle.notch_accels && vehicle.notches){
-        for(let i=0;i<vehicle.notches;i++){
-          brakeDecels[i]=Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0);
-        }
+        for(let i=0;i<vehicle.notches;i++){ brakeDecels[i]=Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0); }
       }
-      sendLoadRate(); // 질량 갱신
-    })
-    .catch(console.error);
+      sendLoadRate();
+    }).catch(console.error);
 }
-
-/* 최초 세팅 */
-populateSeries();
-
-/* 전동차 변경 → 시리즈/편성/차량 갱신 */
+function populateSeries(){
+  const fam=trainFamilyEl.value, list=TRAIN_DB[fam]||[];
+  trainSeriesEl.innerHTML="";
+  list.forEach((s,i)=>{
+    const opt=document.createElement('option');
+    opt.value=s.file; opt.dataset.lengths=JSON.stringify(s.lengths);
+    opt.textContent=`JR EAST ${s.code} (${s.lines})`;
+    if(i===0) opt.selected=true;
+    trainSeriesEl.appendChild(opt);
+  });
+  if(list[0]){ setTrainLengthOptions(list[0].lengths); loadVehicleFile(list[0].file); }
+}
 trainFamilyEl.addEventListener('change', populateSeries);
-
-/* 시리즈 변경 → 편성 제한 + 차량 JSON 재로드 */
 trainSeriesEl.addEventListener('change',(e)=>{
   const opt=e.target.selectedOptions[0];
   const lengths=JSON.parse(opt.dataset.lengths||"[]");
   setTrainLengthOptions(lengths);
   loadVehicleFile(opt.value);
 });
+populateSeries(); // 최초 세팅
 </script>
 
 <footer style="text-align:center; font-size:12px; color:#888; padding:8px 0; user-select:none;">
