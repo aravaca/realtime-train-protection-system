@@ -102,11 +102,22 @@ button:hover, .btn-primary:hover {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px);
   z-index: 9999;
+/* ▼▼ 추가: 오버레이 스크롤 허용 */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+/* ▲▲ 추가 끝 */
 }
 
 #overlay.hide {
   display: none;
 }
+
+/* ▼▼ 추가: 카드가 화면을 넘치면 카드 내부 스크롤 */
+#overlay .card {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+/* ▲▲ 추가 끝 */
 
 .overlay-card {
   background: rgba(18, 24, 38, 0.9);
@@ -399,6 +410,21 @@ body {
     <h2 class="title">🚉 TASC 기반 정차 트레이너</h2>
     <p class="subtitle">초기값을 먼저 입력하고 우측 상단 <b>TASC(오토파일럿)</b> 버튼을 활성화 혹은 비활성화 후 <b>Space</b> 또는 아래 버튼을 눌러 시작하세요.</p>
 
+    <!-- ▼▼ 추가: 전동차/시리즈 선택 -->
+    <label class="form-label">
+      전동차
+      <select id="trainFamily" class="form-input">
+        <option value="E233" selected>E233</option>
+        <option value="E235">E235</option>
+      </select>
+    </label>
+
+    <label class="form-label">
+      시리즈
+      <select id="trainSeries" class="form-input"></select>
+    </label>
+    <!-- ▲▲ 추가 끝 -->
+
     <label class="form-label">
       초기 속도 (km/h)
       <!-- 10~130 정수 -->
@@ -523,6 +549,7 @@ setInterval(generateSnowflake, 200);
 let vehicle = null;
 let brakeDecels = {};
 
+/* ▼▼ 기존 carName.json 유지: 초기 1회 로드 */
 fetch('/carName.json')
   .then(res => res.json())
   .then(data => {
@@ -538,6 +565,7 @@ fetch('/carName.json')
     }
   })
   .catch(console.error);
+/* ▲▲ 유지 끝 */
 
 const remEl=document.getElementById("rem");
 const spdEl=document.getElementById("spd");
@@ -1073,6 +1101,99 @@ ws.onmessage = (ev) => {
 };
 
 document.getElementById("inputLoadRate").addEventListener("change", sendLoadRate);
+
+/* ─────────────────────────────────────────────
+   ▼▼ 추가: 전동차/시리즈 → 노선 표기 + 편성수 제한 + 차량 JSON 로드
+   (기존 로직 변경 최소화: 선택 시에만 vehicle 재로드)
+────────────────────────────────────────────── */
+const TRAIN_DB = {
+  E233: [
+    { code: "E233-0",     lines: "주오쾌속·소부쾌속",            file: "/e233_0000.json", lengths: [10] },
+    { code: "E233-1000",  lines: "게이힌토호쿠·네기시",          file: "/e233_1000.json", lengths: [10] },
+    { code: "E233-2000",  lines: "조반 각역·쾌속",               file: "/e233_2000.json", lengths: [10] },
+    { code: "E233-3000",  lines: "도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file: "/e233_3000.json", lengths: [12,15] },
+    { code: "E233-5000",  lines: "게이요",                       file: "/e233_5000.json", lengths: [10] },
+    { code: "E233-6000",  lines: "요코하마",                     file: "/e233_6000.json", lengths: [8] },
+    { code: "E233-7000",  lines: "사이쿄·가와고에·쇼난신주쿠 일부", file: "/e233_7000.json", lengths: [10] },
+    { code: "E233-8000",  lines: "난부",                         file: "/e233_8000.json", lengths: [6] }
+  ],
+  E235: [
+    { code: "E235-0",     lines: "야마노테",                     file: "/e235_0.json",    lengths: [11] },
+    { code: "E235-1000",  lines: "요코스카·소부쾌속",            file: "/e235_1000.json", lengths: [11,15] }
+  ]
+};
+
+const trainFamilyEl = document.getElementById('trainFamily');
+const trainSeriesEl = document.getElementById('trainSeries');
+const trainLengthEl = document.getElementById('trainLength');
+
+function populateSeries() {
+  const fam = trainFamilyEl.value;
+  const list = TRAIN_DB[fam] || [];
+  trainSeriesEl.innerHTML = "";
+  list.forEach((s, i) => {
+    const opt = document.createElement('option');
+    opt.value = s.file;
+    opt.dataset.lengths = JSON.stringify(s.lengths);
+    opt.textContent = `JR EAST ${s.code} (${s.lines})`;
+    if (i === 0) opt.selected = true;
+    trainSeriesEl.appendChild(opt);
+  });
+  // 첫 항목 기준으로 편성 옵션 제한 & 차량 로드
+  const first = list[0];
+  if (first) {
+    setTrainLengthOptions(first.lengths);
+    loadVehicleFile(first.file);
+  }
+}
+
+function setTrainLengthOptions(lengths) {
+  // lengths 배열(예: [10] 또는 [12,15])만 허용하도록 옵션 재구성
+  trainLengthEl.innerHTML = "";
+  lengths.forEach(len => {
+    const opt = document.createElement('option');
+    opt.value = String(len);
+    opt.textContent = `${len}량`;
+    trainLengthEl.appendChild(opt);
+  });
+  updateTrainLength(); // 서버에 편성 반영
+}
+
+function loadVehicleFile(filePath) {
+  fetch(filePath)
+    .then(res => res.json())
+    .then(data => {
+      vehicle = data;
+      document.getElementById('carName').textContent = vehicle.name;
+      // 감속 테이블 갱신
+      brakeDecels = {};
+      if (vehicle.notch_accels && vehicle.notches) {
+        for (let i = 0; i < vehicle.notches; i++) {
+          brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches - 1 - i] ?? 0);
+        }
+      }
+      // 질량 재계산
+      sendLoadRate();
+    })
+    .catch(console.error);
+}
+
+// 최초 로드 시 전동차/시리즈 채우기
+populateSeries();
+
+// 전동차 바뀌면 시리즈/편성/차량 갱신
+trainFamilyEl.addEventListener('change', populateSeries);
+
+// 시리즈 바뀌면 편성 제한과 차량 JSON 갱신
+trainSeriesEl.addEventListener('change', (e) => {
+  const opt = e.target.selectedOptions[0];
+  const lengths = JSON.parse(opt.dataset.lengths || "[]");
+  setTrainLengthOptions(lengths);
+  loadVehicleFile(opt.value);
+});
+/* ─────────────────────────────────────────────
+   ▲▲ 추가 끝
+────────────────────────────────────────────── */
 </script>
 <footer style="text-align:center; font-size:12px; color:#888; padding:8px 0; user-select:none;">
   ©2025 Hyungsuk Choi, University of Maryland
