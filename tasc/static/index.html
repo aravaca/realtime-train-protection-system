@@ -292,7 +292,10 @@ ws.onmessage=(ev)=>{
     const remRaw=st.remaining_m, rem=typeof remRaw==="number"?remRaw:parseFloat(remRaw);
     remEl.textContent = rem>=0 ? rem.toFixed(2) : `-${Math.abs(rem).toFixed(2)}`;
     spdEl.textContent = (st.v*3.6).toFixed(1);
-    notchEl.textContent = (st.lever_notch===0?"N":(st.lever_notch===9?"EB":`B${st.lever_notch}`));
+    const maxIdx = (vehicle?.notches ?? 10) - 1; // EB 인덱스
+notchEl.textContent =
+  st.lever_notch === 0 ? "N" :
+  st.lever_notch === maxIdx ? "EB" : `B${st.lever_notch}`;
     grade_percentEl.textContent = st.grade_percent.toFixed(2);
     timerEl.textContent = st.t.toFixed(3);
     drawHUD(st);
@@ -381,7 +384,9 @@ function drawHUD(st){
   ctx.textAlign="right"; ctx.textBaseline="middle";
   for(let k=0;k<=vmax;k+=10){ const y=Y(k); ctx.beginPath(); ctx.moveTo(left-4*dpr,y); ctx.lineTo(left,y); ctx.stroke(); ctx.fillText(`${k}`,left-6*dpr,y); }
 
-  ctx.lineWidth=2*dpr; const maxNotch=vehicle?.notches??9;
+  ctx.lineWidth=2*dpr; 
+  const maxNotch = vehicle?.notches ?? 10;   // 총 개수(0~maxIdx)
+  const maxIdx   = maxNotch - 1;  // EB 인덱스
   for(let n=0;n<maxNotch;n++){
     const a=brakeDecels[n]??0; if(a<=0) continue;
     const s=(v0*v0)/(2*a);
@@ -392,8 +397,9 @@ function drawHUD(st){
     }
     ctx.stroke();
     ctx.fillStyle=n===lever?"#ffae00":"#3fa9ff"; ctx.font=`${12*dpr}px 'Orbitron', sans-serif`;
-    const tX=X(s); ctx.fillText(n==9?"EB":(n==0?"N":`B${n}`), tX+5*dpr, Y(0)+12*dpr);
-  }
+    const tX=X(s); const label = (n===0) ? "N" : (n===maxIdx ? "EB" : `B${n}`);
+  ctx.fillText(label, tX+5*dpr, Y(0)+12*dpr);
+}
 
   const xRed=X(remaining); ctx.strokeStyle="#f00"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(xRed,Y(0)); ctx.lineTo(xRed,Y(vmax)); ctx.stroke();
   ctx.fillStyle="#f00"; ctx.font=`${14*dpr}px 'Orbitron', sans-serif`; ctx.textAlign="center"; ctx.fillText("남은 거리", xRed, Y(vmax)-18*dpr);
