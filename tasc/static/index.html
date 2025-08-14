@@ -42,11 +42,26 @@ button,.btn-primary{
 }
 button:hover,.btn-primary:hover{ background: linear-gradient(135deg,#0072ff,#00c6ff); transform: translateY(-1px); }
 
+/* ===== Overlay & Scroll Lock ===== */
 #overlay{
   position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 9999;
+  overflow-y: auto;                      /* 오버레이 자체 스크롤 허용 */
+  -webkit-overflow-scrolling: touch;
 }
 #overlay.hide{ display:none; }
+
+#overlay .card{
+  position: relative;                    /* TASC 토글 기준 */
+  max-height: 90vh;                      /* 카드가 화면 넘치면 카드 내부 스크롤 */
+  overflow-y: auto;
+}
+
+body.scroll-lock{
+  overflow: hidden;                      /* 배경 스크롤 잠금 */
+  position: fixed;                       /* iOS 고정 */
+  width: 100%;
+}
 
 .title{ font-size:1.4rem; font-weight:600; margin-bottom:4px; color:#00f6ff; }
 .subtitle{ font-size:.9rem; color:#9fc5ff; margin-bottom:16px; }
@@ -83,14 +98,26 @@ body{ overflow-x:hidden; overflow-y:auto; }
   html,body{ height:100%; } body{ -webkit-overflow-scrolling:touch; }
   #wrap{ padding-bottom:96px; } canvas#hud{ height:42vh; }
 }
-.fab{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%); padding:12px 18px; font-weight:700; border-radius:999px; background:linear-gradient(135deg,#00c6ff,#0072ff); color:#fff; border:none; z-index:10000; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+
+/* FAB(재시작) - 클릭 보장 */
+.fab{
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  padding: 12px 18px; font-weight:700; border-radius:999px;
+  background:linear-gradient(135deg,#00c6ff,#0072ff); color:#fff; border:none;
+  z-index: 10002;                      /* 오버레이보다 위 */
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  pointer-events: auto;                /* 명시적으로 터치 허용 */
+}
 .fab.hide{ display:none; }
 .fab:hover{ background:linear-gradient(135deg,#0072ff,#00c6ff); transform:translateX(-50%) translateY(-1px); }
 
 .mobile-control-guide{ display:none; font-size:14px; color:#9fc5ff; background:rgba(18,24,38,0.7); border:1px solid rgba(0,246,255,0.2); padding:8px 12px; border-radius:8px; margin-bottom:12px; }
 @media (max-width:768px){ .mobile-control-guide{ display:block; } }
 
-.tasc-toggle{ position:absolute; top:12px; right:16px; display:flex; align-items:center; gap:6px; font-family:'Orbitron', sans-serif; z-index:1001; }
+/* 오른쪽 상단 고정 */
+.tasc-toggle{
+  position: absolute; top: 12px; right: 16px; display:flex; align-items:center; gap:6px; font-family:'Orbitron', sans-serif; z-index:1001;
+}
 .tasc-toggle .tasc-label{ font-size:12px; font-weight:600; color:#9fc5ff; user-select:none; }
 .tasc-toggle input{ display:none; }
 .tasc-toggle .slider{
@@ -148,9 +175,9 @@ body{ overflow-x:hidden; overflow-y:auto; }
     <h2 class="title">🚉 TASC 기반 정차 트레이너</h2>
     <p class="subtitle">초기값 입력 → 상단 <b>TASC</b> 설정 → <b>Space</b> 또는 아래 버튼.</p>
 
-    <!-- 새로 추가: 열차군/시리즈 선택 -->
+    <!-- 열차군/시리즈 선택 -->
     <label class="form-label">
-      전동차
+      열차군
       <select id="trainFamily" class="form-input">
         <option value="E233" selected>E233</option>
         <option value="E235">E235</option>
@@ -159,9 +186,7 @@ body{ overflow-x:hidden; overflow-y:auto; }
 
     <label class="form-label">
       시리즈
-      <select id="trainSeries" class="form-input">
-        <!-- JS에서 열차군에 따라 동적으로 채움 -->
-      </select>
+      <select id="trainSeries" class="form-input"></select>
     </label>
 
     <label class="form-label">
@@ -200,7 +225,7 @@ body{ overflow-x:hidden; overflow-y:auto; }
         <option value="6">6량</option>
         <option value="8">8량</option>
         <option value="10">10량</option>
-        <option value="11">11량</option><!-- E235-0/1000 등 -->
+        <option value="11">11량</option>
         <option value="12">12량</option>
         <option value="15">15량</option>
       </select>
@@ -235,6 +260,28 @@ body{ overflow-x:hidden; overflow-y:auto; }
 <script>
 const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
 
+/* ===== Scroll Lock helpers ===== */
+let _scrollY = 0;
+function lockScroll(){        // 오버레이가 보이는 동안 배경 잠금
+  _scrollY = window.scrollY || 0;
+  document.body.classList.add('scroll-lock');
+  document.body.style.top = `-${_scrollY}px`;
+}
+function unlockScroll(){      // 오버레이 닫힐 때 해제
+  document.body.classList.remove('scroll-lock');
+  document.body.style.top = '';
+  window.scrollTo(0, _scrollY || 0);
+}
+
+/* iOS: 오버레이 떠 있을 때 배경 터치 스크롤 차단 */
+document.addEventListener('touchmove', (e)=>{
+  const overlay = document.getElementById('overlay');
+  if (!overlay.classList.contains('hide') && !overlay.contains(e.target)) {
+    e.preventDefault();
+  }
+}, {passive:false});
+
+/* ===== TASC toggle ===== */
 const tascToggle = document.getElementById("tascToggle");
 tascToggle.addEventListener("change", () => {
   const enabled = tascToggle.checked;
@@ -242,7 +289,6 @@ tascToggle.addEventListener("change", () => {
     ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled } }));
   }
 });
-
 function forceManualOverride() {
   if (tascToggle.checked) {
     tascToggle.checked = false;
@@ -252,7 +298,7 @@ function forceManualOverride() {
   }
 }
 
-/* 눈 */
+/* 눈 효과 */
 const snowflakesContainer = document.querySelector('.snowflakes');
 function generateSnowflake() {
   const f = document.createElement('div');
@@ -268,7 +314,7 @@ function generateSnowflake() {
 }
 setInterval(generateSnowflake, 200);
 
-/* 차량 로딩 */
+/* 차량 로딩 & 메타 */
 let vehicle = null;
 let brakeDecels = {};
 
@@ -325,22 +371,9 @@ function populateSeriesOptions(){
   // 기본 편성 세팅
   const first = SERIES_BY_FAMILY[fam][0];
   document.getElementById('trainLength').value = String(first.defaultCars);
-  // 해당 차량 로드
+  // 차량 로드
   loadVehicle(first.file);
 }
-
-document.getElementById('trainFamily').addEventListener('change', ()=>{
-  populateSeriesOptions();
-});
-
-document.getElementById('trainSeries').addEventListener('change', (e)=>{
-  const fam = document.getElementById('trainFamily').value;
-  const file = e.target.value;
-  // 선택된 시리즈의 기본 편성 반영
-  const meta = SERIES_BY_FAMILY[fam].find(x=>x.file===file);
-  if (meta) document.getElementById('trainLength').value = String(meta.defaultCars);
-  loadVehicle(file);
-});
 
 /* 숫자 입력 강제 */
 const remEl=document.getElementById("rem");
@@ -375,8 +408,8 @@ function sendLoadRate() {
   const loadRate = parseFloat(document.getElementById("inputLoadRate").value) || 0;
   const trainLength = parseInt(document.getElementById("trainLength").value) || 8;
 
-  const baseMassPerCar = vehicle?.mass_t ?? 39.9;    // ★선택 차량 공차중량(ton/1량)
-  const maxPassengerMassPerCar = 10.5;               // 가정치(만차 기준)
+  const baseMassPerCar = vehicle?.mass_t ?? 39.9;
+  const maxPassengerMassPerCar = 10.5;
 
   const totalMassTons = trainLength * (baseMassPerCar + maxPassengerMassPerCar * (loadRate / 100));
 
@@ -411,6 +444,7 @@ function muFromWeather(weather) {
 }
 
 function startRun() {
+  // 입력 보정 트리거
   inputSpeed.dispatchEvent(new Event('change'));
   inputDist.dispatchEvent(new Event('change'));
   inputGrade.dispatchEvent(new Event('change'));
@@ -427,6 +461,7 @@ function startRun() {
   }
 
   overlay.classList.add("hide");
+  unlockScroll();                    // 오버레이 닫을 때 배경 스크롤 해제
   isFinished = false;
   overlayShowingResult = false;
   document.getElementById("btnMobileRestart")?.classList.add("hide");
@@ -467,25 +502,93 @@ weatherSelect.addEventListener("change", ()=>{
 });
 updateWeatherUI();
 
-/* 시작 시 기본: E233 / E233-7000 / 10량 */
+/* 초기 로드: 오버레이가 기본으로 떠 있으니 배경 잠금 */
 document.addEventListener('DOMContentLoaded', ()=>{
-  populateSeriesOptions(); // E233 세트 채우고 첫 항목 로드
-  const famSel = document.getElementById('trainFamily');
-  const seriesSel = document.getElementById('trainSeries');
-  const tl = document.getElementById('trainLength');
-
-  // 기본값 강제(안전)
-  famSel.value = "E233";
-  populateSeriesOptions(); // 내부에서 차량도 로드함
-  tl.value = "10";
+  lockScroll();                      // 처음에 오버레이가 보이므로 배경 잠그기
+  populateSeriesOptions();           // E233 기본 채우고 첫 항목 로드 + 기본 편성 반영
+  document.getElementById('trainFamily').value = "E233";
+  populateSeriesOptions();
+  document.getElementById('trainLength').value = "10";
   updateTrainLength();
 });
 
-/* 모바일 터치 브레이크 */
+/* 시리즈/가족 변경 */
+document.getElementById('trainFamily').addEventListener('change', populateSeriesOptions);
+document.getElementById('trainSeries').addEventListener('change', (e)=>{
+  const fam = document.getElementById('trainFamily').value;
+  const file = e.target.value;
+  const meta = SERIES_BY_FAMILY[fam].find(x=>x.file===file);
+  if (meta) document.getElementById('trainLength').value = String(meta.defaultCars);
+  loadVehicle(file);
+});
+
+/* 키보드/모바일 입력 */
+addEventListener("keydown", (e) => {
+  if ([" ", "w", "W", "s", "S", "n", "N"].includes(e.key)) e.preventDefault();
+  if (e.repeat) return;
+
+  forceManualOverride();
+
+  if (e.key === " ") {
+    if (ws.readyState !== WebSocket.OPEN) return;
+
+    if (overlay.classList.contains("hide")) {
+      // 게임 중 상태
+      if (isFinished) {
+        overlay.classList.remove("hide");
+        lockScroll();                // 오버레이 열릴 때 배경 잠금
+        overlayShowingResult = true;
+        isFinished = false;
+      } else {
+        // 새 라운드 즉시 재시작
+        inputSpeed.dispatchEvent(new Event('change'));
+        inputDist.dispatchEvent(new Event('change'));
+        inputGrade.dispatchEvent(new Event('change'));
+
+        const speed = Number(inputSpeed.value);
+        const dist = Number(inputDist.value);
+        const grade = Number(inputGrade.value);
+        const mu = muFromWeather(weatherSelect.value);
+        ws.send(JSON.stringify({ type: "cmd", payload: { name: "setInitial", speed, dist, grade, mu } }));
+        ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" } }));
+        unlockScroll();              // 오버레이 닫힌 상태 유지
+        isFinished = false;
+        overlayShowingResult = false;
+      }
+    } else {
+      // 오버레이 켜져있음 → 닫고 시작
+      overlay.classList.add("hide");
+
+      inputSpeed.dispatchEvent(new Event('change'));
+      inputDist.dispatchEvent(new Event('change'));
+      inputGrade.dispatchEvent(new Event('change'));
+
+      const speed = Number(inputSpeed.value);
+      const dist = Number(inputDist.value);
+      const grade = Number(inputGrade.value);
+      const mu = muFromWeather(weatherSelect.value);
+      ws.send(JSON.stringify({ type: "cmd", payload: { name: "setInitial", speed, dist, grade, mu } }));
+      ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" } }));
+      unlockScroll();                // 오버레이 닫힘 → 배경 스크롤 가능
+      isFinished = false;
+      overlayShowingResult = false;
+    }
+  } 
+  else if (e.key === "w" || e.key === "W") {
+    sendCmd("applyNotch", +1);
+  }
+  else if (e.key === "s" || e.key === "S") {
+    sendCmd("applyNotch", -1);
+  }
+  else if (e.key === "n" || e.key === "N") {
+    sendCmd("release", 0);
+  }
+});
+
 if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
   const gameSurface = document.getElementById("hud");
   gameSurface.addEventListener("touchstart", (e) => {
-    if (!overlay.classList.contains("hide")) return;
+    if (!overlay.classList.contains("hide")) return; // 오버레이 보이면 조작 막음
     if (e.touches.length !== 1) return;
     forceManualOverride();
     const rect = gameSurface.getBoundingClientRect();
@@ -499,7 +602,8 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
 /* HUD */
 let prevMaxDistance = 0;
 function drawHUD(st) {
-  const dpr = devicePixelRatio || 1, w = canvas.width, h = canvas.height;
+  const dpr = devicePixelRatio || 1, canvas = document.getElementById("hud"), ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height;
   ctx.clearRect(0, 0, w, h);
 
   const v0 = st.v;
@@ -628,6 +732,7 @@ let isFinished = false;
 let overlayShowingResult = false;
 let st = null;
 
+/* WS 상태 수신 */
 ws.onmessage = (ev) => {
   const msg = JSON.parse(ev.data);
   if (msg.type === "state") {
@@ -650,10 +755,11 @@ ws.onmessage = (ev) => {
       isFinished = true;
       const issues = st.issues || {};
       const items = [
-        { key:"early_brake_too_short", good:"초기 제동 수행 - 승차감 양호", bad:"초기 제동 미흡 - 승차감 저하" },
-        { key:"stop_not_b1", good:"정차 시 B1로 제동 마무리", bad: issues.stop_not_b1_msg || "정차 시 B1 미준수" },
-        { key:"step_brake_incomplete", good:"계단제동/완해 적정 수행", bad: (issues.stop_error_m<=-2) ? "계단제동 미흡 - 정차 초과" : "계단제동 미흡 - 승객 쏠림" },
-        { key:"unnecessary_eb_usage", good:"EB 불필요 사용 없음", bad:"불필요 EB 사용" },
+        { key:"early_brake_too_short", good:"초기 제동 수행 - 승차감 양호", bad:"초기 제동 미흡 - 승차감 불쾌" },
+        { key:"stop_not_b1", good:"정차 시 B1로 제동 마무리 - 승차감 양호", bad: issues.stop_not_b1_msg || "정차 시 B1 미준수" },
+        { key:"step_brake_incomplete", good:"계단제동/완해 적정 수행", bad: (issues.stop_error_m<=-2) ? "계단제동 미흡 - 정차 위치 초과 및 운행 지연 발생" : "계단제동 미흡 - 단속적인 제동으로 인한 승객 쏠림 현상 발생" },
+        { key:"unnecessary_eb_usage", good:"영업 안전 제동범위 준수", bad:"불필요한 비상제동 
+(EB) 사용 - 급감속으로 인한 충격 발생" },
       ];
       const fbs = items.map(it=>{
         const bad = issues[it.key];
@@ -670,13 +776,55 @@ ws.onmessage = (ev) => {
         document.getElementById("btnMobileRestart").classList.remove("hide");
       }
     } else {
-      isFinished = true;
+      isFinished = false;                                     /* ← 중요: 진행 중 */
       fb.textContent = "Space로 시작. W/S로 브레이크 조절하세요.";
     }
   }
 };
 
-document.getElementById("inputLoadRate").addEventListener("change", sendLoadRate);
+/* 모바일 재시작(FAB) */
+const btnMobileRestart = document.getElementById("btnMobileRestart");
+btnMobileRestart.addEventListener("click", () => {
+  overlay.classList.remove("hide");
+  lockScroll();                                                // 오버레이 열릴 때 배경 잠금
+  overlayShowingResult = true;
+  btnMobileRestart.classList.add("hide");
+});
+
+/* 날씨 UI */
+function updateWeatherUI(){
+  const weather = weatherSelect.value;
+  const overlayEl = document.getElementById("overlay");
+
+  if (weather === "눈옴") {
+    snowflakes.style.display = "block"; raindrops.style.display = "none";
+    document.documentElement.style.background = "#ffffff";
+    document.body.style.background = "#ffffff";
+    overlayEl.style.background = "rgba(255,255,255,0.15)";
+    canvas.style.background = "#ffffff";
+  } else if (weather === "비옴") {
+    snowflakes.style.display = "none"; raindrops.style.display = "block";
+    document.documentElement.style.background = "#4b5d67";
+    document.body.style.background = "#4b5d67";
+    overlayEl.style.background = "rgba(40,60,80,0.35)";
+    canvas.style.background = "#4b5d67";
+  } else {
+    snowflakes.style.display = "none"; raindrops.style.display = "none";
+    const grad = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
+    document.documentElement.style.background = grad;
+    document.body.style.background = grad;
+    overlayEl.style.background = "rgba(0,0,0,0.6)";
+    canvas.style.background = "linear-gradient(#0b0f14, #0a1019)";
+  }
+}
+weatherSelect.addEventListener("change", ()=>{
+  updateWeatherUI();
+  const mu = muFromWeather(weatherSelect.value);
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type:"cmd", payload:{ name:"setMu", value: mu }}));
+  }
+});
+updateWeatherUI();
 </script>
 
 <footer style="text-align:center; font-size:12px; color:#888; padding:8px 0; user-select:none;">
