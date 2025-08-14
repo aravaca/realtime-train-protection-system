@@ -13,13 +13,11 @@ html, body {
   font-family: 'Orbitron', system-ui, Segoe UI, Roboto, Apple SD Gothic Neo, AppleGothic, sans-serif;
 }
 
-
 .game-background,
 .snow-background,
 .rain-background {
   background: transparent !important;
 }
-*/
 
 #wrap {
   max-width: 960px;
@@ -143,7 +141,8 @@ button:hover, .btn-primary:hover {
 }
 
 .form-input {
-  width: 95%;
+  width: 100%;              /* 95% → 100% */
+  box-sizing: border-box;   /* 추가 */
   padding: 8px 10px;
   font-size: 0.9rem;
   border: 1px solid rgba(0, 246, 255, 0.3);
@@ -368,7 +367,7 @@ body {
   정차 후 아래 화면에서 피드백을 확인하세요.
 </div>
     <div class="card" style="flex:1 1 260px">
-      <div id="carName" style="font-size:20px" class = "stat">차량 로딩 중...</div>
+      <div id="carName" style="font-size:20px" class="stat">차량 로딩 중...</div>
       <div>남은 거리 <span class="stat" id="rem">—</span> m</div>
       <div>속도 <span class="stat" id="spd">—</span> km/h</div>
       <div>노치 <span class="stat" id="notch">0.0</span></div>
@@ -402,17 +401,20 @@ body {
 
     <label class="form-label">
       초기 속도 (km/h)
-      <input id="inputSpeed" type="number" value="90" min="40" max="120" step="10" class="form-input">
+      <!-- 10~130 정수 -->
+      <input id="inputSpeed" type="number" value="90" min="10" max="130" step="1" class="form-input">
     </label>
 
     <label class="form-label">
       거리 (m)
-      <input id="inputDist" type="number" value="500" min="200" max="800" step="100" class="form-input">
+      <!-- 10~700 정수 -->
+      <input id="inputDist" type="number" value="500" min="10" max="700" step="1" class="form-input">
     </label>
 
     <label class="form-label">
       경사도 (%)
-      <input id="inputGrade" type="number" value="0.0" min="-40" max="40" step="1" class="form-input">
+      <!-- -4.0~4.0 소수 허용 (1자리) -->
+      <input id="inputGrade" type="number" value="0.0" min="-4" max="4" step="0.1" class="form-input">
     </label>
 
     <label class="form-label">
@@ -423,13 +425,15 @@ body {
         <option value="눈옴">눈옴</option>
       </select>
     </label>
+
     <label class="form-label">
       승객 탑승률 (%)
       <input id="inputLoadRate" type="number" value="70" min="0" max="120" step="1" class="form-input">
     </label>
 
-
-    <label class="form-label" for="trainLength">편성</label>
+    <!-- 편성: 날씨와 동일한 패턴으로 통일 -->
+    <label class="form-label">
+      편성
       <select class="form-input" id="trainLength" onchange="updateTrainLength()">
         <option value="4">4량 (JR 소부선 일부 구간)</option>
         <option value="6">6량 (JR 야마노테선, JR 치요다선, JR 소부선, JR 게이힌도호쿠선)</option>
@@ -438,7 +442,7 @@ body {
         <option value="12">12량 (JR 도호쿠선 주요 구간, JR 주오선 주요 구간)</option>
         <option value="15">15량 (JR 도호쿠선 일부 구간, 고속 노선)</option>
       </select>
-
+    </label>
 
     <!-- 게임 배경 -->
     <div class="game-background"></div>
@@ -590,6 +594,41 @@ const inputSpeed = document.getElementById("inputSpeed");
 const inputDist = document.getElementById("inputDist");
 const inputGrade = document.getElementById("inputGrade");
 
+// ===== 입력 강제 유틸 + 리스너 =====
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
+// 정수 전용 보정
+function enforceInt(input, min, max) {
+  input.addEventListener('input', () => {
+    input.value = input.value.replace(/[^\d-]/g, ''); // 필요하면 음수 허용. (속도/거리엔 '-' 안 칩니다)
+  });
+  input.addEventListener('change', () => {
+    let v = parseInt(input.value, 10);
+    if (isNaN(v)) { input.value = ''; return; }
+    input.value = String(clamp(v, min, max));
+  });
+}
+
+// 실수(부호/소수) 보정
+function enforceFloat(input, min, max, digits = 1) {
+  input.addEventListener('input', () => {
+    input.value = input.value.replace(/[^0-9.\-]/g, '');
+  });
+  input.addEventListener('change', () => {
+    let v = parseFloat(input.value);
+    if (isNaN(v)) { input.value = ''; return; }
+    v = clamp(v, min, max);
+    input.value = v.toFixed(digits);
+  });
+}
+
+// 적용
+enforceInt(inputSpeed, 10, 130);
+enforceInt(inputDist, 10, 700);
+enforceFloat(inputGrade, -4.0, 4.0, 1);
+
+// ================================
+
 function muFromWeather(weather) {
   if (weather === "비옴") return 0.6;
   if (weather === "눈옴") return 0.3;
@@ -597,14 +636,18 @@ function muFromWeather(weather) {
 }
 
 function startRun() {
-  const speed = Number(inputSpeed.value);
-  const dist  = Number(inputDist.value);
-  const grade = Number(inputGrade.value);
+  // 최종 보정 트리거
+  inputSpeed.dispatchEvent(new Event('change'));
+  inputDist.dispatchEvent(new Event('change'));
+  inputGrade.dispatchEvent(new Event('change'));
+
+  const speed = Number(inputSpeed.value);  // 10~130 정수
+  const dist  = Number(inputDist.value);   // 10~700 정수
+  const grade = Number(inputGrade.value);  // -4.0~4.0 실수 (소수 1자리)
   const weather = weatherSelect.value;
   const mu = muFromWeather(weather);
 
   if (ws.readyState === WebSocket.OPEN) {
-    // ✅ 서버가 처리하는 setInitial에 mu 포함
     ws.send(JSON.stringify({ type: "cmd", payload: { name: "setInitial", speed, dist, grade, mu } }));
     ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" }}));
   }
@@ -653,7 +696,6 @@ function updateWeatherUI() {
   }
 }
 
-
 weatherSelect.addEventListener("change", () => {
   updateWeatherUI(); // 배경/애니메이션 업데이트
   const mu = muFromWeather(weatherSelect.value);
@@ -661,7 +703,7 @@ weatherSelect.addEventListener("change", () => {
     ws.send(JSON.stringify({
       type: "cmd",
       payload: { name: "setMu", value: mu }
-    })); // ← 여기서 서버에 setMu 전송
+    })); // 서버에 마찰계수 업데이트
   }
 });
 updateWeatherUI(); // 초기 적용
@@ -688,6 +730,11 @@ addEventListener("keydown", (e) => {
         overlayShowingResult = true;
         isFinished = false;
       } else {
+        // 최종 보정 트리거
+        inputSpeed.dispatchEvent(new Event('change'));
+        inputDist.dispatchEvent(new Event('change'));
+        inputGrade.dispatchEvent(new Event('change'));
+
         const speed = Number(inputSpeed.value);
         const dist = Number(inputDist.value);
         const grade = Number(inputGrade.value);
@@ -699,6 +746,12 @@ addEventListener("keydown", (e) => {
       }
     } else {
       overlay.classList.add("hide");
+
+      // 최종 보정 트리거
+      inputSpeed.dispatchEvent(new Event('change'));
+      inputDist.dispatchEvent(new Event('change'));
+      inputGrade.dispatchEvent(new Event('change'));
+
       const speed = Number(inputSpeed.value);
       const dist = Number(inputDist.value);
       const grade = Number(inputGrade.value);
