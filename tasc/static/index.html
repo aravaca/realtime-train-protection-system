@@ -221,7 +221,9 @@ const inputSpeed=document.getElementById("inputSpeed"), inputDist=document.getEl
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 function enforceInt(el,min,max){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^\d-]/g,'');}); el.addEventListener('change',()=>{let v=parseInt(el.value,10); if(isNaN(v)){el.value='';return;} el.value=String(clamp(v,min,max));});}
 function enforceFloat(el,min,max,d=1){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^0-9.\-]/g,'');}); el.addEventListener('change',()=>{let v=parseFloat(el.value); if(isNaN(v)){el.value='';return;} v=clamp(v,min,max); el.value=v.toFixed(d);});}
-enforceInt(inputSpeed,10,130); enforceInt(inputDist,10,900); enforceFloat(inputGrade,-4,4,1);
+enforceInt(inputSpeed,10,130); enforceInt(inputDist,10,900);
+enforceInt(inputLoadRate,0,120); enforceFloat(inputGrade,-4,4,1);
+
 document.getElementById("inputLoadRate").addEventListener("change",sendLoadRate);
 
 /* 날씨 UI */
