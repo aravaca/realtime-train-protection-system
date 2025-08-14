@@ -414,7 +414,7 @@ body {
     <label class="form-label">
       경사도 (%)
       <!-- -4.0~4.0 소수 허용 (1자리) -->
-      <input id="inputGrade" type="number" value="0.0" min="-4.5" max="4.5" step="0.1" class="form-input">
+      <input id="inputGrade" type="number" value="0" min="-4" max="4" step="0.1" class="form-input">
     </label>
 
     <label class="form-label">
@@ -626,7 +626,7 @@ function enforceFloat(input, min, max, digits = 1) {
 enforceInt(inputSpeed, 10, 130);
 enforceInt(inputDist, 10, 900);
 enforceInt(inputLoadRate, 0, 120);
-enforceFloat(inputGrade, -4.5, 4.5, 1);
+enforceFloat(inputGrade, -4.0, 4.0, 1);
 
 
 // ================================
