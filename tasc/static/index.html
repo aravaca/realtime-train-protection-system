@@ -189,7 +189,7 @@ setInterval(generateSnowflake,200);
 /* ===== 차량 JSON 로드 (캐시 무시) ===== */
 let vehicle=null; let brakeDecels={};
 const cacheBust=()=>`?v=${Date.now()}`;
-fetch('/carName.json'+cacheBust(),{cache:'no-store'})
+fetch('./carName.json'+cacheBust(),{cache:'no-store'})
   .then(r=>r.json()).then(data=>{
     vehicle=data; document.getElementById('carName').textContent=vehicle.name;
     if(vehicle.notch_accels && vehicle.notches){
@@ -374,18 +374,18 @@ function drawHUD(st){
 /* ===== 전동차/시리즈/편성: 사진 스펙 고정 ===== */
 const TRAIN_DB={
   E233:[
-    {code:"E233-0",    lines:"주오쾌속·소부쾌속",                                 file:"/e233_0000.json",  lengths:[10,12]}, // 요청대로
-    {code:"E233-1000", lines:"게이힌토호쿠·네기시",                               file:"/e233_1000.json",  lengths:[10]},
-    {code:"E233-2000", lines:"조반 각역·쾌속",                                    file:"/e233_2000.json",  lengths:[10]},
-    {code:"E233-3000", lines:"도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file:"/e233_3000.json",  lengths:[5,10,12,15]},
-    {code:"E233-5000", lines:"게이요",                                            file:"/e233_5000.json",  lengths:[4,6,10]},
-    {code:"E233-6000", lines:"요코하마",                                          file:"/e233_6000.json",  lengths:[8]},
-    {code:"E233-7000", lines:"사이쿄·가와고에·쇼난신주쿠 일부",                     file:"/e233_7000.json",  lengths:[10]},
-    {code:"E233-8000", lines:"난부",                                              file:"/e233_8000.json",  lengths:[6,8]}
+    {code:"E233-0",    lines:"주오쾌속·소부쾌속",                                 file:"./e233_0000.json",  lengths:[10,12]}, // 요청대로
+    {code:"E233-1000", lines:"게이힌토호쿠·네기시",                               file:"./e233_1000.json",  lengths:[10]},
+    {code:"E233-2000", lines:"조반 각역·쾌속",                                    file:"./e233_2000.json",  lengths:[10]},
+    {code:"E233-3000", lines:"도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file:"./e233_3000.json",  lengths:[5,10,12,15]},
+    {code:"E233-5000", lines:"게이요",                                            file:"./e233_5000.json",  lengths:[4,6,10]},
+    {code:"E233-6000", lines:"요코하마",                                          file:"./e233_6000.json",  lengths:[8]},
+    {code:"E233-7000", lines:"사이쿄·가와고에·쇼난신주쿠 일부",                     file:"./e233_7000.json",  lengths:[10]},
+    {code:"E233-8000", lines:"난부",                                              file:"./e233_8000.json",  lengths:[6,8]}
   ],
   E235:[
-    {code:"E235-0",    lines:"야마노테",                                          file:"/e235_0.json",     lengths:[11]},
-    {code:"E235-1000", lines:"요코스카·소부쾌속",                                 file:"/e235_1000.json",  lengths:[4,11]}
+    {code:"E235-0",    lines:"야마노테",                                          file:"./e235_0.json",     lengths:[11]},
+    {code:"E235-1000", lines:"요코스카·소부쾌속",                                 file:"./e235_1000.json",  lengths:[4,11]}
   ]
 };
 
