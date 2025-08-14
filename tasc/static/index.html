@@ -402,19 +402,19 @@ body {
     <label class="form-label">
       초기 속도 (km/h)
       <!-- 10~130 정수 -->
-      <input id="inputSpeed" type="number" value="90" min="10" max="130" step="1" class="form-input">
+      <input id="inputSpeed" type="number" value="70" min="10" max="130" step="1" class="form-input">
     </label>
 
     <label class="form-label">
       거리 (m)
       <!-- 10~700 정수 -->
-      <input id="inputDist" type="number" value="500" min="10" max="700" step="1" class="form-input">
+      <input id="inputDist" type="number" value="250" min="10" max="900" step="1" class="form-input">
     </label>
 
     <label class="form-label">
       경사도 (%)
       <!-- -4.0~4.0 소수 허용 (1자리) -->
-      <input id="inputGrade" type="number" value="0.0" min="-4" max="4" step="0.1" class="form-input">
+      <input id="inputGrade" type="number" value="0.0" min="-4.5" max="4.5" step="0.1" class="form-input">
     </label>
 
     <label class="form-label">
@@ -624,8 +624,10 @@ function enforceFloat(input, min, max, digits = 1) {
 
 // 적용
 enforceInt(inputSpeed, 10, 130);
-enforceInt(inputDist, 10, 700);
-enforceFloat(inputGrade, -4.0, 4.0, 1);
+enforceInt(inputDist, 10, 900);
+enforceInt(inputLoadRate, 0, 120);
+enforceFloat(inputGrade, -4.5, 4.5, 1);
+
 
 // ================================
 
