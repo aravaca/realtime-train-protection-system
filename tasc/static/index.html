@@ -8,28 +8,17 @@
 html, body {
   margin: 0;
   background: radial-gradient(circle at 50% 20%, #0b0f14, #05070a);
-  background-attachment: fixed; /* 스크롤 시 유지 */
+  background-attachment: fixed;
   color: #e7f0ff;
   font-family: 'Orbitron', system-ui, Segoe UI, Roboto, Apple SD Gothic Neo, AppleGothic, sans-serif;
 }
 
 .game-background,
 .snow-background,
-.rain-background {
-  background: transparent !important;
-}
+.rain-background { background: transparent !important; }
 
-#wrap {
-  max-width: 960px;
-  margin: 18px auto;
-  padding: 0 12px;
-}
-
-.row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
+#wrap { max-width: 960px; margin: 18px auto; padding: 0 12px; }
+.row { display: flex; gap: 12px; align-items: center; }
 
 .card {
   background: rgba(18, 24, 38, 0.7);
@@ -40,343 +29,122 @@ html, body {
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(0,0,0,0.7);
-}
+.card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,0.7); }
 
 canvas {
-  width: 100%;
-  height: 320px;
+  width: 100%; height: 320px;
   background: linear-gradient(#0b0f14, #0a1019);
   border-radius: 12px;
 }
 
-.kbd {
-  background: rgba(10, 18, 28, 0.8);
-  border: 1px solid #2b3f5f;
-  color: #9fc5ff;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 12px;
-}
-
-.stat {
-  font-size: 32px;
-  font-weight: 800;
-  color: #ffffff;
-  text-shadow: 0 0 4px rgba(0, 200, 255, 0.8);
-}
-
-.ok {
-  color: #9effb5;
-}
-.warn {
-  color: #ffd18f;
-}
-.bad {
-  color: #ff9b9b;
-}
+.kbd { background: rgba(10, 18, 28, 0.8); border: 1px solid #2b3f5f; color: #9fc5ff; padding: 2px 6px; border-radius: 6px; font-size: 12px; }
+.stat { font-size: 32px; font-weight: 800; color: #fff; text-shadow: 0 0 4px rgba(0, 200, 255, 0.8); }
+.ok { color: #9effb5; } .warn { color: #ffd18f; } .bad { color: #ff9b9b; }
 
 button, .btn-primary {
   background: linear-gradient(135deg, #00c6ff, #0072ff);
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  padding: 10px 16px;
-  font-size: 15px;
-  font-weight: 600;
+  color: #fff; border: none; border-radius: 12px;
+  padding: 10px 16px; font-size: 15px; font-weight: 600;
   transition: background 0.3s ease, transform 0.1s ease;
 }
-button:hover, .btn-primary:hover {
-  background: linear-gradient(135deg, #0072ff, #00c6ff);
-  transform: translateY(-1px);
-}
+button:hover, .btn-primary:hover { background: linear-gradient(135deg, #0072ff, #00c6ff); transform: translateY(-1px); }
 
 #overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  z-index: 9999;
-/* ▼▼ 추가: 오버레이 스크롤 허용 */
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-/* ▲▲ 추가 끝 */
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); z-index: 9999;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
-
-#overlay.hide {
-  display: none;
-}
-
-/* ▼▼ 추가: 카드가 화면을 넘치면 카드 내부 스크롤 */
-#overlay .card {
-  max-height: 90vh;
-  overflow-y: auto;
-}
-/* ▲▲ 추가 끝 */
+#overlay.hide { display: none; }
+#overlay .card { max-height: 90vh; overflow-y: auto; }
 
 .overlay-card {
-  background: rgba(18, 24, 38, 0.9);
-  padding: 24px 28px;
-  border-radius: 14px;
-  box-shadow: 0 0 20px rgba(0, 246, 255, 0.2);
-  text-align: center;
-  width: 300px;
+  background: rgba(18, 24, 38, 0.9); padding: 24px 28px; border-radius: 14px;
+  box-shadow: 0 0 20px rgba(0, 246, 255, 0.2); text-align: center; width: 300px;
   border: 1px solid rgba(0, 246, 255, 0.2);
 }
 
-.title {
-  font-size: 1.4rem;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: #00f6ff;
-}
+.title { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; color: #00f6ff; }
+.subtitle { font-size: 0.9rem; color: #9fc5ff; margin-bottom: 16px; }
 
-.subtitle {
-  font-size: 0.9rem;
-  color: #9fc5ff;
-  margin-bottom: 16px;
-}
-
-.form-label {
-  display: block;
-  font-size: 0.85rem;
-  margin-bottom: 12px;
-  text-align: left;
-  font-weight: 500;
-  color: #cceaff;
-}
-
+.form-label { display: block; font-size: 0.85rem; margin-bottom: 12px; text-align: left; font-weight: 500; color: #cceaff; }
 .form-input {
-  width: 100%; /* 95% → 100% */
-  box-sizing: border-box; /* 추가 */
-  padding: 8px 10px;
-  font-size: 0.9rem;
-  border: 1px solid rgba(0, 246, 255, 0.3);
-  border-radius: 8px;
-  margin-top: 4px;
-  background: rgba(10, 18, 28, 0.6);
-  color: #e7f0ff;
+  width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 0.9rem;
+  border: 1px solid rgba(0, 246, 255, 0.3); border-radius: 8px; margin-top: 4px;
+  background: rgba(10, 18, 28, 0.6); color: #e7f0ff;
 }
-.form-input:focus {
-  border-color: #00f6ff;
-  outline: none;
-}
+.form-input:focus { border-color: #00f6ff; outline: none; }
 
-.kbd-info {
-  margin: 16px 0;
-  font-size: 0.85rem;
-  color: #9fc5ff;
-}
+.kbd-info { margin: 16px 0; font-size: 0.85rem; color: #9fc5ff; }
 
-@keyframes neonGlow {
-  0%, 100% {
-    text-shadow:
-      0 0 5px #fff,
-      0 0 10px #fff,
-      0 0 20px currentColor,
-      0 0 30px currentColor,
-      0 0 40px currentColor,
-      0 0 55px currentColor,
-      0 0 75px currentColor;
-    opacity: 1;
-  }
-  50% {
-    text-shadow:
-      0 0 2px #fff,
-      0 0 5px #fff,
-      0 0 10px currentColor,
-      0 0 15px currentColor,
-      0 0 20px currentColor,
-      0 0 30px currentColor,
-      0 0 40px currentColor;
-    opacity: 0.8;
-  }
-}
+/* Glow */
+@keyframes neonGlow { 0%,100%{text-shadow:0 0 5px #fff,0 0 10px #fff,0 0 20px currentColor,0 0 30px currentColor,0 0 40px currentColor,0 0 55px currentColor,0 0 75px currentColor;opacity:1}50%{text-shadow:0 0 2px #fff,0 0 5px #fff,0 0 10px currentColor,0 0 15px currentColor,0 0 20px currentColor,0 0 30px currentColor,0 0 40px currentColor;opacity:.8}}
+.grade-S,.grade-A{animation:neonGlow 2s ease-in-out infinite}
+.grade-S{color:gold}.grade-A{color:#4CAF50}
 
-.grade-S, .grade-A {
-  animation: neonGlow 2s ease-in-out infinite;
-}
+/* 눈/비 */
+.snowflakes,.raindrops{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none;overflow:hidden}
+.snowflakes div{position:absolute;background-color:#fff;width:10px;height:10px;border-radius:50%;opacity:.8;animation:snow 5s linear infinite}
+@keyframes snow{0%{transform:translateY(-20px)}100%{transform:translateY(100vh)}}
+.raindrops{z-index:9998}
+.raindrops div{position:absolute;background-color:rgba(173,216,230,.8);width:2px;height:15px;animation:rain .5s linear infinite}
+@keyframes rain{0%{transform:translateY(-20px)}100%{transform:translateY(100vh)}}
 
-.grade-S {
-  color: gold;
-}
-.grade-A {
-  color: #4CAF50;
-}
+body { overflow-x: hidden; overflow-y: auto; }
 
-/* 눈 애니메이션 */
-.snowflakes {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 9999;
-  display: none;
-  overflow:hidden;
-}
-
-.snowflakes div {
-  position: absolute;
-  background-color: #fff;
-  width: 10px;
-  height:10px;
-  border-radius: 50%;
-  opacity: 0.8;
-  animation: snow 5s linear infinite;
-}
-
-@keyframes snow {
-  0% { transform: translateY(-20px); }
-  100% { transform: translateY(100vh); }
-}
-
-/* 비 애니메이션 */
-.raindrops {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 9998;
-  display: none;
-  overflow:hidden;
-}
-.raindrops div {
-  position: absolute;
-  background-color: rgba(173, 216, 230, 0.8);
-  width: 2px;
-  height: 15px;
-  animation: rain 0.5s linear infinite;
-}
-@keyframes rain {
-  0% { transform: translateY(-20px); }
-  100% { transform: translateY(100vh); }
-}
-
-/* 기본적으로 가로 스크롤은 막고, 세로는 허용 */
-body {
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-/* 모바일에서 스크롤 자연스럽게 + FAB에 가리지 않게 */
+/* 모바일 */
 @media (max-width: 768px) {
   html, body { height: 100%; }
-  body {
-    -webkit-overflow-scrolling: touch; /* iOS 부드러운 스크롤 */
-  }
-  #wrap { padding-bottom: 96px; } /* 하단 FAB 공간 확보 */
-  canvas#hud { height: 42vh; } /* 모바일에서 캔버스 조금 줄임 */
+  body { -webkit-overflow-scrolling: touch; }
+  #wrap { padding-bottom: 96px; }
+  canvas#hud { height: 42vh; }
 }
+
+/* FAB */
 .fab {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
-  padding: 12px 18px;
-  font-weight: 700;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #00c6ff, #0072ff);
-  color: #fff;
-  border: none;
-  z-index: 10000;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  padding: 12px 18px; font-weight: 700; border-radius: 999px;
+  background: linear-gradient(135deg, #00c6ff, #0072ff); color: #fff; border: none;
+  z-index: 10000; box-shadow: 0 8px 24px rgba(0,0,0,0.35);
 }
 .fab.hide { display: none; }
-.fab:hover {
-  background: linear-gradient(135deg, #0072ff, #00c6ff);
-  transform: translateX(-50%) translateY(-1px);
-}
-.mobile-control-guide {
-  display: none;
-  font-size: 14px;
-  color: #9fc5ff;
-  background: rgba(18, 24, 38, 0.7);
-  border: 1px solid rgba(0, 246, 255, 0.2);
-  padding: 8px 12px;
-  border-radius: 8px;
-  margin-bottom: 12px;
-}
-@media (max-width: 768px) {
-  .mobile-control-guide { display: block; }
-}
+.fab:hover { background: linear-gradient(135deg, #0072ff, #00c6ff); transform: translateX(-50%) translateY(-1px); }
 
-/* 오른쪽 상단 고정 */
+.mobile-control-guide { display:none; font-size:14px; color:#9fc5ff; background:rgba(18,24,38,0.7); border:1px solid rgba(0,246,255,0.2); padding:8px 12px; border-radius:8px; margin-bottom:12px; }
+@media (max-width: 768px) { .mobile-control-guide { display:block; } }
+
+/* ▼ TASC 토글: 위치 조금 아래로 내림 */
 .tasc-toggle {
   position: absolute;
-  top: 12px;
+  top: 48px;   /* 12px → 48px */
   right: 16px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: 'Orbitron', sans-serif;
-  z-index: 1001;
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'Orbitron', sans-serif; z-index: 1001;
 }
-
-/* 텍스트 라벨 */
-.tasc-toggle .tasc-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #9fc5ff;
-  user-select: none;
-}
-
-/* 체크박스 숨기기 */
+.tasc-toggle .tasc-label { font-size: 12px; font-weight: 600; color: #9fc5ff; user-select: none; }
 .tasc-toggle input { display: none; }
-
-/* 토글 바탕 */
 .tasc-toggle .slider {
-  position: relative;
-  display: inline-block;
-  width: 46px;
-  height: 24px;
-  background-color: rgba(255, 255, 255, 0.25);
-  border-radius: 24px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
+  position: relative; display: inline-block; width: 46px; height: 24px;
+  background-color: rgba(255, 255, 255, 0.25); border-radius: 24px; cursor: pointer;
+  transition: background-color 0.3s; box-shadow: inset 0 0 4px rgba(0,0,0,0.3);
 }
-
-/* 동그라미 */
 .tasc-toggle .slider::before {
-  content: "";
-  position: absolute;
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  border-radius: 50%;
-  transition: transform 0.3s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px;
+  background-color: white; border-radius: 50%; transition: transform 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
-
-/* 켜짐 상태 */
-.tasc-toggle input:checked + .slider {
-  background: linear-gradient(135deg, #00c6ff, #0072ff);
-}
+.tasc-toggle input:checked + .slider { background: linear-gradient(135deg, #00c6ff, #0072ff); }
 .tasc-toggle input:checked + .slider::before { transform: translateX(22px); }
-
 </style>
 </head>
 <body>
 <div id="wrap" class="row" style="flex-direction:column">
   <div class="row" style="gap:16px;flex-wrap:wrap">
+    <div class="mobile-control-guide">
+      📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>
+      위쪽 터치 → 브레이크 강화 🔼<br>
+      아래쪽 터치 → 브레이크 완화 🔽<br>
+      정차 후 아래 화면에서 피드백을 확인하세요.
+    </div>
 
-<div class="mobile-control-guide">
-  📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>
-  위쪽 터치 → 브레이크 강화 🔼<br>
-  아래쪽 터치 → 브레이크 완화 🔽<br>
-  정차 후 아래 화면에서 피드백을 확인하세요.
-</div>
     <div class="card" style="flex:1 1 260px">
       <div id="carName" style="font-size:20px" class="stat">차량 로딩 중...</div>
       <div>남은 거리 <span class="stat" id="rem">—</span> m</div>
@@ -397,20 +165,20 @@ body {
   </div>
 </div>
 
-<!-- HTML -->
+<!-- 오버레이 -->
 <div id="overlay">
   <div class="card">
-<!-- TASC ON/OFF 토글 -->
-<div class="tasc-toggle">
-  <input type="checkbox" id="tascToggle" />
-  <label for="tascToggle" class="slider"></label>
-  <span class="tasc-label">TASC</span>
-</div>
+    <!-- TASC ON/OFF -->
+    <div class="tasc-toggle">
+      <input type="checkbox" id="tascToggle" />
+      <label for="tascToggle" class="slider"></label>
+      <span class="tasc-label">TASC</span>
+    </div>
 
     <h2 class="title">🚉 TASC 기반 정차 트레이너</h2>
-    <p class="subtitle">초기값을 먼저 입력하고 우측 상단 <b>TASC(오토파일럿)</b> 버튼을 활성화 혹은 비활성화 후 <b>Space</b> 또는 아래 버튼을 눌러 시작하세요.</p>
+    <p class="subtitle">초기값을 먼저 입력하고 우측 상단 <b>TASC</b> 버튼을 설정한 뒤 <b>Space</b> 또는 아래 버튼으로 시작하세요.</p>
 
-    <!-- ▼▼ 추가: 전동차/시리즈 선택 -->
+    <!-- ▼ 전동차 / 시리즈 -->
     <label class="form-label">
       전동차
       <select id="trainFamily" class="form-input">
@@ -423,23 +191,20 @@ body {
       시리즈
       <select id="trainSeries" class="form-input"></select>
     </label>
-    <!-- ▲▲ 추가 끝 -->
+    <!-- ▲ 전동차 / 시리즈 -->
 
     <label class="form-label">
       초기 속도 (km/h)
-      <!-- 10~130 정수 -->
       <input id="inputSpeed" type="number" value="70" min="10" max="130" step="1" class="form-input">
     </label>
 
     <label class="form-label">
       거리 (m)
-      <!-- 10~700 정수 -->
       <input id="inputDist" type="number" value="200" min="10" max="900" step="1" class="form-input">
     </label>
 
     <label class="form-label">
       경사도 (%)
-      <!-- -4.0~4.0 소수 허용 (1자리) -->
       <input id="inputGrade" type="number" value="0.0" min="-4" max="4" step="0.1" class="form-input">
     </label>
 
@@ -457,53 +222,35 @@ body {
       <input id="inputLoadRate" type="number" value="70" min="0" max="120" step="1" class="form-input">
     </label>
 
-    <!-- 편성: 날씨와 동일한 패턴으로 통일 -->
-<label class="form-label">
-  편성
-  <select class="form-input" id="trainLength" onchange="updateTrainLength()">
-    <option value="4">4량 (소부선 지선, 난부선·가와고에선 단축편성)</option>
-    <option value="6">6량 (E233-8000 난부선, E233-7000 사이쿄선·가와고에선 단축편성)</option>
-    <option value="8">8량 (E233-6000 요코하마선, E233-7000 사이쿄선·가와고에선 표준편성)</option>
-    <option value="10">10량 (E233-0 주오쾌속선, 소부쾌속선 / E233-1000 게이힌토호쿠·네기시선)</option>
-    <option value="12">12량 (E233-3000 소부쾌속선·조반선 직통, 조반선 쾌속)</option>
-    <option value="15">15량 (E233-3000 도카이도선·도호쿠선·타카사키선·우에노도쿄라인 장대편성)</option>
-  </select>
-</label>
+    <!-- 편성 (시리즈별 제한 적용) -->
+    <label class="form-label">
+      편성
+      <select class="form-input" id="trainLength" onchange="updateTrainLength()"></select>
+    </label>
 
-    <!-- 게임 배경 -->
+    <!-- 배경/이펙트 -->
     <div class="game-background"></div>
-
-    <!-- 눈 애니메이션 -->
     <div class="snowflakes"></div>
-
-    <!-- 비 애니메이션 -->
     <div class="raindrops">
-      <div style="animation-delay: 0s; left: 5%;"></div>
-      <div style="animation-delay: 0.2s; left: 15%;"></div>
-      <div style="animation-delay: 0.4s; left: 25%;"></div>
-      <div style="animation-delay: 0.6s; left: 35%;"></div>
-      <div style="animation-delay: 0.8s; left: 45%;"></div>
-      <div style="animation-delay: 1s; left: 55%;"></div>
-      <div style="animation-delay: 1.2s; left: 65%;"></div>
-      <div style="animation-delay: 1.4s; left: 75%;"></div>
-      <div style="animation-delay: 1.6s; left: 85%;"></div>
-      <div style="animation-delay: 1.8s; left: 95%;"></div>
+      <div style="animation-delay:0s;left:5%"></div><div style="animation-delay:.2s;left:15%"></div>
+      <div style="animation-delay:.4s;left:25%"></div><div style="animation-delay:.6s;left:35%"></div>
+      <div style="animation-delay:.8s;left:45%"></div><div style="animation-delay:1s;left:55%"></div>
+      <div style="animation-delay:1.2s;left:65%"></div><div style="animation-delay:1.4s;left:75%"></div>
+      <div style="animation-delay:1.6s;left:85%"></div><div style="animation-delay:1.8s;left:95%"></div>
     </div>
 
     <div class="kbd-info">
-      <span class="kbd">W</span> 브레이크 강화 · 
-      <span class="kbd">S</span> 완화 · 
-      <span class="kbd">N</span> 해방
+      <span class="kbd">W</span> 브레이크 강화 · <span class="kbd">S</span> 완화 · <span class="kbd">N</span> 해방
     </div>
-
     <button id="btnStart" class="btn-primary">Start (Space)</button>
   </div>
 </div>
 
 <button id="btnMobileRestart" class="fab hide">재시작</button>
-<script>
-const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
 
+<script>
+/* ========== WS & 토글 ========== */
+const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
 const tascToggle = document.getElementById("tascToggle");
 tascToggle.addEventListener("change", () => {
   const enabled = tascToggle.checked;
@@ -511,7 +258,6 @@ tascToggle.addEventListener("change", () => {
     ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled } }));
   }
 });
-
 function forceManualOverride() {
   if (tascToggle.checked) {
     tascToggle.checked = false;
@@ -521,52 +267,42 @@ function forceManualOverride() {
   }
 }
 
+/* ========== 이펙트 ========== */
 const snowflakesContainer = document.querySelector('.snowflakes');
-
-// 눈송이를 생성하는 함수
 function generateSnowflake() {
   const snowflake = document.createElement('div');
-  const randomLeft = Math.floor(Math.random() * 101);
-  const animationDelay = Math.random() * 2;
-  const animationDuration = (Math.random() * 5) + 5;
-
-  snowflake.style.animationDelay = animationDelay + 's';
-  snowflake.style.animationDuration = animationDuration + 's';
-  snowflake.style.left = randomLeft + '%';
-
-  snowflake.style.position = 'absolute';
-  snowflake.style.top = '-10px';
-  snowflake.style.width = '10px';
-  snowflake.style.height = '10px';
-  snowflake.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-  snowflake.style.borderRadius = '50%';
-
+  snowflake.style.animationDelay = (Math.random()*2)+'s';
+  snowflake.style.animationDuration = (Math.random()*5+5)+'s';
+  snowflake.style.left = Math.floor(Math.random()*101)+'%';
+  snowflake.style.position='absolute'; snowflake.style.top='-10px';
+  snowflake.style.width='10px'; snowflake.style.height='10px';
+  snowflake.style.backgroundColor='rgba(255,255,255,.8)'; snowflake.style.borderRadius='50%';
   snowflakesContainer.appendChild(snowflake);
-  setTimeout(() => snowflakesContainer.removeChild(snowflake), (animationDuration + animationDelay) * 1000);
+  setTimeout(()=>snowflakesContainer.removeChild(snowflake), 7000);
 }
 setInterval(generateSnowflake, 200);
 
+/* ========== 차량 JSON 로드(캐시 무시) ========== */
 let vehicle = null;
 let brakeDecels = {};
+const cacheBust = () => `?v=${Date.now()}`;
 
-/* ▼▼ 기존 carName.json 유지: 초기 1회 로드 */
-fetch('/carName.json')
+/* 초기 carName.json 로드(유지) + 캐시 무시 */
+fetch('/carName.json'+cacheBust(), {cache:'no-store'})
   .then(res => res.json())
   .then(data => {
     vehicle = data;
     document.getElementById('carName').textContent = vehicle.name;
-
     if (vehicle.notch_accels && vehicle.notches) {
       brakeDecels = {};
       for(let i=0; i < vehicle.notches; i++) {
-        // 감속값 배열 반대 순서로 넣기
         brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches - 1 - i] ?? 0);
       }
     }
   })
   .catch(console.error);
-/* ▲▲ 유지 끝 */
 
+/* ========== DOM 바인딩 ========== */
 const remEl=document.getElementById("rem");
 const spdEl=document.getElementById("spd");
 const notchEl=document.getElementById("notch");
@@ -580,10 +316,7 @@ const weatherSelect = document.getElementById("weatherSelect");
 const snowflakes = document.querySelector(".snowflakes");
 const raindrops = document.querySelector(".raindrops");
 
-function resize(){
-  canvas.width=canvas.clientWidth*devicePixelRatio;
-  canvas.height=canvas.clientHeight*devicePixelRatio;
-}
+function resize(){ canvas.width=canvas.clientWidth*devicePixelRatio; canvas.height=canvas.clientHeight*devicePixelRatio; }
 addEventListener("resize", resize); resize();
 
 function sendCmd(name, delta) {
@@ -594,610 +327,308 @@ function sendCmd(name, delta) {
 
 function updateTrainLength() {
   const trainLength = document.getElementById("trainLength").value;
-  ws.send(JSON.stringify({
-      type: "cmd",
-      payload: { name: "setTrainLength", length: trainLength }
-  }));
+  ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTrainLength", length: trainLength }}));
   sendLoadRate();
 }
 
 function sendLoadRate() {
   const loadRate = parseFloat(document.getElementById("inputLoadRate").value) || 0;
   const trainLength = parseInt(document.getElementById("trainLength").value) || 8;
-
-  const baseMassPerCar = 39.9;
-  const maxPassengerMassPerCar = 10.5;
-
+  const baseMassPerCar = 39.9;        // 유지
+  const maxPassengerMassPerCar = 10.5;// 유지
   const totalMassTons = trainLength * (baseMassPerCar + maxPassengerMassPerCar * (loadRate / 100));
-
-  ws.send(JSON.stringify({
-    type: "cmd",
-    payload: { name: "setMassTons", mass_tons: totalMassTons }
-  }));
-
+  ws.send(JSON.stringify({ type: "cmd", payload: { name: "setMassTons", mass_tons: totalMassTons }}));
   console.log(`총 차량 중량 업데이트: ${totalMassTons.toFixed(2)} 톤 (탑승률: ${loadRate}%)`);
 }
 
+/* 입력 강제(유지) */
 const inputSpeed = document.getElementById("inputSpeed");
 const inputDist = document.getElementById("inputDist");
 const inputGrade = document.getElementById("inputGrade");
-
-// ===== 입력 강제 유틸 + 리스너 =====
-const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
-
-// 정수 전용 보정
-function enforceInt(input, min, max) {
-  input.addEventListener('input', () => {
-    input.value = input.value.replace(/[^\d-]/g, ''); // 필요하면 음수 허용. (속도/거리엔 '-' 안 칩니다)
-  });
-  input.addEventListener('change', () => {
-    let v = parseInt(input.value, 10);
-    if (isNaN(v)) { input.value = ''; return; }
-    input.value = String(clamp(v, min, max));
-  });
+const clamp = (v,min,max)=>Math.min(max,Math.max(min,v));
+function enforceInt(input,min,max){
+  input.addEventListener('input',()=>{ input.value=input.value.replace(/[^\d-]/g,''); });
+  input.addEventListener('change',()=>{ let v=parseInt(input.value,10); if(isNaN(v)){input.value='';return;} input.value=String(clamp(v,min,max)); });
 }
-
-// 실수(부호/소수) 보정
-function enforceFloat(input, min, max, digits = 1) {
-  input.addEventListener('input', () => {
-    input.value = input.value.replace(/[^0-9.\-]/g, '');
-  });
-  input.addEventListener('change', () => {
-    let v = parseFloat(input.value);
-    if (isNaN(v)) { input.value = ''; return; }
-    v = clamp(v, min, max);
-    input.value = v.toFixed(digits);
-  });
+function enforceFloat(input,min,max,d=1){
+  input.addEventListener('input',()=>{ input.value=input.value.replace(/[^0-9.\-]/g,''); });
+  input.addEventListener('change',()=>{ let v=parseFloat(input.value); if(isNaN(v)){input.value='';return;} v=clamp(v,min,max); input.value=v.toFixed(d); });
 }
+enforceInt(inputSpeed,10,130); enforceInt(inputDist,10,900);
+document.getElementById("inputLoadRate") && enforceInt(document.getElementById("inputLoadRate"),0,120);
+enforceFloat(inputGrade,-4.0,4.0,1);
 
-// 적용
-enforceInt(inputSpeed, 10, 130);
-enforceInt(inputDist, 10, 900);
-enforceInt(inputLoadRate, 0, 120);
-enforceFloat(inputGrade, -4.0, 4.0, 1);
-
-
-// ================================
-
-function muFromWeather(weather) {
-  if (weather === "비옴") return 0.6;
-  if (weather === "눈옴") return 0.3;
-  return 1.0;
+/* 날씨 마찰/배경(유지) */
+function muFromWeather(w){ if(w==="비옴") return 0.6; if(w==="눈옴") return 0.3; return 1.0; }
+function updateWeatherUI(){
+  const w=weatherSelect.value, overlayEl=document.getElementById("overlay");
+  if(w==="눈옴"){ snowflakes.style.display="block"; raindrops.style.display="none";
+    document.documentElement.style.background="#ffffff"; document.body.style.background="#ffffff";
+    overlayEl.style.background="rgba(255,255,255,0.15)"; canvas.style.background="#ffffff";
+  } else if(w==="비옴"){ snowflakes.style.display="none"; raindrops.style.display="block";
+    document.documentElement.style.background="#4b5d67"; document.body.style.background="#4b5d67";
+    overlayEl.style.background="rgba(40,60,80,0.35)"; canvas.style.background="#4b5d67";
+  } else {
+    snowflakes.style.display="none"; raindrops.style.display="none";
+    const grad="radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
+    document.documentElement.style.background=grad; document.body.style.background=grad; overlayEl.style.background="rgba(0,0,0,0.6)";
+    canvas.style.background="linear-gradient(#0b0f14, #0a1019)";
+  }
 }
+weatherSelect.addEventListener("change",()=>{
+  updateWeatherUI();
+  const mu=muFromWeather(weatherSelect.value);
+  if(ws.readyState===WebSocket.OPEN){ ws.send(JSON.stringify({type:"cmd",payload:{name:"setMu",value:mu}})); }
+});
+updateWeatherUI();
 
-function startRun() {
-  // 최종 보정 트리거
+/* 시작 */
+function startRun(){
   inputSpeed.dispatchEvent(new Event('change'));
   inputDist.dispatchEvent(new Event('change'));
   inputGrade.dispatchEvent(new Event('change'));
-
-  const speed = Number(inputSpeed.value); // 10~130 정수
-  const dist = Number(inputDist.value); // 10~700 정수
-  const grade = Number(inputGrade.value); // -4.0~4.0 실수 (소수 1자리)
-  const weather = weatherSelect.value;
-  const mu = muFromWeather(weather);
-
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setInitial", speed, dist, grade, mu } }));
-    ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" }}));
+  const speed=Number(inputSpeed.value), dist=Number(inputDist.value), grade=Number(inputGrade.value), mu=muFromWeather(weatherSelect.value);
+  if(ws.readyState===WebSocket.OPEN){
+    ws.send(JSON.stringify({ type:"cmd", payload:{ name:"setInitial", speed, dist, grade, mu }}));
+    ws.send(JSON.stringify({ type:"cmd", payload:{ name:"start" }}));
   }
-
-  overlay.classList.add("hide");
-  isFinished = false;
-  overlayShowingResult = false;
-
+  overlay.classList.add("hide"); isFinished=false; overlayShowingResult=false;
   document.getElementById("btnMobileRestart")?.classList.add("hide");
 }
+document.getElementById("btnStart").addEventListener("click", startRun);
 
-btnStart.addEventListener("click", startRun);
-
-function updateWeatherUI() {
-  const weather = weatherSelect.value;
-  const overlayEl = document.getElementById("overlay");
-
-  if (weather === "눈옴") {
-    // 애니메이션
-    snowflakes.style.display = "block";
-    raindrops.style.display = "none";
-    // 배경(전체)
-    document.documentElement.style.background = "#ffffff";
-    document.body.style.background = "#ffffff";
-    overlayEl.style.background = "rgba(255,255,255,0.15)";
-    // 캔버스도 밝게
-    canvas.style.background = "#ffffff";
-  } else if (weather === "비옴") {
-    snowflakes.style.display = "none";
-    raindrops.style.display = "block";
-    document.documentElement.style.background = "#4b5d67";
-    document.body.style.background = "#4b5d67";
-    overlayEl.style.background = "rgba(40,60,80,0.35)";
-    // 캔버스도 어둡게(우중충 톤)
-    canvas.style.background = "#4b5d67";
-  } else {
-    // 맑음: 기본 그라데이션으로 복귀
-    snowflakes.style.display = "none";
-    raindrops.style.display = "none";
-    const grad = "radial-gradient(circle at 50% 20%, #0b0f14, #05070a)";
-    document.documentElement.style.background = grad;
-    document.body.style.background = grad;
-    overlayEl.style.background = "rgba(0,0,0,0.6)";
-    // 캔버스도 원래 그라데이션으로 복귀
-    canvas.style.background = "linear-gradient(#0b0f14, #0a1019)";
-  }
-}
-
-weatherSelect.addEventListener("change", () => {
-  updateWeatherUI(); // 배경/애니메이션 업데이트
-  const mu = muFromWeather(weatherSelect.value);
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
-      type: "cmd",
-      payload: { name: "setMu", value: mu }
-    })); // 서버에 마찰계수 업데이트
-  }
-});
-updateWeatherUI(); // 초기 적용
-
-const btnMobileRestart = document.getElementById("btnMobileRestart");
-btnMobileRestart.addEventListener("click", () => {
-  overlay.classList.remove("hide");
-  overlayShowingResult = true;
-  btnMobileRestart.classList.add("hide");
-});
-
-addEventListener("keydown", (e) => {
-  if ([" ", "w", "W", "s", "S", "n", "N"].includes(e.key)) e.preventDefault();
-  if (e.repeat) return;
-
-  forceManualOverride();
-
-  if (e.key === " ") {
-    if (ws.readyState !== WebSocket.OPEN) return;
-
-    if (overlay.classList.contains("hide")) {
-      if (isFinished) {
-        overlay.classList.remove("hide");
-        overlayShowingResult = true;
-        isFinished = false;
-      } else {
-        // 최종 보정 트리거
-        inputSpeed.dispatchEvent(new Event('change'));
-        inputDist.dispatchEvent(new Event('change'));
-        inputGrade.dispatchEvent(new Event('change'));
-
-        const speed = Number(inputSpeed.value);
-        const dist = Number(inputDist.value);
-        const grade = Number(inputGrade.value);
-        const mu = muFromWeather(weatherSelect.value);
-        ws.send(JSON.stringify({ type: "cmd", payload: { name: "setInitial", speed, dist, grade, mu } }));
-        ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" } }));
-        isFinished = false;
-        overlayShowingResult = false;
-      }
-    } else {
-      overlay.classList.add("hide");
-
-      // 최종 보정 트리거
-      inputSpeed.dispatchEvent(new Event('change'));
-      inputDist.dispatchEvent(new Event('change'));
-      inputGrade.dispatchEvent(new Event('change'));
-
-      const speed = Number(inputSpeed.value);
-      const dist = Number(inputDist.value);
-      const grade = Number(inputGrade.value);
-      const mu = muFromWeather(weatherSelect.value);
-      ws.send(JSON.stringify({ type: "cmd", payload: { name: "setInitial", speed, dist, grade, mu } }));
-      ws.send(JSON.stringify({ type: "cmd", payload: { name: "start" } }));
-      isFinished = false;
-      overlayShowingResult = false;
-    }
-  } 
-  else if (e.key === "w" || e.key === "W") {
-    sendCmd("applyNotch", +1);
-  }
-  else if (e.key === "s" || e.key === "S") {
-    sendCmd("applyNotch", -1);
-  }
-  else if (e.key === "n" || e.key === "N") {
-    sendCmd("release", 0);
-  }
-});
-
+/* 모바일 탭 조작(유지) */
 if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
   const gameSurface = document.getElementById("hud");
-  gameSurface.addEventListener("touchstart", (e) => {
-    if (!overlay.classList.contains("hide")) return;
-    if (e.touches.length !== 1) return;
+  gameSurface.addEventListener("touchstart",(e)=>{
+    if(!overlay.classList.contains("hide")) return;
+    if(e.touches.length!==1) return;
     forceManualOverride();
-    const rect = gameSurface.getBoundingClientRect();
-    const y = e.touches[0].clientY - rect.top;
-    const half = rect.height / 2;
-    if (y < half) sendCmd("applyNotch", +1);
-    else sendCmd("applyNotch", -1);
-  }, { passive: true });
+    const rect=gameSurface.getBoundingClientRect(); const y=e.touches[0].clientY-rect.top; const half=rect.height/2;
+    if(y<half) sendCmd("applyNotch",+1); else sendCmd("applyNotch",-1);
+  },{passive:true});
 }
 
-let prevMaxDistance = 0;
+/* 키보드(유지) */
+addEventListener("keydown",(e)=>{
+  if([" ","w","W","s","S","n","N"].includes(e.key)) e.preventDefault();
+  if(e.repeat) return;
+  forceManualOverride();
+  if(e.key===" "){
+    if(ws.readyState!==WebSocket.OPEN) return;
+    if(overlay.classList.contains("hide")){
+      if(isFinished){ overlay.classList.remove("hide"); overlayShowingResult=true; isFinished=false; }
+      else { startRun(); }
+    } else { startRun(); }
+  } else if(e.key==="w"||e.key==="W"){ sendCmd("applyNotch",+1); }
+  else if(e.key==="s"||e.key==="S"){ sendCmd("applyNotch",-1); }
+  else if(e.key==="n"||e.key==="N"){ sendCmd("release",0); }
+});
 
-// HUD 그리기 (원본 유지)
-function drawHUD(st) {
-  const dpr = devicePixelRatio || 1, w = canvas.width, h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
-
-  const v0 = st.v;
-  const lever = st.lever_notch;
-  const currentPos = st.pos ?? 0;
-  const stopPos = st.stopPos ?? 500;
-
-  const remainingDistance = (typeof st.remaining_m === "number") ? Math.max(0, st.remaining_m) : Math.max(0, stopPos - currentPos);
-
-  const minL = 1;
-  const maxDecel = Math.max(...Object.values(brakeDecels));
-  const maxStopDist = maxDecel > 0 ? (v0 * v0) / (2 * maxDecel) : 0;
-
-  const speedFactor = Math.max(0.3, Math.min(1, v0 / 10)); 
-  const adjustedRemaining = remainingDistance * (1 + (1 - speedFactor) * 0.5);
-  const minX = 1;
-  const safeRemaining = Math.max(minX, Math.sqrt(adjustedRemaining) * 10);
-  const s_b1 = (brakeDecels[1] ?? 0) > 0 ? (v0 * v0) / (2 * brakeDecels[1]) : 0;
-  const s_b2 = (brakeDecels[2] ?? 0) > 0 ? (v0 * v0) / (2 * brakeDecels[2]) : 0;
-
-  const isStart = remainingDistance > 0;
-
-  const smoothFactor = 0.1;
-  const targetMaxDistance = Math.max(
-    minL,
-    maxStopDist * 1.5,
-    safeRemaining * 1.2,
-    s_b1 * 1.1,
-    s_b2 * 1.1
-  );
-
-  let maxDistance;
-  if (prevMaxDistance === 0) maxDistance = targetMaxDistance;
-  else maxDistance = prevMaxDistance * (1 - smoothFactor) + targetMaxDistance * smoothFactor;
-  prevMaxDistance = maxDistance;
-
-  const leftMargin = 48 * dpr;
-  const rightMargin = 12 * dpr;
-  const usableWidth = w - leftMargin - rightMargin;
-  const X = dist => leftMargin + usableWidth * (dist / maxDistance);
-
-  const vmax = Math.max(1, v0 * 3.6 * 1.2);
-
-  const bottomMargin = 28 * dpr;
-  const topMargin = 12 * dpr;
-  const usableHeight = h - bottomMargin - topMargin;
-  const Y = v => h - bottomMargin - usableHeight * (v / vmax);
-
-  ctx.strokeStyle = "#20334d";
-  ctx.lineWidth = 1 * dpr;
-  ctx.beginPath();
-  ctx.moveTo(leftMargin, topMargin);
-  ctx.lineTo(leftMargin, h - bottomMargin);
-  ctx.lineTo(w - rightMargin, h - bottomMargin);
-  ctx.stroke();
-
-  ctx.fillStyle = "#888";
-  ctx.font = `${10 * dpr}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-  for (let dist = 0; dist <= maxDistance; dist += 100) {
-    const x = X(dist);
-    ctx.beginPath();
-    ctx.moveTo(x, h - bottomMargin);
-    ctx.lineTo(x, h - bottomMargin + 4 * dpr);
-    ctx.stroke();
-    ctx.fillText(`${Math.round(dist)}`, x, h - bottomMargin + 6 * dpr);
-  }
-
-  ctx.textAlign = "right";
-  ctx.textBaseline = "middle";
-  for (let speed_kmh = 0; speed_kmh <= vmax; speed_kmh += 10) {
-    const y = Y(speed_kmh);
-    ctx.beginPath();
-    ctx.moveTo(leftMargin - 4 * dpr, y);
-    ctx.lineTo(leftMargin, y);
-    ctx.stroke();
-    ctx.fillText(`${speed_kmh}`, leftMargin - 6 * dpr, y);
-  }
-
-  ctx.lineWidth = 2 * dpr;
-  const maxNotch = vehicle?.notches ?? 9;
-  for(let notch = 0; notch < maxNotch; notch++) {
-    const decel = brakeDecels[notch] ?? 0;
-    if(decel <= 0) continue;
-
-    const s_brake = (v0 * v0) / (2 * decel);
-
-    ctx.beginPath();
-    ctx.strokeStyle = notch === lever ? "#ffae00" : "#3fa9ff";
-
-    for(let i=0; i<=100; i++) {
-      const frac = i / 100;
-      const s = s_brake * frac;
-      const v_cur = Math.sqrt(Math.max(0, v0*v0 - 2*decel*s));
-      const x = X(s);
-      const y = Y(v_cur * 3.6);
-
-      if(i===0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-
-    ctx.fillStyle = notch === lever ? "#ffae00" : "#3fa9ff";
-    ctx.font = `${12 * dpr}px 'Orbitron', sans-serif`;
-    const textX = X(s_brake);
-    if (notch == 9) {
-      ctx.fillText(`EB`, textX + 5 * dpr, Y(0) + 12 * dpr);
-    } else if (notch == 0) {
-      ctx.fillText(`N`, textX + 5 * dpr, Y(0) + 12 * dpr);
-    } else{
-      ctx.fillText(`B${notch}`, textX + 5 * dpr, Y(0) + 12 * dpr);
-    }
-  }
-
-  const x_redline = X(remainingDistance);
-  ctx.strokeStyle = "#ff0000";
-  ctx.lineWidth = 1.5 * dpr;
-  ctx.beginPath();
-  ctx.moveTo(x_redline, Y(0));
-  ctx.lineTo(x_redline, Y(vmax));
-  ctx.stroke();
-
-  ctx.fillStyle = "#ff0000";
-  ctx.font = `${14 * dpr}px 'Orbitron', sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillText("남은 거리", x_redline, Y(vmax) - 18 * dpr);
-
-  // 우측 리본 및 다이아몬드 (원본 유지)
-  const ribbonWidth = 16 * dpr;
-  const ribbonHeight = h * 0.9;
-  const ribbonX = w - rightMargin - ribbonWidth - 10 * dpr + 20;
-  const ribbonY = ((h - ribbonHeight) / 2) - 32;
-
-  ctx.fillStyle = "rgba(100, 100, 100, 0.1)";
-  ctx.strokeStyle = "rgba(100, 100, 100, 0.3)";
-  ctx.lineWidth = 1.5 * dpr;
-  ctx.beginPath();
-  ctx.rect(ribbonX, ribbonY, ribbonWidth, ribbonHeight);
-  ctx.fill();
-  ctx.stroke();
-
-  const centerY = (ribbonY + ribbonHeight / 2) - 14;
-  const barHeight = 12 * dpr;
-  ctx.fillStyle = "rgba(60, 60, 60, 0.9)";
-  ctx.fillRect(ribbonX + 2 * dpr, centerY - barHeight / 2, ribbonWidth - 4 * dpr, barHeight);
-
-  const ribbonTotalHeight = ribbonHeight;
-  const L = st.L;
-  const rem = Math.min(Math.max(st.remaining_m ?? L, -L), L);
-  const topLimit = 7;
-  const bottomLimit = -7;
-
-  const diamondWidth = 16 * dpr;
-  const diamondHeight = 10 * dpr;
-
-  const stopErrorRaw = st.stop_error_m ?? 0;
-  const stopErrorM = Math.max(-5, Math.min(5, stopErrorRaw));
-
-  const diamondX = ribbonX + ribbonWidth / 2;
-  const normalizedRem = (rem - bottomLimit) / (topLimit - bottomLimit);
-  const diamondY = ribbonY + (ribbonHeight * (1 - normalizedRem)) - diamondHeight / 2;
-  const overflowLimit = 10 * dpr;
-  const adjustedDiamondY = Math.min(Math.max(diamondY, ribbonY - overflowLimit), ribbonY + ribbonHeight - diamondHeight + overflowLimit);
-
-  ctx.fillStyle = "#444";
-  ctx.strokeStyle = "#222";
-  ctx.lineWidth = 2 * dpr;
-  ctx.beginPath();
-  ctx.moveTo(diamondX, adjustedDiamondY - diamondHeight / 2);
-  ctx.lineTo(diamondX + diamondWidth / 2, adjustedDiamondY);
-  ctx.lineTo(diamondX, adjustedDiamondY + diamondHeight / 2);
-  ctx.lineTo(diamondX - diamondWidth / 2, adjustedDiamondY);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-}
-
-// 애니메이션 루프
-let lastTimestamp = 0;
-function loop(timestamp) {
-  if (!lastTimestamp) lastTimestamp = timestamp;
-  const dt = (timestamp - lastTimestamp) / 1000;
-  lastTimestamp = timestamp;
-  if (st) drawHUD(st);
-  requestAnimationFrame(loop);
-}
+/* HUD(유지) */
+const grade_percentEl=document.getElementById("grade_percent");
+const timerEl=document.getElementById("timer");
+let isFinished=false, overlayShowingResult=false, st=null, lastTimestamp=0, prevMaxDistance=0;
+function loop(ts){ if(!lastTimestamp) lastTimestamp=ts; const dt=(ts-lastTimestamp)/1000; lastTimestamp=ts; if(st) drawHUD(st); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 
-const grade_percentEl = document.getElementById("grade_percent");
-const timerEl = document.getElementById("timer");
-
-let isFinished = false;
-let overlayShowingResult = false;
-let st = null;
-ws.onmessage = (ev) => {
-  const msg = JSON.parse(ev.data);
-  if (msg.type === "state") {
-    st = msg.payload;
-
-    const remRaw = st.remaining_m;
-    const rem = typeof remRaw === "number" ? remRaw : parseFloat(remRaw);
-
-    remEl.textContent = rem >= 0 ? rem.toFixed(2) : `-${Math.abs(rem).toFixed(2)}`;
-    spdEl.textContent = (st.v * 3.6).toFixed(1);
-
-    function notchText(notch) {
-      if (notch === 0) return "N";
-      else if (notch === 9) return "EB"; 
-      else return `B${notch}`;
-    }
+ws.onmessage=(ev)=>{
+  const msg=JSON.parse(ev.data);
+  if(msg.type==="state"){
+    st=msg.payload;
+    const remRaw=st.remaining_m; const rem=typeof remRaw==="number"?remRaw:parseFloat(remRaw);
+    remEl.textContent = rem>=0 ? rem.toFixed(2) : `-${Math.abs(rem).toFixed(2)}`;
+    spdEl.textContent = (st.v*3.6).toFixed(1);
+    function notchText(n){ if(n===0) return "N"; else if(n===9) return "EB"; else return `B${n}`; }
     notchEl.textContent = notchText(st.lever_notch);
-
     grade_percentEl.textContent = st.grade_percent.toFixed(2);
     timerEl.textContent = st.t.toFixed(3);
     drawHUD(st);
 
-    if (st.finished) {
-      isFinished = true;
-      const issues = st.issues || {};
-
-      const feedbackItems = [
-        { key: "early_brake_too_short", goodText: "초기 제동을 수행함 - 승차감 양호", badText: "초기 제동을 게을리함 - 승차감 불쾌" },
-        {
-          key: "stop_not_b1",
-          goodText: "정차 시 B1로 정차함 - 승차감 양호",
-          badTextFunc: (issues) => issues.stop_not_b1_msg || "정차 시 B1로 정차하지 않음",
-        },
-        {
-          key: "step_brake_incomplete",
-          goodText: "기본제동 (계단제동/완해) 수행함",
-          badTextFunc: (issues) => {
-            const overrun = issues.stop_error_m !== undefined && issues.stop_error_m <= -2;
-            if (issues.stop_error_m !== undefined && issues.stop_error_m <= -2) {
-              return "기본제동 (계단제동/완해) 미흡 - 정차 위치 초과 및 운행 지연 발생";
-            }
-            return "기본제동 (계단제동/완해) 미흡 - 단속적인 제동으로 인한 승객 쏠림 및 차량 진동 발생";
-          },
-        },
-        { key: "unnecessary_eb_usage", goodText: "영업 안전 제동범위 준수", badText: "불필요한 비상제동(EB) 사용 - 급감속으로 인한 충격 발생" },
+    if(st.finished){
+      isFinished=true;
+      const issues=st.issues||{};
+      const feedbackItems=[
+        {key:"early_brake_too_short",goodText:"초기 제동을 수행함 - 승차감 양호",badText:"초기 제동을 게을리함 - 승차감 불쾌"},
+        {key:"stop_not_b1",goodText:"정차 시 B1로 정차함 - 승차감 양호",badTextFunc:(is)=>is.stop_not_b1_msg||"정차 시 B1로 정차하지 않음"},
+        {key:"step_brake_incomplete",goodText:"기본제동 (계단제동/완해) 수행함",badTextFunc:(is)=> (is.stop_error_m!==undefined && is.stop_error_m<=-2) ? "기본제동 미흡 - 정차 위치 초과 및 운행 지연" : "기본제동 미흡 - 승객 쏠림/진동"},
+        {key:"unnecessary_eb_usage",goodText:"영업 안전 제동범위 준수",badText:"불필요한 비상제동(EB) 사용 - 급감속 충격"}
       ];
-
-      const feedbacks = feedbackItems.map(item => {
-        const bad = issues[item.key];
-        if (!bad) return { text: item.goodText, isGood: true };
-        const badText = item.badTextFunc ? item.badTextFunc(issues) : item.badText;
-        return { text: badText, isGood: false, isBad: true };
-      });
-
-      const isStopErrorGood = Math.abs(st.stop_error_m || 0) <= 2;
-
-      feedbacks.push({
-        text: `정지 오차: ${st.stop_error_m.toFixed(2)} m`,
-        isGood: isStopErrorGood,
-      });
-
-      feedbacks.push({
-        text: `최종 점수: ${st.score}점`,
-        isGood: isStopErrorGood,
-      });
-
-      fb.innerHTML = feedbacks
-        .map(item => item.isBad
-          ? `<div class="bad">${item.text}</div>`
-          : `<div class="${item.isGood ? "ok" : "warn"}">${item.text}</div>`
-        )
-        .join("") + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S로 조작</div>`;
-
-      if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-        document.getElementById("btnMobileRestart").classList.remove("hide");
-      }
+      const feedbacks=feedbackItems.map(it=>{ const bad=issues[it.key]; if(!bad) return {text:it.goodText,isGood:true}; const badText=it.badTextFunc?it.badTextFunc(issues):it.badText; return {text:badText,isGood:false,isBad:true}; });
+      const isStopErrorGood=Math.abs(st.stop_error_m||0)<=2;
+      feedbacks.push({text:`정지 오차: ${st.stop_error_m.toFixed(2)} m`, isGood:isStopErrorGood});
+      feedbacks.push({text:`최종 점수: ${st.score}점`, isGood:isStopErrorGood});
+      fb.innerHTML = feedbacks.map(it=> it.isBad ? `<div class="bad">${it.text}</div>` : `<div class="${it.isGood?"ok":"warn"}">${it.text}</div>`).join("")
+        + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S로 조작</div>`;
+      if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){ document.getElementById("btnMobileRestart").classList.remove("hide"); }
     } else {
-      isFinished = true;
-      fb.textContent = "Space로 시작. W/S로 브레이크 조절하세요.";
+      isFinished=true; fb.textContent="Space로 시작. W/S로 브레이크 조절하세요.";
     }
   }
 };
 
 document.getElementById("inputLoadRate").addEventListener("change", sendLoadRate);
 
-/* ─────────────────────────────────────────────
-   ▼▼ 추가: 전동차/시리즈 → 노선 표기 + 편성수 제한 + 차량 JSON 로드
-   (기존 로직 변경 최소화: 선택 시에만 vehicle 재로드)
-────────────────────────────────────────────── */
+/* ======== 그래프(유지) ======== */
+function drawHUD(st){
+  const dpr=devicePixelRatio||1, w=canvas.width, h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  const v0=st.v, lever=st.lever_notch, currentPos=st.pos??0, stopPos=st.stopPos??500;
+  const remainingDistance=(typeof st.remaining_m==="number")?Math.max(0,st.remaining_m):Math.max(0,stopPos-currentPos);
+
+  const minL=1; const maxDecel=Math.max(...Object.values(brakeDecels)); const maxStopDist=maxDecel>0?(v0*v0)/(2*maxDecel):0;
+  const speedFactor=Math.max(0.3,Math.min(1,v0/10));
+  const adjustedRemaining=remainingDistance*(1+(1-speedFactor)*0.5);
+  const minX=1; const safeRemaining=Math.max(minX,Math.sqrt(adjustedRemaining)*10);
+  const s_b1=(brakeDecels[1]??0)>0?(v0*v0)/(2*brakeDecels[1]):0;
+  const s_b2=(brakeDecels[2]??0)>0?(v0*v0)/(2*brakeDecels[2]):0;
+
+  const smoothFactor=0.1;
+  const targetMaxDistance=Math.max(minL,maxStopDist*1.5,safeRemaining*1.2,s_b1*1.1,s_b2*1.1);
+  let maxDistance; if(prevMaxDistance===0) maxDistance=targetMaxDistance; else maxDistance=prevMaxDistance*(1-smoothFactor)+targetMaxDistance*smoothFactor;
+  prevMaxDistance=maxDistance;
+
+  const leftMargin=48*dpr, rightMargin=12*dpr, usableWidth=w-leftMargin-rightMargin, X=dist=>leftMargin+usableWidth*(dist/maxDistance);
+  const vmax=Math.max(1,v0*3.6*1.2);
+  const bottomMargin=28*dpr, topMargin=12*dpr, usableHeight=h-bottomMargin-topMargin, Y=v=>h-bottomMargin-usableHeight*(v/vmax);
+
+  ctx.strokeStyle="#20334d"; ctx.lineWidth=1*dpr; ctx.beginPath(); ctx.moveTo(leftMargin,topMargin); ctx.lineTo(leftMargin,h-bottomMargin); ctx.lineTo(w-rightMargin,h-bottomMargin); ctx.stroke();
+
+  ctx.fillStyle="#888"; ctx.font=`${10*dpr}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="top";
+  for(let dist=0; dist<=maxDistance; dist+=100){ const x=X(dist); ctx.beginPath(); ctx.moveTo(x,h-bottomMargin); ctx.lineTo(x,h-bottomMargin+4*dpr); ctx.stroke(); ctx.fillText(`${Math.round(dist)}`, x, h-bottomMargin+6*dpr); }
+
+  ctx.textAlign="right"; ctx.textBaseline="middle";
+  for(let k=0; k<=vmax; k+=10){ const y=Y(k); ctx.beginPath(); ctx.moveTo(leftMargin-4*dpr,y); ctx.lineTo(leftMargin,y); ctx.stroke(); ctx.fillText(`${k}`, leftMargin-6*dpr, y); }
+
+  ctx.lineWidth=2*dpr;
+  const maxNotch=vehicle?.notches??9;
+  for(let n=0;n<maxNotch;n++){
+    const decel=brakeDecels[n]??0; if(decel<=0) continue;
+    const s=(v0*v0)/(2*decel);
+    ctx.beginPath(); ctx.strokeStyle = n===lever ? "#ffae00" : "#3fa9ff";
+    for(let i=0;i<=100;i++){
+      const f=i/100; const ds=s*f; const v_cur=Math.sqrt(Math.max(0,v0*v0-2*decel*ds));
+      const x=X(ds); const y=Y(v_cur*3.6);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    ctx.fillStyle = n===lever ? "#ffae00" : "#3fa9ff";
+    ctx.font = `${12*dpr}px 'Orbitron', sans-serif`;
+    const textX=X(s);
+    if(n==9) ctx.fillText(`EB`, textX+5*dpr, Y(0)+12*dpr);
+    else if(n==0) ctx.fillText(`N`, textX+5*dpr, Y(0)+12*dpr);
+    else ctx.fillText(`B${n}`, textX+5*dpr, Y(0)+12*dpr);
+  }
+
+  const x_redline=X(remainingDistance);
+  ctx.strokeStyle="#ff0000"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(x_redline, Y(0)); ctx.lineTo(x_redline, Y(vmax)); ctx.stroke();
+  ctx.fillStyle="#ff0000"; ctx.font=`${14*dpr}px 'Orbitron', sans-serif`; ctx.textAlign="center"; ctx.fillText("남은 거리", x_redline, Y(vmax)-18*dpr);
+
+  const ribbonWidth=16*dpr, ribbonHeight=h*0.9, ribbonX=w-rightMargin-ribbonWidth-10*dpr+20, ribbonY=((h-ribbonHeight)/2)-32;
+  ctx.fillStyle="rgba(100,100,100,0.1)"; ctx.strokeStyle="rgba(100,100,100,0.3)"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.rect(ribbonX,ribbonY,ribbonWidth,ribbonHeight); ctx.fill(); ctx.stroke();
+  const centerY=(ribbonY+ribbonHeight/2)-14, barHeight=12*dpr;
+  ctx.fillStyle="rgba(60,60,60,0.9)"; ctx.fillRect(ribbonX+2*dpr, centerY-barHeight/2, ribbonWidth-4*dpr, barHeight);
+
+  const ribbonTotalHeight=ribbonHeight, L=st.L;
+  const rem = Math.min(Math.max(st.remaining_m??L, -L), L);
+  const diamondWidth=16*dpr, diamondHeight=10*dpr;
+  const diamondX=ribbonX+ribbonWidth/2;
+  const normalizedRem=(rem-(-7))/(7-(-7));
+  const diamondY=ribbonY+(ribbonHeight*(1-normalizedRem))-diamondHeight/2;
+  const adjustedDiamondY=Math.min(Math.max(diamondY, ribbonY-10*dpr), ribbonY+ribbonHeight-diamondHeight+10*dpr);
+
+  ctx.fillStyle="#444"; ctx.strokeStyle="#222"; ctx.lineWidth=2*dpr; ctx.beginPath();
+  ctx.moveTo(diamondX, adjustedDiamondY-diamondHeight/2);
+  ctx.lineTo(diamondX+diamondWidth/2, adjustedDiamondY);
+  ctx.lineTo(diamondX, adjustedDiamondY+diamondHeight/2);
+  ctx.lineTo(diamondX-diamondWidth/2, adjustedDiamondY);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+}
+
+/* ========== 전동차/시리즈/편성 매핑(사진 기준) ========== */
 const TRAIN_DB = {
   E233: [
-    { code: "E233-0",     lines: "주오쾌속·소부쾌속",            file: "/e233_0000.json", lengths: [10] },
-    { code: "E233-1000",  lines: "게이힌토호쿠·네기시",          file: "/e233_1000.json", lengths: [10] },
-    { code: "E233-2000",  lines: "조반 각역·쾌속",               file: "/e233_2000.json", lengths: [10] },
-    { code: "E233-3000",  lines: "도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file: "/e233_3000.json", lengths: [12,15] },
-    { code: "E233-5000",  lines: "게이요",                       file: "/e233_5000.json", lengths: [10] },
-    { code: "E233-6000",  lines: "요코하마",                     file: "/e233_6000.json", lengths: [8] },
-    { code: "E233-7000",  lines: "사이쿄·가와고에·쇼난신주쿠 일부", file: "/e233_7000.json", lengths: [10] },
-    { code: "E233-8000",  lines: "난부",                         file: "/e233_8000.json", lengths: [6] }
+    { code:"E233-0",    lines:"주오쾌속·소부쾌속",                       file:"/e233_0000.json",  lengths:[10] },
+    { code:"E233-1000", lines:"게이힌토호쿠·네기시",                     file:"/e233_1000.json",  lengths:[10] },
+    { code:"E233-2000", lines:"조반 각역·쾌속",                          file:"/e233_2000.json",  lengths:[10] },
+    { code:"E233-3000", lines:"도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file:"/e233_3000.json",  lengths:[5,10,12,15] },
+    { code:"E233-5000", lines:"게이요",                                  file:"/e233_5000.json",  lengths:[4,6,10] },
+    { code:"E233-6000", lines:"요코하마",                                file:"/e233_6000.json",  lengths:[8] },
+    { code:"E233-7000", lines:"사이쿄·가와고에·쇼난신주쿠 일부",           file:"/e233_7000.json",  lengths:[8,10] },
+    { code:"E233-8000", lines:"난부",                                    file:"/e233_8000.json",  lengths:[6,8] }
   ],
   E235: [
-    { code: "E235-0",     lines: "야마노테",                     file: "/e235_0.json",    lengths: [11] },
-    { code: "E235-1000",  lines: "요코스카·소부쾌속",            file: "/e235_1000.json", lengths: [11,15] }
+    { code:"E235-0",    lines:"야마노테",                                file:"/e235_0.json",     lengths:[11] },
+    { code:"E235-1000", lines:"요코스카·소부쾌속",                       file:"/e235_1000.json",  lengths:[4,11] }
   ]
 };
 
-const trainFamilyEl = document.getElementById('trainFamily');
-const trainSeriesEl = document.getElementById('trainSeries');
-const trainLengthEl = document.getElementById('trainLength');
+const trainFamilyEl=document.getElementById('trainFamily');
+const trainSeriesEl=document.getElementById('trainSeries');
+const trainLengthEl=document.getElementById('trainLength');
 
-function populateSeries() {
-  const fam = trainFamilyEl.value;
-  const list = TRAIN_DB[fam] || [];
-  trainSeriesEl.innerHTML = "";
-  list.forEach((s, i) => {
-    const opt = document.createElement('option');
-    opt.value = s.file;
-    opt.dataset.lengths = JSON.stringify(s.lengths);
-    opt.textContent = `JR EAST ${s.code} (${s.lines})`;
-    if (i === 0) opt.selected = true;
+function populateSeries(){
+  const fam=trainFamilyEl.value;
+  const list=TRAIN_DB[fam]||[];
+  trainSeriesEl.innerHTML="";
+  list.forEach((s,i)=>{
+    const opt=document.createElement('option');
+    opt.value=s.file;
+    opt.dataset.lengths=JSON.stringify(s.lengths);
+    opt.textContent=`JR EAST ${s.code} (${s.lines})`;
+    if(i===0) opt.selected=true;
     trainSeriesEl.appendChild(opt);
   });
-  // 첫 항목 기준으로 편성 옵션 제한 & 차량 로드
-  const first = list[0];
-  if (first) {
-    setTrainLengthOptions(first.lengths);
-    loadVehicleFile(first.file);
-  }
+  const first=list[0];
+  if(first){ setTrainLengthOptions(first.lengths); loadVehicleFile(first.file); }
 }
 
-function setTrainLengthOptions(lengths) {
-  // lengths 배열(예: [10] 또는 [12,15])만 허용하도록 옵션 재구성
-  trainLengthEl.innerHTML = "";
-  lengths.forEach(len => {
-    const opt = document.createElement('option');
-    opt.value = String(len);
-    opt.textContent = `${len}량`;
+function setTrainLengthOptions(lengths){
+  trainLengthEl.innerHTML="";
+  lengths.forEach(len=>{
+    const opt=document.createElement('option');
+    opt.value=String(len);
+    opt.textContent=`${len}량`;
     trainLengthEl.appendChild(opt);
   });
-  updateTrainLength(); // 서버에 편성 반영
+  updateTrainLength();
 }
 
-function loadVehicleFile(filePath) {
-  fetch(filePath)
-    .then(res => res.json())
-    .then(data => {
-      vehicle = data;
+function loadVehicleFile(filePath){
+  fetch(filePath+cacheBust(), {cache:'no-store'})
+    .then(res=>res.json())
+    .then(data=>{
+      vehicle=data;
       document.getElementById('carName').textContent = vehicle.name;
-      // 감속 테이블 갱신
-      brakeDecels = {};
-      if (vehicle.notch_accels && vehicle.notches) {
-        for (let i = 0; i < vehicle.notches; i++) {
-          brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches - 1 - i] ?? 0);
+      brakeDecels={};
+      if(vehicle.notch_accels && vehicle.notches){
+        for(let i=0;i<vehicle.notches;i++){
+          brakeDecels[i]=Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0);
         }
       }
-      // 질량 재계산
-      sendLoadRate();
+      sendLoadRate(); // 질량 갱신
     })
     .catch(console.error);
 }
 
-// 최초 로드 시 전동차/시리즈 채우기
+/* 최초 세팅 */
 populateSeries();
 
-// 전동차 바뀌면 시리즈/편성/차량 갱신
+/* 전동차 변경 → 시리즈/편성/차량 갱신 */
 trainFamilyEl.addEventListener('change', populateSeries);
 
-// 시리즈 바뀌면 편성 제한과 차량 JSON 갱신
-trainSeriesEl.addEventListener('change', (e) => {
-  const opt = e.target.selectedOptions[0];
-  const lengths = JSON.parse(opt.dataset.lengths || "[]");
+/* 시리즈 변경 → 편성 제한 + 차량 JSON 재로드 */
+trainSeriesEl.addEventListener('change',(e)=>{
+  const opt=e.target.selectedOptions[0];
+  const lengths=JSON.parse(opt.dataset.lengths||"[]");
   setTrainLengthOptions(lengths);
   loadVehicleFile(opt.value);
 });
-/* ─────────────────────────────────────────────
-   ▲▲ 추가 끝
-────────────────────────────────────────────── */
 </script>
+
 <footer style="text-align:center; font-size:12px; color:#888; padding:8px 0; user-select:none;">
   ©2025 Hyungsuk Choi, University of Maryland
 </footer>
-
 </body>
 </html>
