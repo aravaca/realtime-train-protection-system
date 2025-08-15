@@ -63,6 +63,18 @@ body{overflow-x:hidden;overflow-y:auto}
 .tasc-toggle .slider::before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .3s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .tasc-toggle input:checked + .slider{background:linear-gradient(135deg,#00c6ff,#0072ff)}
 .tasc-toggle input:checked + .slider::before{transform:translateX(22px)}
+
+
+.emoji {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: middle;
+  transition: transform 0.2s;
+}
+.emoji:hover {
+  transform: scale(1.3);
+}
+
 </style>
 </head>
 <body>
@@ -99,7 +111,10 @@ body{overflow-x:hidden;overflow-y:auto}
       <span class="tasc-label">TASC</span>
     </div>
 
-    <h2 class="title">🚄 JR TASC SIMULATOR</h2>
+    <h2 class="title">
+  <img src="./233.png" alt="E233" class="emoji"> JR TASC SIMULATOR
+</h2>
+
     <p class="subtitle">초기값 입력 후 <b>TASC(자동정차)</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요. TASC가 활성화된 상태에서도, 운전자는 수동 조작으로 운전에 개입할 수 있습니다.</p>
 
     <!-- 전동차 / 시리즈 -->
