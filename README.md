@@ -1,4 +1,4 @@
-# JR Trainer — Advanced TASC-based Precision Stop Simulator for JR Series EMUs
+# JR Trainex — Advanced TASC-based Precision Stop Simulator for JR Series EMUs
 **JR East/West 시리즈 전차의 실제 혹은 가상의 TASC 시스템 기반 정차 훈련 시뮬레이터**
 
 이 풀스택 프로젝트는 **JR 시리즈 전동차**를 모델로 한 정차 훈련용 시뮬레이터입니다.  
@@ -6,7 +6,7 @@
 
 ---
 
-## ✨ What’s New (주요 업데이트)
+## ✨ What’s New (주요 업데이트 2025.08.15)
 - 차량군 확대: JR East (E233, E235) 뿐만 아니라 JR-West 223/225/323 추가
 
 - 노선/시리즈별 옵션 고정: 전동차 선택에 따라 시리즈/편성(량수) 옵션이 자동 제한
