@@ -412,7 +412,8 @@ class StoppingSim:
             
             # --- 초제동 로직 ---
             if not self.first_brake_done:
-                desired = 2 if speed_kmh >= 70.0 else 1
+                desired = 2 if speed_kmh >= 70.0 
+            else 1
                 if dwell_ok and cur != desired:
                     step = 1 if desired > cur else -1
                     st.lever_notch = self._clamp_notch(cur + step)
