@@ -389,17 +389,15 @@ class StoppingSim:
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2  # EB-1까지
 
-            # === 추가: B4 기준 활성화 가드 ===================================
-            # 잔여거리가 "B4 고정 제동 정지거리"에 들어오기 전에는 TASC가 아예 개입하지 않음
+            # === 변경: B4 기준 활성화 가드 ================================
             can_engage_tasc = True
             b4_index = 4  # B4
             if b4_index < len(self.veh.notch_accels):
                 s_b4 = self._stopping_distance(b4_index, st.v)
-                # 약간의 여유 밴드(속도 비례): 너무 들쭉날쭉하지 않게 2~10 m
                 activation_band_m = max(2.0, min(10.0, st.v * 0.5))
                 if rem_now > (s_b4 + activation_band_m):
                     can_engage_tasc = False
-            # =================================================================
+            # =============================================================
 
             if can_engage_tasc:
                 # 1) 초제동: 70km/h 이상이면 B2, 아니면 B1을 최소 1초
@@ -429,12 +427,16 @@ class StoppingSim:
                             self._tasc_phase = "relax"
 
                     if self._tasc_phase == "relax" and not changed:
-                        # 더 약한 제동으로도 충분(곡선 만나거나 위)하면 한 단계 완해
-                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
+                        # === 변경: 양방향 밴드로 완해 허용 ====================
+                        # (기존: s_dn <= rem_now + deadband) → 너무 보수적이라
+                        # B4 진입 후에는 완해가 안 들어가는 문제가 있어 밴드 도입
+                        band_lo = max(0.8, st.v * 0.20)   # 하한 (m)
+                        band_hi = max(1.5, st.v * 0.25)   # 상한 (m)
+                        if cur > 1 and (rem_now - band_lo) <= s_dn <= (rem_now + band_hi):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
-            # can_engage_tasc가 False인 동안은 기존 물리 업데이트만 수행
+                        # ====================================================
 
         # ====== 동역학 ======
         # 제동 감속
