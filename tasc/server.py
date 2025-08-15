@@ -170,6 +170,9 @@ class StoppingSim:
         self._tasc_phase = "build"      # "build" → "relax"
         self._tasc_peak_notch = 1
 
+        # ▶ 추가: TASC 최소 개입 요구 노치 (기본 B4 이상 필요할 때 개입)
+        self.tasc_min_required_notch = 4
+
         # 날씨가 코스팅에 미치는 효과
         self.rr_factor = _mu_to_rr_factor(self.scn.mu)
 
@@ -389,38 +392,54 @@ class StoppingSim:
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2  # EB-1까지
 
-            # 1) 초제동: 70km/h 이상이면 B2, 아니면 B1을 최소 1초
-            if not self.first_brake_done:
-                desired = 2 if speed_kmh >= 70.0 else 1
-                if dwell_ok and cur != desired:
-                    step = 1 if desired > cur else -1
-                    st.lever_notch = self._clamp_notch(cur + step)
-                    self._tasc_last_change_t = st.t
-
+            # ▶ 추가: '최소 B4 이상 필요' 구간에서만 TASC 작동 (진입 가드)
+            can_engage = True
+            n_req = max(1, int(self.tasc_min_required_notch) - 1)  # 예: min=B4 → n_req=3(B3 정지거리와 비교)
+            if self.veh.notches <= n_req:
+                # 차량 노치가 모자라면 개입 가드 무력화(안전하게 항상 개입 허용) 또는 계속 대기 중 하나 선택
+                # 여기선 "허용"으로 처리
+                can_engage = True
             else:
-                # 예측값: 캐시/스로틀 사용
-                s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
+                s_req = self._stopping_distance(n_req, st.v) if n_req > 0 else float('inf')
+                # 속도 비례 여유밴드(히스테리시스): 2~10 m
+                activation_band_m = max(2.0, min(10.0, st.v * 0.5))
+                if rem_now > (s_req + activation_band_m):
+                    can_engage = False
 
-                changed = False
+            if can_engage:
+                # 1) 초제동: 70km/h 이상이면 B2, 아니면 B1을 최소 1초
+                if not self.first_brake_done:
+                    desired = 2 if speed_kmh >= 70.0 else 1
+                    if dwell_ok and cur != desired:
+                        step = 1 if desired > cur else -1
+                        st.lever_notch = self._clamp_notch(cur + step)
+                        self._tasc_last_change_t = st.t
 
-                if self._tasc_phase == "build":
-                    # 더 강한 제동이 필요하면 한 단계 강화
-                    if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
-                        if dwell_ok:
-                            st.lever_notch = self._clamp_notch(cur + 1)
-                            self._tasc_last_change_t = st.t
-                            self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
-                            changed = True
-                    else:
-                        # 충분히 맞아떨어지면 relax로 전환
-                        self._tasc_phase = "relax"
+                else:
+                    # 예측값: 캐시/스로틀 사용
+                    s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
 
-                if self._tasc_phase == "relax" and not changed:
-                    # 더 약한 제동으로도 충분(곡선 만나거나 위)하면 한 단계 완해
-                    if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
-                        if dwell_ok:
-                            st.lever_notch = self._clamp_notch(cur - 1)
-                            self._tasc_last_change_t = st.t
+                    changed = False
+
+                    if self._tasc_phase == "build":
+                        # 더 강한 제동이 필요하면 한 단계 강화
+                        if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
+                            if dwell_ok:
+                                st.lever_notch = self._clamp_notch(cur + 1)
+                                self._tasc_last_change_t = st.t
+                                self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
+                                changed = True
+                        else:
+                            # 충분히 맞아떨어지면 relax로 전환
+                            self._tasc_phase = "relax"
+
+                    if self._tasc_phase == "relax" and not changed:
+                        # 더 약한 제동으로도 충분(곡선 만나거나 위)하면 한 단계 완해
+                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
+                            if dwell_ok:
+                                st.lever_notch = self._clamp_notch(cur - 1)
+                                self._tasc_last_change_t = st.t
+            # can_engage가 False면 TASC는 ‘대기’ 상태이며, 물리 업데이트만 계속 진행
 
         # ====== 동역학 ======
         # 제동 감속
