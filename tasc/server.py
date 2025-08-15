@@ -143,7 +143,7 @@ class StoppingSim:
         self.scn = scn
         self.state = State(t=0.0, s=0.0, v=scn.v0, a=0.0, lever_notch=0, finished=False)
         self.running = False
-        self.vref = build_vref(scn.L, 0.85 * veh.a_max)
+        self.vref = build_vref(scn.L, 0.75 * veh.a_max)
         self._cmd_queue = deque()
 
         # 초기 제동(B1/B2) 판정
@@ -194,7 +194,7 @@ class StoppingSim:
         self.tau_apply = 0.25
         self.tau_release = 0.8
         self.tau_apply_eb = 0.15
-        self.tau_release_lowv = 1.2
+        self.tau_release_lowv = 0.9
 
     # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
@@ -210,7 +210,8 @@ class StoppingSim:
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
 
         # 저속(5 km/h 이하)에서 공기 제동 살짝 강화
-        air_boost = 1.04 if v < (5.0 / 3.6) else 1.0
+        
+        air_boost = 1.0
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
 
        
