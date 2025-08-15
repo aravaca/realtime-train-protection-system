@@ -164,7 +164,7 @@ class StoppingSim:
         # ---------- TASC ----------
         self.tasc_enabled = False
         self.manual_override = False
-        self.tasc_deadband_m = 0.1
+        self.tasc_deadband_m = 0.01
         self.tasc_hold_min_s = 0.25
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
@@ -206,7 +206,7 @@ class StoppingSim:
         base = float(self.veh.notch_accels[notch])  # 음수
 
         # ----- 블렌딩 비율 계산 -----
-        blend_cutoff_speed = 40.0 / 3.6  # m/s (40km/h)
+        blend_cutoff_speed = 30.0 / 3.6  # m/s (40km/h)
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
 
         # 회생+공기 제동 조합 (단순 선형 전환)
