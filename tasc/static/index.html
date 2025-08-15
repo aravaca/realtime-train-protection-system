@@ -109,6 +109,7 @@ body{overflow-x:hidden;overflow-y:auto}
   <option value="E235">E235</option>
   <option value="JRW223">223</option>
   <option value="JRW225">225</option>
+  <option value="JRW285">285</option>
   <option value="JRW323">323</option>
 </select>
     </label>
@@ -503,6 +504,13 @@ TRAIN_DB.JRW323 = [
   { code: "WEST 323-0",
     lines: "오사카 순환선 전용",
     file: "./323_0000.json", lengths: [8] } // 13
+];
+
+TRAIN_DB.JRW285 = [
+  { code: "WEST 285-0/3000",
+    lines: "침대특급 선라이즈 이즈모·세토 전용",
+    file: "./285.json",
+    lengths: [7, 14] } // 7량편성, 병결 시 14량편성
 ];
 
 const trainFamilyEl=document.getElementById('trainFamily');
