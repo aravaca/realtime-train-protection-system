@@ -172,7 +172,7 @@ class StoppingSim:
 
         # ▶ 추가: TASC 개입 게이트(활성화 전 대기), 임계 노치(B4)
         self.tasc_active = False
-        self.tasc_activation_notch = 4
+        self.tasc_activation_notch = 6
 
         # 날씨가 코스팅에 미치는 효과
         self.rr_factor = _mu_to_rr_factor(self.scn.mu)
