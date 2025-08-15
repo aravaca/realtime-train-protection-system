@@ -170,6 +170,10 @@ class StoppingSim:
         self._tasc_phase = "build"      # "build" → "relax"
         self._tasc_peak_notch = 1
 
+        # ▶ 추가: TASC 개입 게이트(활성화 전 대기), 임계 노치(B4)
+        self.tasc_active = False
+        self.tasc_activation_notch = 4
+
         # 날씨가 코스팅에 미치는 효과
         self.rr_factor = _mu_to_rr_factor(self.scn.mu)
 
@@ -274,6 +278,7 @@ class StoppingSim:
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
+        self.tasc_active = False  # ▶ 추가: 활성화 게이트 초기화
 
         # 예측 캐시 초기화
         self._tasc_pred_cache.update({"t": -1.0, "v": -1.0, "notch": -1,
@@ -359,6 +364,22 @@ class StoppingSim:
         self._tasc_last_pred_t = st.t
         return s_cur, s_up, s_dn
 
+    # ▶ 추가: B4 이상 필요 시점 판정 유틸
+    def _required_brake_notch(self, v: float, rem: float) -> int:
+        """
+        현재 속도 v에서 남은거리 rem을 맞추려면 최소 몇 노치가 필요한지 반환.
+        조건: 고정노치 제동으로 예측 정지거리 <= rem - deadband.
+        만족하는 가장 낮은 노치를 리턴. 없으면 (max_normal_notch+1) 리턴.
+        """
+        if v <= 0.0:
+            return 0
+        max_normal_notch = self.veh.notches - 2  # EB 바로 아래까지
+        for n in range(1, max_normal_notch + 1):
+            s = self._stopping_distance(n, v)
+            if s <= (rem - self.tasc_deadband_m):
+                return n
+        return max_normal_notch + 1
+
     # ----------------- Main step -----------------
 
     def step(self):
@@ -389,54 +410,42 @@ class StoppingSim:
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2  # EB-1까지
 
-            # === 변경: B4 기준 활성화 가드 ================================
-            can_engage_tasc = True
-            b4_index = 4  # B4
-            if b4_index < len(self.veh.notch_accels):
-                s_b4 = self._stopping_distance(b4_index, st.v)
-                activation_band_m = max(2.0, min(10.0, st.v * 0.5))
-                if rem_now > (s_b4 + activation_band_m):
-                    can_engage_tasc = False
-            # =============================================================
+            # ▶ 활성화 조건 체크 (B4 이상 필요 시점까지 대기)
+            if not self.tasc_active:
+                required = self._required_brake_notch(st.v, rem_now)
+                if required >= self.tasc_activation_notch:
+                    # 지금부터 TASC 개입 시작
+                    self.tasc_active = True
+                    self.first_brake_done = True     # 늦개입이므로 초제동 1초 절차 스킵
+                    self._tasc_phase = "build"
+                    self._tasc_peak_notch = max(1, min(required, max_normal_notch))
+                    self._tasc_last_change_t = st.t
+                # 활성화 전에는 절대 개입하지 않음
 
-            if can_engage_tasc:
-                # 1) 초제동: 70km/h 이상이면 B2, 아니면 B1을 최소 1초
-                if not self.first_brake_done:
-                    desired = 2 if speed_kmh >= 70.0 else 1
-                    if dwell_ok and cur != desired:
-                        step = 1 if desired > cur else -1
-                        st.lever_notch = self._clamp_notch(cur + step)
-                        self._tasc_last_change_t = st.t
+            # ▶ 활성화된 뒤에만 기존 TASC 제어 로직 수행
+            if self.tasc_active:
+                # 예측값: 캐시/스로틀 사용
+                s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
+                changed = False
 
-                else:
-                    # 예측값: 캐시/스로틀 사용
-                    s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
+                if self._tasc_phase == "build":
+                    # 더 강한 제동이 필요하면 한 단계 강화
+                    if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
+                        if dwell_ok:
+                            st.lever_notch = self._clamp_notch(cur + 1)
+                            self._tasc_last_change_t = st.t
+                            self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
+                            changed = True
+                    else:
+                        # 충분히 맞아떨어지면 relax로 전환
+                        self._tasc_phase = "relax"
 
-                    changed = False
-
-                    if self._tasc_phase == "build":
-                        # 더 강한 제동이 필요하면 한 단계 강화
-                        if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
-                            if dwell_ok:
-                                st.lever_notch = self._clamp_notch(cur + 1)
-                                self._tasc_last_change_t = st.t
-                                self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
-                                changed = True
-                        else:
-                            # 충분히 맞아떨어지면 relax로 전환
-                            self._tasc_phase = "relax"
-
-                    if self._tasc_phase == "relax" and not changed:
-                        # === 변경: 양방향 밴드로 완해 허용 ====================
-                        # (기존: s_dn <= rem_now + deadband) → 너무 보수적이라
-                        # B4 진입 후에는 완해가 안 들어가는 문제가 있어 밴드 도입
-                        band_lo = max(0.8, st.v * 0.20)   # 하한 (m)
-                        band_hi = max(1.5, st.v * 0.25)   # 상한 (m)
-                        if cur > 1 and (rem_now - band_lo) <= s_dn <= (rem_now + band_hi):
-                            if dwell_ok:
-                                st.lever_notch = self._clamp_notch(cur - 1)
-                                self._tasc_last_change_t = st.t
-                        # ====================================================
+                if self._tasc_phase == "relax" and not changed:
+                    # 더 약한 제동으로도 충분(곡선 만나거나 위)하면 한 단계 완해
+                    if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
+                        if dwell_ok:
+                            st.lever_notch = self._clamp_notch(cur - 1)
+                            self._tasc_last_change_t = st.t
 
         # ====== 동역학 ======
         # 제동 감속
@@ -739,6 +748,7 @@ async def ws_endpoint(ws: WebSocket):
                             sim._tasc_last_change_t = sim.state.t
                             sim._tasc_phase = "build"
                             sim._tasc_peak_notch = 1
+                            sim.tasc_active = False   # ▶ 추가: 켤 때 항상 대기 상태부터
                         if DEBUG:
                             print(f"TASC set to {enabled}")
 
