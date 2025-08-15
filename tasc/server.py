@@ -146,7 +146,7 @@ class StoppingSim:
         self.vref = build_vref(scn.L, 0.8 * veh.a_max)
         self._cmd_queue = deque()
 
-        # 초기 제동(B1/B2) 1초 판정 -> (판정 자체는 아래에서 2초로 변경)
+        # 초기 제동(B1/B2) 판정(유지시간은 아래에서 2초로 변경)
         self.first_brake_start = None
         self.first_brake_done = False
 
@@ -184,6 +184,11 @@ class StoppingSim:
         self._tasc_pred_interval = 0.05  # 50ms
         self._tasc_last_pred_t = -1.0
         self._tasc_speed_eps = 0.3       # m/s
+
+        # ---- B5 필요 여부 판정 캐시/스로틀 ----
+        self._need_b5_last_t = -1.0
+        self._need_b5_last = False
+        self._need_b5_interval = 0.05   # 50ms마다 한 번만 계산
 
     # ----------------- Physics helpers -----------------
 
@@ -286,6 +291,10 @@ class StoppingSim:
                                       "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')})
         self._tasc_last_pred_t = -1.0
 
+        # B5 필요 여부 캐시 초기화
+        self._need_b5_last_t = -1.0
+        self._need_b5_last = False
+
         if DEBUG:
             print("Simulation reset")
 
@@ -365,14 +374,20 @@ class StoppingSim:
         self._tasc_last_pred_t = st.t
         return s_cur, s_up, s_dn
 
-    def _required_notch_now(self, v: float, remaining: float) -> int:
-        """정지거리 예측으로 지금 필요한 대략의 제동 노치 추정 (1..EB-1 범위)"""
-        max_normal_notch = self.veh.notches - 2
-        for n in range(1, max_normal_notch + 1):
-            sd = self._stopping_distance(n, v)
-            if sd <= (remaining + self.tasc_deadband_m):
-                return n
-        return max_normal_notch
+    def _need_B5_now(self, v: float, remaining: float) -> bool:
+        """
+        'B5가 필요하냐?'를 상수 시간으로 판정.
+        B5 필요 ↔ B4로는 못 멈춘다 ↔ s4 > remaining(+deadband)
+        50ms 스로틀 및 캐시 적용.
+        """
+        st = self.state
+        if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
+            return self._need_b5_last
+        s4 = self._stopping_distance(4, v)  # B4 정지거리만 계산
+        need = s4 > (remaining + self.tasc_deadband_m)
+        self._need_b5_last = need
+        self._need_b5_last_t = st.t
+        return need
 
     # ----------------- Main step -----------------
 
@@ -406,8 +421,7 @@ class StoppingSim:
 
             # (A) B5 필요 시점 감지 → 그때 TASC 활성화(초제동 시퀀스 시작)
             if self.tasc_armed and not self.tasc_active:
-                need_notch = self._required_notch_now(st.v, rem_now)
-                if need_notch >= 5:
+                if self._need_B5_now(st.v, rem_now):
                     self.tasc_active = True
                     self.tasc_armed = False
                     self._tasc_last_change_t = st.t  # 활성화 시각
