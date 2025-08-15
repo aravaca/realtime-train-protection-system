@@ -146,7 +146,7 @@ class StoppingSim:
         self.vref = build_vref(scn.L, 0.8 * veh.a_max)
         self._cmd_queue = deque()
 
-        # 초기 제동(B1/B2) 판정(유지시간은 아래에서 2초로 변경)
+        # 초기 제동(B1/B2) 판정
         self.first_brake_start = None
         self.first_brake_done = False
 
@@ -161,57 +161,67 @@ class StoppingSim:
         self.prev_a = 0.0
         self.jerk_history: List[float] = []
 
-        # ---------- TASC (자동 정차) ----------
+        # ---------- TASC ----------
         self.tasc_enabled = False
         self.manual_override = False
         self.tasc_deadband_m = 0.1
         self.tasc_hold_min_s = 0.25
         self._tasc_last_change_t = 0.0
-        self._tasc_phase = "build"      # "build" → "relax"
+        self._tasc_phase = "build"
         self._tasc_peak_notch = 1
-        # 대기/활성 상태
-        self.tasc_armed = False         # TASC ON 시점부터 B5 필요 시점까지 대기
-        self.tasc_active = False        # 초제동~빌드/릴렉스 실제 활성
+        self.tasc_armed = False
+        self.tasc_active = False
 
-        # 날씨가 코스팅에 미치는 효과
+        # 날씨 코스팅 영향
         self.rr_factor = _mu_to_rr_factor(self.scn.mu)
 
-        # ---- 성능 최적화: TASC 예측 캐시/스로틀 ----
+        # 예측 캐시
         self._tasc_pred_cache = {
             "t": -1.0, "v": -1.0, "notch": -1,
             "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')
         }
-        self._tasc_pred_interval = 0.05  # 50ms
+        self._tasc_pred_interval = 0.05
         self._tasc_last_pred_t = -1.0
-        self._tasc_speed_eps = 0.3       # m/s
+        self._tasc_speed_eps = 0.3
 
-        # ---- B5 필요 여부 판정 캐시/스로틀 ----
+        # B5 필요 여부 캐시
         self._need_b5_last_t = -1.0
         self._need_b5_last = False
-        self._need_b5_interval = 0.05   # 50ms마다 한 번만 계산
+        self._need_b5_interval = 0.05
+
+        # ---------- 제동장치 동역학 ----------
+        self.brk_accel = 0.0
+        self.tau_apply = 0.25
+        self.tau_release = 0.8
+        self.tau_apply_eb = 0.15
+        self.tau_release_lowv = 1.2
 
     # ----------------- Physics helpers -----------------
-
     def _effective_brake_accel(self, notch: int, v: float) -> float:
         """
-        노치별 장비 목표감속과 접착 한계(μg)를 클램프.
-        한계에 닿으면 저속일수록 더 보수적으로 줄여 WSP 느낌.
-        (m/s^2, 음수 반환)
+        노치별 장비 목표감속 + 속도 기반 전기/공기 블렌딩 적용
         """
         if notch >= len(self.veh.notch_accels):
             return 0.0
-        base = float(self.veh.notch_accels[notch])  # 음수(0은 N)
+        base = float(self.veh.notch_accels[notch])  # 음수
 
-        # 접착 한계
+        # ----- 블렌딩 비율 계산 -----
+        blend_cutoff_speed = 40.0 / 3.6  # m/s (40km/h)
+        regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
+
+        # 회생+공기 제동 조합 (단순 선형 전환)
+        blended_accel = base * regen_frac + base * (1 - regen_frac)
+
+        # ----- 접착 한계 적용 -----
         k_srv = 0.85
-        k_eb  = 0.98
+        k_eb = 0.98
         is_eb = (notch == (self.veh.notches - 1))
         k_adh = k_eb if is_eb else k_srv
         a_cap = -k_adh * float(self.scn.mu) * 9.81  # 음수
 
-        a_eff = max(base, a_cap)  # 절대값 작은 쪽 선택(안전)
+        a_eff = max(blended_accel, a_cap)
 
-        # 간단 WSP: 한계에 닿았으면 살짝 풀기 (저속일수록 보수적)
+        # 간단 WSP
         if a_eff <= a_cap + 1e-6:
             scale = 0.90 if v > 8.0 else 0.85
             a_eff = a_cap * scale
@@ -219,17 +229,25 @@ class StoppingSim:
         return a_eff
 
     def _grade_accel(self) -> float:
-        """경사 가속도(정식): 내리막(+)이면 가속 쪽으로 작용"""
         return -9.81 * (self.scn.grade_percent / 100.0)
 
     def _davis_accel(self, v: float) -> float:
-        """Davis 저항을 가속도로 환산. rr_factor는 A0/B1에만 적용"""
         A0 = self.veh.A0 * self.rr_factor
         B1 = self.veh.B1 * self.rr_factor
         C2 = self.veh.C2
-        F = A0 + B1 * v + C2 * v * v  # N
+        F = A0 + B1 * v + C2 * v * v
         return -F / self.veh.mass_kg if v != 0 else 0.0
 
+    def _update_brake_dyn(self, a_cmd: float, v: float, is_eb: bool, dt: float):
+        going_stronger = (a_cmd < self.brk_accel)
+        if going_stronger:
+            tau = self.tau_apply_eb if is_eb else self.tau_apply
+        else:
+            tau = self.tau_release_lowv if v < 3.0 else self.tau_release
+        alpha = dt / max(1e-6, tau)
+        self.brk_accel += (a_cmd - self.brk_accel) * alpha
+
+   
     # ----------------- Controls -----------------
 
     def _clamp_notch(self, n: int) -> int:
@@ -294,6 +312,9 @@ class StoppingSim:
         # B5 필요 여부 캐시 초기화
         self._need_b5_last_t = -1.0
         self._need_b5_last = False
+
+        # (추가) 제동장치 상태 초기화
+        self.brk_accel = 0.0
 
         if DEBUG:
             print("Simulation reset")
@@ -460,22 +481,19 @@ class StoppingSim:
                                 self._tasc_last_change_t = st.t
 
         # ====== 동역학 ======
-        # 제동 감속
-        a_brake = self._effective_brake_accel(st.lever_notch, st.v)
+        # (수정) 제동 명령 → 제동장치 동역학 추종(느리게)
+        a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v)  # 음수
+        is_eb = (st.lever_notch == self.veh.notches - 1)
+        self._update_brake_dyn(a_cmd_brake, st.v, is_eb, dt)            # self.brk_accel 갱신
 
-        # 경사 가속도 (정식)
+        # 경사/저항
         a_grade = self._grade_accel()
-
-        # Davis 저항
         a_davis = self._davis_accel(st.v)
 
-        # 목표 가속도
-        a_target = a_brake + a_grade + a_davis
+        # 목표 가속도: 제동장치가 실제로 내고 있는 감속 + 외력
+        a_target = self.brk_accel + a_grade + a_davis
 
-        # 1차 지연 응답
-        st.a += (a_target - st.a) * (dt / max(1e-6, self.veh.tau_brk))
-
-        # 저크 제한
+        # (수정) 차량 가속도에는 저크 제한만 적용
         max_da = self.veh.j_max * dt
         da = a_target - st.a
         if da > max_da:
@@ -803,4 +821,4 @@ async def ws_endpoint(ws: WebSocket):
         try:
             await ws.close()
         except RuntimeError:
-            pass 
+            pass
