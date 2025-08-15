@@ -172,7 +172,7 @@ class StoppingSim:
 
         # ▶ 추가: TASC 개입 게이트(활성화 전 대기), 임계 노치(B4)
         self.tasc_active = False
-        self.tasc_activation_notch = 5
+        self.tasc_activation_notch = 6
 
         # 날씨가 코스팅에 미치는 효과
         self.rr_factor = _mu_to_rr_factor(self.scn.mu)
@@ -186,31 +186,24 @@ class StoppingSim:
         self._tasc_last_pred_t = -1.0
         self._tasc_speed_eps = 0.3       # m/s
 
-        # === (최소 추가) B1 빠르게 경유 후 즉시 B2 승급 플래그 ===
+        # B1 스쳐가기 후 다음 스텝에 B2로 승급
         self._tasc_promote_to_b2_next = False
 
     # ----------------- Physics helpers -----------------
 
     def _effective_brake_accel(self, notch: int, v: float) -> float:
-        """
-        노치별 장비 목표감속과 접착 한계(μg)를 클램프.
-        한계에 닿으면 저속일수록 더 보수적으로 줄여 WSP 느낌.
-        (m/s^2, 음수 반환)
-        """
         if notch >= len(self.veh.notch_accels):
             return 0.0
         base = float(self.veh.notch_accels[notch])  # 음수(0은 N)
 
-        # 접착 한계
         k_srv = 0.85
         k_eb  = 0.98
         is_eb = (notch == (self.veh.notches - 1))
         k_adh = k_eb if is_eb else k_srv
         a_cap = -k_adh * float(self.scn.mu) * 9.81  # 음수
 
-        a_eff = max(base, a_cap)  # 절대값 작은 쪽 선택(안전)
+        a_eff = max(base, a_cap)
 
-        # 간단 WSP: 한계에 닿았으면 살짝 풀기 (저속일수록 보수적)
         if a_eff <= a_cap + 1e-6:
             scale = 0.90 if v > 8.0 else 0.85
             a_eff = a_cap * scale
@@ -218,15 +211,13 @@ class StoppingSim:
         return a_eff
 
     def _grade_accel(self) -> float:
-        """경사 가속도(정식): 내리막(+)이면 가속 쪽으로 작용"""
         return -9.81 * (self.scn.grade_percent / 100.0)
 
     def _davis_accel(self, v: float) -> float:
-        """Davis 저항을 가속도로 환산. rr_factor는 A0/B1에만 적용"""
         A0 = self.veh.A0 * self.rr_factor
         B1 = self.veh.B1 * self.rr_factor
         C2 = self.veh.C2
-        F = A0 + B1 * v + C2 * v * v  # N
+        F = A0 + B1 * v + C2 * v * v
         return -F / self.veh.mass_kg if v != 0 else 0.0
 
     # ----------------- Controls -----------------
@@ -264,31 +255,25 @@ class StoppingSim:
         self.running = False
         self._cmd_queue.clear()
 
-        # 초기화 (B1/B2 초제동용)
         self.first_brake_start = None
         self.first_brake_done = False
 
-        # 기록 초기화
         self.notch_history.clear()
         self.time_history.clear()
 
-        # 저크 초기화
         self.prev_a = 0.0
         self.jerk_history = []
 
-        # TASC 상태 초기화 (토글 상태는 유지)
         self.manual_override = False
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
-        self.tasc_active = False  # ▶ 추가: 활성화 게이트 초기화
+        self.tasc_active = False
 
-        # 예측 캐시 초기화
         self._tasc_pred_cache.update({"t": -1.0, "v": -1.0, "notch": -1,
                                       "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')})
         self._tasc_last_pred_t = -1.0
 
-        # B1→B2 즉시 승급 플래그 초기화
         self._tasc_promote_to_b2_next = False
 
         if DEBUG:
@@ -301,52 +286,40 @@ class StoppingSim:
             print("Simulation started")
 
     def eb_used_from_history(self) -> bool:
-        """기록에서 EB(최대 인덱스) 사용 여부 확인"""
         return any(n == self.veh.notches - 1 for n in self.notch_history)
 
     # ------ stopping distance helpers ------
 
     def _estimate_stop_distance(self, notch: int, v0: float) -> float:
-        """
-        현재 속도 v0에서 '해당 노치 고정'으로 가정하고 실제 동역학과 동일한 모델로
-        간단 수치적분으로 정지거리 추정. (TASC 예측에 사용)
-        - jerk/명령지연은 생략, 제동 응답 tau_brk는 1차 지연으로 반영
-        - 성능 최적화: 더 큰 dt, 조기 종료
-        """
-        dt = 0.03  # 더 큰 스텝(≈33Hz)
+        dt = 0.03
         v = max(0.0, v0)
         a = 0.0
         s = 0.0
-        tau = max(0.15, self.veh.tau_brk)  # 응답 느림 반영
+        tau = max(0.15, self.veh.tau_brk)
 
-        # 조기 종료용: 현재 정지점까지 남은 거리 + 버퍼
         rem_now = self.scn.L - self.state.s
         limit = float(rem_now + 5.0)
 
-        for _ in range(1200):  # 최대 ≈36s
+        for _ in range(1200):
             a_brk = self._effective_brake_accel(notch, v)
             a_grade = self._grade_accel()
             a_davis = self._davis_accel(v)
             a_target = a_brk + a_grade + a_davis
-            # 1차 지연 응답
             a += (a_target - a) * (dt / tau)
-            # 적분
             v = max(0.0, v + a * dt)
             s += v * dt + 0.5 * a * dt * dt
             if v <= 0.01:
-                break  # 정지
+                break
             if s > limit:
-                break  # 충분히 큼 → 더 계산하지 않음
+                break
         return s
 
     def _stopping_distance(self, notch: int, v: float) -> float:
-        """보수적 예측: 위의 수치예측 사용"""
         if notch <= 0:
             return float('inf')
         return self._estimate_stop_distance(notch, v)
 
     def _tasc_predict(self, cur_notch: int, v: float):
-        """TASC 정지거리 예측 스로틀링 + 캐시"""
         st = self.state
         need = False
         if (st.t - self._tasc_last_pred_t) >= self._tasc_pred_interval:
@@ -370,16 +343,10 @@ class StoppingSim:
         self._tasc_last_pred_t = st.t
         return s_cur, s_up, s_dn
 
-    # ▶ 추가: B4 이상 필요 시점 판정 유틸
     def _required_brake_notch(self, v: float, rem: float) -> int:
-        """
-        현재 속도 v에서 남은거리 rem을 맞추려면 최소 몇 노치가 필요한지 반환.
-        조건: 고정노치 제동으로 예측 정지거리 <= rem - deadband.
-        만족하는 가장 낮은 노치를 리턴. 없으면 (max_normal_notch+1) 리턴.
-        """
         if v <= 0.0:
             return 0
-        max_normal_notch = self.veh.notches - 2  # EB 바로 아래까지
+        max_normal_notch = self.veh.notches - 2
         for n in range(1, max_normal_notch + 1):
             s = self._stopping_distance(n, v)
             if s <= (rem - self.tasc_deadband_m):
@@ -396,31 +363,18 @@ class StoppingSim:
         while self._cmd_queue and self._cmd_queue[0]["t"] <= st.t:
             self._apply_command(self._cmd_queue.popleft())
 
-        # 기록 & 초제동(B1/B2) 유지 시간 체크 (시뮬 시간 기반)
-        self.notch_history.append(st.lever_notch)
-        self.time_history.append(st.t)
-        if not self.first_brake_done:
-            if st.lever_notch in (1, 2):  # B1 또는 B2
-                if self.first_brake_start is None:
-                    self.first_brake_start = st.t
-                elif (st.t - self.first_brake_start) >= 2.0:
-                    self.first_brake_done = True
-            else:
-                self.first_brake_start = None
-
         # ---------- TASC 자동 제동 ----------
         if self.tasc_enabled and not self.manual_override and not st.finished:
             dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
             rem_now = self.scn.L - st.s
             speed_kmh = st.v * 3.6
             cur = st.lever_notch
-            max_normal_notch = self.veh.notches - 2  # EB-1까지
+            max_normal_notch = self.veh.notches - 2
 
             # 1) 활성화 전
             if not self.tasc_active:
                 required = self._required_brake_notch(st.v, rem_now)
                 if required >= self.tasc_activation_notch:
-                    # TASC 개입 시작
                     self.tasc_active = True
                     self._tasc_phase = "build"
                     self._tasc_peak_notch = 1
@@ -432,14 +386,12 @@ class StoppingSim:
 
                     desired = 2 if speed_kmh >= 70.0 else 1
                     if desired == 2:
-                        # === 핵심 변경 ===
-                        # B1을 '즉시' 한번 찍고 다음 스텝에서 즉시 B2로 올리기
+                        # B1 한 틱 찍고 다음 스텝에 B2로
                         if st.lever_notch != 1:
                             st.lever_notch = 1
                         self._tasc_promote_to_b2_next = True
                         self._tasc_last_change_t = st.t
                     else:
-                        # 원래대로 B1 유지
                         if cur != 1 and dwell_ok:
                             step_dir = 1 if 1 > cur else -1
                             st.lever_notch = self._clamp_notch(cur + step_dir)
@@ -447,36 +399,29 @@ class StoppingSim:
 
             # 2) 활성화 후
             if self.tasc_active:
-                # 2-1) 초제동 2초 유지
                 if not self.first_brake_done:
                     desired = 2 if speed_kmh >= 70.0 else 1
 
-                    # === 핵심 변경 ===
-                    # B1을 방금 찍었으면, 대기 없이 '바로 다음 스텝'에 B2로 승급
                     if desired == 2 and self._tasc_promote_to_b2_next and st.lever_notch == 1:
                         st.lever_notch = 2
                         self._tasc_promote_to_b2_next = False
                         self._tasc_last_change_t = st.t
-
                     elif desired == 2:
-                        # 그 외에는 기존 로직대로(필요시 B2 보정)
                         if dwell_ok and st.lever_notch < 2:
                             st.lever_notch = 2
                             self._tasc_last_change_t = st.t
-
                     elif desired == 1:
                         if dwell_ok and st.lever_notch != 1:
                             step_dir = 1 if 1 > st.lever_notch else -1
                             st.lever_notch = self._clamp_notch(st.lever_notch + step_dir)
                             self._tasc_last_change_t = st.t
                 else:
-                    # 2-2) build/relax
                     changed = False
                     s_cur, s_up, s_dn = self._tasc_predict(st.lever_notch, st.v)
 
                     if self._tasc_phase == "build":
                         if (s_cur > (rem_now + self.tasc_deadband_m)) and (cur < max_normal_notch):
-                            if dwell_ok:
+                            if (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s:
                                 st.lever_notch = self._clamp_notch(cur + 1)
                                 self._tasc_last_change_t = st.t
                                 self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
@@ -486,9 +431,22 @@ class StoppingSim:
 
                     if self._tasc_phase == "relax" and not changed:
                         if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
-                            if dwell_ok:
+                            if (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
+
+        # ====== (이동됨) 기록 & 초제동(B1/B2) 유지 시간 체크 ======
+        # ▶ TASC가 노치를 조정한 "이후" 상태로 기록해야 B1 스쳐간 것이 기록에 찍힘
+        self.notch_history.append(st.lever_notch)
+        self.time_history.append(st.t)
+        if not self.first_brake_done:
+            if st.lever_notch in (1, 2):
+                if self.first_brake_start is None:
+                    self.first_brake_start = st.t
+                elif (st.t - self.first_brake_start) >= 2.0:
+                    self.first_brake_done = True
+            else:
+                self.first_brake_start = None
 
         # ====== 동역학 ======
         a_brake = self._effective_brake_accel(st.lever_notch, st.v)
@@ -496,24 +454,20 @@ class StoppingSim:
         a_davis = self._davis_accel(st.v)
         a_target = a_brake + a_grade + a_davis
 
-        # 1차 지연 + 저크 제한
         a_prev = st.a
         a_temp = a_prev + (a_target - a_prev) * (dt / max(1e-6, self.veh.tau_brk))
         max_da = self.veh.j_max * dt
         da = max(-max_da, min(max_da, a_temp - a_prev))
         st.a = a_prev + da
 
-        # 저크 기록
         jerk_inst = abs((st.a - self.prev_a) / dt)
         self.prev_a = st.a
         self.jerk_history.append(jerk_inst)
 
-        # 적분
         st.v = max(0.0, st.v + st.a * dt)
         st.s += st.v * dt + 0.5 * st.a * dt * dt
         st.t += dt
 
-        # 종료 판정
         rem = self.scn.L - st.s
         if not st.finished and (rem <= -5.0 or st.v <= 0.0):
             st.finished = True
@@ -523,18 +477,15 @@ class StoppingSim:
             score = 0
             st.issues = {}
 
-            # EB 사용 감점
             if self.eb_used or self.eb_used_from_history():
                 score -= 500
                 st.issues["unnecessary_eb_usage"] = True
 
-            # 초제동(B1/B2 1초) 보너스/감점
             if not self.first_brake_done:
                 score -= 100
             else:
                 score += 300
 
-            # 정차시 B1 여부
             last_notch = self.notch_history[-1] if self.notch_history else 0
             if last_notch == 1:
                 score += 300
@@ -549,28 +500,23 @@ class StoppingSim:
                 st.issues["stop_not_b1"] = True
                 st.issues["stop_not_b1_msg"] = "정차 시 B2 이상으로 정차함 - 승차감 불쾌"
 
-            # 계단 패턴 점수 (TASC ON은 점프 허용)
             if self.is_stair_pattern(self.notch_history):
                 score += 500
             else:
                 if self.tasc_enabled and not self.manual_override:
                     score += 500
 
-            # 정지 오차 점수 (0m → 500점, 10m → 0점)  ※ 1m당 -50점 보정
             err_abs = abs(st.stop_error_m or 0.0)
             error_score = max(0, 500 - int(err_abs * 50))
             score += error_score
 
-            # 0 cm 정차 보너스
             if abs(st.stop_error_m or 0.0) < 0.01:
                 score += 100
 
-            # 이슈 플래그
             st.issues["early_brake_too_short"] = not self.first_brake_done
             st.issues["step_brake_incomplete"] = not self.is_stair_pattern(self.notch_history)
             st.issues["stop_error_m"] = st.stop_error_m
 
-            # 저크 점수 반영
             avg_jerk, jerk_score = self.compute_jerk_score()
             score += int(jerk_score)
 
@@ -581,11 +527,9 @@ class StoppingSim:
                 print(f"Simulation finished: stop_error={st.stop_error_m:.3f} m, score={score}")
 
     def is_stair_pattern(self, notches: List[int]) -> bool:
-        """초기(B1/B2)에서 시작해 한 번만 올라갔다 내려오고, 마지막이 B1인지 체크"""
         if len(notches) < 3:
             return False
 
-        # 최초 유효 노치: B1 또는 B2 허용
         first_brake_notch = None
         for n in notches:
             if n > 0:
@@ -599,28 +543,22 @@ class StoppingSim:
         for i in range(1, len(notches)):
             cur = notches[i]
             diff = cur - prev
-
-            # 노치 증감은 1단계 이하
             if abs(diff) > 1:
                 return False
-
             if not peak_reached:
                 if cur < prev:
                     peak_reached = True
             else:
                 if cur > prev:
                     return False
-
             prev = cur
 
-        # 마지막은 반드시 B1
         if notches[-1] != 1:
             return False
 
         return True
 
     def compute_jerk_score(self):
-        """최근 1초 평균 저크 기반 점수 (<=25: 500점, 25~50: 선형감점, >50: 0점)"""
         dt = self.scn.dt
         window_time = 1.0
         n = int(window_time / dt)
@@ -663,7 +601,6 @@ class StoppingSim:
             "score": getattr(st, "score", 0),
             "issues": getattr(st, "issues", {}),
             "tasc_enabled": getattr(self, "tasc_enabled", False),
-            # HUD/디버그용
             "mu": float(self.scn.mu),
             "rr_factor": float(self.rr_factor),
             "davis_A0": self.veh.A0,
@@ -703,7 +640,6 @@ async def ws_endpoint(ws: WebSocket):
     sim.start()
 
     last_sim_time = time.perf_counter()
-    # 송신 속도 제한(30Hz)
     last_send = 0.0
     send_interval = 1.0 / 30.0
 
@@ -713,7 +649,6 @@ async def ws_endpoint(ws: WebSocket):
             elapsed = now - last_sim_time
 
             try:
-                # 입력 처리 (최대 100Hz 정도로 충분)
                 msg = await asyncio.wait_for(ws.receive_text(), timeout=0.01)
                 data = json.loads(msg)
                 if data.get("type") == "cmd":
@@ -740,7 +675,6 @@ async def ws_endpoint(ws: WebSocket):
 
                     elif name in ("stepNotch", "applyNotch"):
                         delta = int(payload.get("delta", 0))
-                        # 수동 개입 → TASC 해제
                         sim.manual_override = True
                         sim.tasc_enabled = False
                         sim.queue_command("stepNotch", delta)
@@ -764,7 +698,6 @@ async def ws_endpoint(ws: WebSocket):
 
                     elif name == "setMassTons":
                         mass_tons = float(payload.get("mass_tons", 200.0))
-                        # 차량 1량 질량 갱신(정보 목적), 총질량은 mass_kg에 반영
                         vehicle.mass_t = mass_tons / int(payload.get("length", 8))
                         vehicle.mass_kg = mass_tons * 1000.0
                         if DEBUG:
@@ -779,7 +712,7 @@ async def ws_endpoint(ws: WebSocket):
                             sim._tasc_last_change_t = sim.state.t
                             sim._tasc_phase = "build"
                             sim._tasc_peak_notch = 1
-                            sim.tasc_active = False   # ▶ 켤 때 항상 대기 상태부터
+                            sim.tasc_active = False
                         if DEBUG:
                             print(f"TASC set to {enabled}")
 
@@ -802,7 +735,6 @@ async def ws_endpoint(ws: WebSocket):
                 if DEBUG:
                     print(f"Error during receive: {e}")
 
-            # ---- 고정된 시뮬 시간 흐름 (현실 시간과 동기화) ----
             dt = sim.scn.dt
             while elapsed >= dt:
                 if sim.running:
@@ -810,7 +742,6 @@ async def ws_endpoint(ws: WebSocket):
                 last_sim_time += dt
                 elapsed -= dt
 
-            # ---- 송신 속도 제한 (30Hz) ----
             if (now - last_send) >= send_interval:
                 await ws.send_text(json.dumps({"type": "state", "payload": sim.snapshot()}))
                 last_send = now
