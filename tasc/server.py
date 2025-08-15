@@ -397,7 +397,7 @@ class StoppingSim:
             if st.lever_notch in (1, 2):  # B1 또는 B2
                 if self.first_brake_start is None:
                     self.first_brake_start = st.t
-                elif (st.t - self.first_brake_start) >= 1.0:
+                elif (st.t - self.first_brake_start) >= 2.0:
                     self.first_brake_done = True
             else:
                 self.first_brake_start = None
@@ -416,7 +416,7 @@ class StoppingSim:
                 if required >= self.tasc_activation_notch:
                     # 지금부터 TASC 개입 시작
                     self.tasc_active = True
-                    self.first_brake_done = True     # 늦개입이므로 초제동 1초 절차 스킵
+                    
                     self._tasc_phase = "build"
                     self._tasc_peak_notch = max(1, min(required, max_normal_notch))
                     self._tasc_last_change_t = st.t
