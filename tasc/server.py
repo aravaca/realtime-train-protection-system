@@ -410,77 +410,79 @@ class StoppingSim:
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2  # EB-1까지
 
-            # 활성화 전: 초제동 + 즉시 활성화 판정
+            # 1) 활성화 전: 절대 개입하지 않음(완전 코스팅). 단, B6 조건이 되면 그 순간 개입 시작 + 초제동 시작
             if not self.tasc_active:
-                # --- 초제동 로직 ---
-                if not self.first_brake_done:
-                    desired = 2 if speed_kmh >= 70.0 else 1
-                    if dwell_ok and cur != desired:
-                        step = 1 if desired > cur else -1
-                        st.lever_notch = self._clamp_notch(cur + step)
-                        self._tasc_last_change_t = st.t
-                    elif self.first_brake_start is None:
-                        self.first_brake_start = st.t
-                    elif (st.t - self.first_brake_start) >= 2.0:  # 초제동 2초
-                        self.first_brake_done = True
-
-                # --- TASC 활성화 조건 (초제동 중에도 바로 가능) ---
                 required = self._required_brake_notch(st.v, rem_now)
                 if required >= self.tasc_activation_notch:
+                    # TASC 개입 시작
                     self.tasc_active = True
                     self._tasc_phase = "build"
-                    self._tasc_peak_notch = max(1, min(required, max_normal_notch))
+                    self._tasc_peak_notch = 1
                     self._tasc_last_change_t = st.t
 
-            # 활성화 후: 기존 빌드/릴랙스 로직
+                    # 초제동 2초 시작(B1/B2 선택) — 이때부터 타이머 스타트
+                    self.first_brake_start = st.t
+                    self.first_brake_done = False
+                    desired = 2 if speed_kmh >= 70.0 else 1
+                    if cur != desired and dwell_ok:
+                        step_dir = 1 if desired > cur else -1
+                        st.lever_notch = self._clamp_notch(cur + step_dir)
+                        self._tasc_last_change_t = st.t
+
+            # 2) 활성화 후
             if self.tasc_active:
-                # 예측값: 캐시/스로틀 사용
-                s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
-                changed = False
+                # 2-1) 초제동 2초 유지(이 동안엔 build/relax 금지)
+                if not self.first_brake_done:
+                    desired = 2 if speed_kmh >= 70.0 else 1
+                    if dwell_ok and st.lever_notch != desired:
+                        step_dir = 1 if desired > st.lever_notch else -1
+                        st.lever_notch = self._clamp_notch(st.lever_notch + step_dir)
+                        self._tasc_last_change_t = st.t
+                else:
+                    # 2-2) build/relax 로직
+                    changed = False
+                    s_cur, s_up, s_dn = self._tasc_predict(st.lever_notch, st.v)
 
-                if self._tasc_phase == "build":
-                    # 더 강한 제동이 필요하면 한 단계 강화
-                    if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
-                        if dwell_ok:
-                            st.lever_notch = self._clamp_notch(cur + 1)
-                            self._tasc_last_change_t = st.t
-                            self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
-                            changed = True
-                    else:
-                        # 충분히 맞아떨어지면 relax로 전환
-                        self._tasc_phase = "relax"
+                    if self._tasc_phase == "build":
+                        # 현재로는 부족하면 한 단계 더 올림
+                        if (s_cur > (rem_now + self.tasc_deadband_m)) and (cur < max_normal_notch):
+                            if dwell_ok:
+                                st.lever_notch = self._clamp_notch(cur + 1)
+                                self._tasc_last_change_t = st.t
+                                self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
+                                changed = True
+                        else:
+                            # 충분히 맞아떨어지면 relax로 전환
+                            self._tasc_phase = "relax"
 
-                if self._tasc_phase == "relax" and not changed:
-                    # 더 약한 제동으로도 충분(곡선 만나거나 위)하면 한 단계 완해
-                    if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
-                        if dwell_ok:
-                            st.lever_notch = self._clamp_notch(cur - 1)
-                            self._tasc_last_change_t = st.t
+                    if self._tasc_phase == "relax" and not changed:
+                        # 더 약한 제동으로도 충분(곡선 만나거나 위)하면 한 단계 완해
+                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
+                            if dwell_ok:
+                                st.lever_notch = self._clamp_notch(cur - 1)
+                                self._tasc_last_change_t = st.t
 
         # ====== 동역학 ======
         # 제동 감속
         a_brake = self._effective_brake_accel(st.lever_notch, st.v)
-
         # 경사 가속도 (정식)
         a_grade = self._grade_accel()
-
         # Davis 저항
         a_davis = self._davis_accel(st.v)
-
         # 목표 가속도
         a_target = a_brake + a_grade + a_davis
 
-        # 1차 지연 응답
-        st.a += (a_target - st.a) * (dt / max(1e-6, self.veh.tau_brk))
-
-        # 저크 제한
+        # 1차 지연 + 저크 제한
+        a_prev = st.a
+        a_temp = a_prev + (a_target - a_prev) * (dt / max(1e-6, self.veh.tau_brk))
         max_da = self.veh.j_max * dt
-        da = a_target - st.a
-        if da > max_da:
-            da = max_da
-        elif da < -max_da:
-            da = -max_da
-        st.a += da
+        da = max(-max_da, min(max_da, a_temp - a_prev))
+        st.a = a_prev + da
+
+        # 저크 기록(매 스텝)
+        jerk_inst = abs((st.a - self.prev_a) / dt)
+        self.prev_a = st.a
+        self.jerk_history.append(jerk_inst)
 
         # 적분
         st.v = max(0.0, st.v + st.a * dt)
@@ -530,24 +532,19 @@ class StoppingSim:
                 if self.tasc_enabled and not self.manual_override:
                     score += 500
 
-            # 정지 오차 점수 (0m → 500점, 10m → 0점)
+            # 정지 오차 점수 (0m → 500점, 10m → 0점)  
             err_abs = abs(st.stop_error_m or 0.0)
             error_score = max(0, 500 - int(err_abs * 500))
             score += error_score
 
             # ★ 0 cm 정차 보너스 (+100) : 절대값 1cm 미만이면 인정
             if abs(st.stop_error_m or 0.0) < 0.01:
-                score += 100
+                score += 500
 
             # 이슈 플래그들
             st.issues["early_brake_too_short"] = not self.first_brake_done
             st.issues["step_brake_incomplete"] = not self.is_stair_pattern(self.notch_history)
             st.issues["stop_error_m"] = st.stop_error_m
-
-            # 저크 기록
-            jerk = abs((st.a - self.prev_a) / dt)
-            self.prev_a = st.a
-            self.jerk_history.append(jerk)
 
             # 저크 점수 반영
             avg_jerk, jerk_score = self.compute_jerk_score()
