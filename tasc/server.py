@@ -390,7 +390,7 @@ class StoppingSim:
         while self._cmd_queue and self._cmd_queue[0]["t"] <= st.t:
             self._apply_command(self._cmd_queue.popleft())
 
-        # 기록 & 초제동(B1/B2) 1초 체크 (시뮬 시간 기반)
+        # 기록 & 초제동(B1/B2) 유지 시간 체크 (시뮬 시간 기반)
         self.notch_history.append(st.lever_notch)
         self.time_history.append(st.t)
         if not self.first_brake_done:
@@ -409,33 +409,30 @@ class StoppingSim:
             speed_kmh = st.v * 3.6
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2  # EB-1까지
-            
-            # --- 초제동 로직 ---
-            if not self.first_brake_done:
-                desired = 2 if speed_kmh >= 70.0 
-            else 1
-                if dwell_ok and cur != desired:
-                    step = 1 if desired > cur else -1
-                    st.lever_notch = self._clamp_notch(cur + step)
-                    self._tasc_last_change_t = st.t
-                elif self.first_brake_start is None:
-                    self.first_brake_start = st.t
-                elif (st.t - self.first_brake_start) >= 2.0:  # ← 2초 유지
-                    self.first_brake_done = True
-          
-            # ▶ 활성화 조건 체크 (B4 이상 필요 시점까지 대기)
+
+            # 활성화 전: 초제동 + 즉시 활성화 판정
             if not self.tasc_active:
+                # --- 초제동 로직 ---
+                if not self.first_brake_done:
+                    desired = 2 if speed_kmh >= 70.0 else 1
+                    if dwell_ok and cur != desired:
+                        step = 1 if desired > cur else -1
+                        st.lever_notch = self._clamp_notch(cur + step)
+                        self._tasc_last_change_t = st.t
+                    elif self.first_brake_start is None:
+                        self.first_brake_start = st.t
+                    elif (st.t - self.first_brake_start) >= 2.0:  # 초제동 2초
+                        self.first_brake_done = True
+
+                # --- TASC 활성화 조건 (초제동 중에도 바로 가능) ---
                 required = self._required_brake_notch(st.v, rem_now)
                 if required >= self.tasc_activation_notch:
-                    # 지금부터 TASC 개입 시작
                     self.tasc_active = True
-                    
                     self._tasc_phase = "build"
                     self._tasc_peak_notch = max(1, min(required, max_normal_notch))
                     self._tasc_last_change_t = st.t
-                # 활성화 전에는 절대 개입하지 않음
 
-            # ▶ 활성화된 뒤에만 기존 TASC 제어 로직 수행
+            # 활성화 후: 기존 빌드/릴랙스 로직
             if self.tasc_active:
                 # 예측값: 캐시/스로틀 사용
                 s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
