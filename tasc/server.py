@@ -170,7 +170,7 @@ class StoppingSim:
         self._tasc_phase = "build"      # "build" → "relax"
         self._tasc_peak_notch = 1
 
-        # ▶ 추가: TASC 최소 개입 요구 노치 (기본 B4 이상 필요할 때 개입)
+        # ▶ 최소 개입 요구 노치: B4 이상 필요할 때만 TASC 개입
         self.tasc_min_required_notch = 4
 
         # 날씨가 코스팅에 미치는 효과
@@ -392,17 +392,14 @@ class StoppingSim:
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2  # EB-1까지
 
-            # ▶ 추가: '최소 B4 이상 필요' 구간에서만 TASC 작동 (진입 가드)
+            # ▶ '최소 B4 이상 필요' 구간에서만 TASC 작동 (진입 가드)
             can_engage = True
-            n_req = max(1, int(self.tasc_min_required_notch) - 1)  # 예: min=B4 → n_req=3(B3 정지거리와 비교)
+            n_req = max(1, int(self.tasc_min_required_notch) - 1)  # 예: min=B4 → n_req=3 (B3 정지거리 기준)
             if self.veh.notches <= n_req:
-                # 차량 노치가 모자라면 개입 가드 무력화(안전하게 항상 개입 허용) 또는 계속 대기 중 하나 선택
-                # 여기선 "허용"으로 처리
                 can_engage = True
             else:
                 s_req = self._stopping_distance(n_req, st.v) if n_req > 0 else float('inf')
-                # 속도 비례 여유밴드(히스테리시스): 2~10 m
-                activation_band_m = max(2.0, min(10.0, st.v * 0.5))
+                activation_band_m = max(2.0, min(10.0, st.v * 0.5))  # 2~10 m
                 if rem_now > (s_req + activation_band_m):
                     can_engage = False
 
@@ -421,24 +418,32 @@ class StoppingSim:
 
                     changed = False
 
+                    # BUILD: 제동 강화
                     if self._tasc_phase == "build":
-                        # 더 강한 제동이 필요하면 한 단계 강화
-                        if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
+                        build_margin = self.tasc_deadband_m
+                        if cur < max_normal_notch and s_cur > (rem_now - build_margin):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur + 1)
                                 self._tasc_last_change_t = st.t
                                 self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
                                 changed = True
                         else:
-                            # 충분히 맞아떨어지면 relax로 전환
+                            # 충분히 맞아떨어지면 RELAX로 전환
                             self._tasc_phase = "relax"
 
+                    # RELAX: 제동 완해 (★ 수정된 조건)
                     if self._tasc_phase == "relax" and not changed:
-                        # 더 약한 제동으로도 충분(곡선 만나거나 위)하면 한 단계 완해
-                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
+                        # 완해 시 정지거리(s_dn)가 잔여거리(rem_now) 이상이면 완해 가능
+                        # 히스테리시스 여유(속도비례): 1~8 m
+                        relax_margin = max(1.0, min(8.0, st.v * 0.3))
+                        if cur > 1 and s_dn >= (rem_now - relax_margin):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
+                        else:
+                            # 너무 약해서 과소제동 우려가 있으면 다시 build로 복귀
+                            if s_cur < (rem_now - 2 * self.tasc_deadband_m):
+                                self._tasc_phase = "build"
             # can_engage가 False면 TASC는 ‘대기’ 상태이며, 물리 업데이트만 계속 진행
 
         # ====== 동역학 ======
