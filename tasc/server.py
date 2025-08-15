@@ -194,7 +194,7 @@ class StoppingSim:
         self.tau_apply = 0.25
         self.tau_release = 0.8
         self.tau_apply_eb = 0.15
-        self.tau_release_lowv = 0.9
+        self.tau_release_lowv = 0.8
 
     # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
@@ -478,7 +478,7 @@ class StoppingSim:
 
                     if self._tasc_phase == "relax" and not changed:
                         # 더 약한 제동으로도 충분하면 한 단계 완해
-                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
+                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m + 0.1):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
