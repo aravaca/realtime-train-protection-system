@@ -109,6 +109,7 @@ body{overflow-x:hidden;overflow-y:auto}
   <option value="E235">E235</option>
   <option value="JRW223">223</option>
   <option value="JRW225">225</option>
+  <option value="JRH261">225</option>
   <option value="JRW285">285</option>
   <option value="JRW323">323</option>
 </select>
@@ -511,6 +512,13 @@ TRAIN_DB.JRW285 = [
     lines: "침대특급 선라이즈 이즈모·세토 전용",
     file: "./285.json",
     lengths: [7, 14] } // 7량편성, 병결 시 14량편성
+];
+
+TRAIN_DB.JRH261 = [
+  { code: "HOKKAIDO KiHa 261-5000",
+    lines: "조이풀 트레인 하마나스·라벤더",
+    file: "./261_5000.json",
+    lengths: [4, 5, 6, 10] } // 5량 기본, 10량 병결
 ];
 
 const trainFamilyEl=document.getElementById('trainFamily');
