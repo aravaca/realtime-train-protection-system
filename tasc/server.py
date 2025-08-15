@@ -143,7 +143,7 @@ class StoppingSim:
         self.scn = scn
         self.state = State(t=0.0, s=0.0, v=scn.v0, a=0.0, lever_notch=0, finished=False)
         self.running = False
-        self.vref = build_vref(scn.L, 0.8 * veh.a_max)
+        self.vref = build_vref(scn.L, 0.85 * veh.a_max)
         self._cmd_queue = deque()
 
         # 초기 제동(B1/B2) 판정
@@ -165,7 +165,7 @@ class StoppingSim:
         self.tasc_enabled = False
         self.manual_override = False
         self.tasc_deadband_m = 0.30
-        self.tasc_hold_min_s = 0.25
+        self.tasc_hold_min_s = 0.20
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
@@ -209,9 +209,11 @@ class StoppingSim:
         blend_cutoff_speed = 40.0 / 3.6  # m/s (40km/h)
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
 
-        # 회생+공기 제동 조합 (단순 선형 전환)
-        blended_accel = base * regen_frac + base * (1 - regen_frac)
+        # 저속(5 km/h 이하)에서 공기 제동 살짝 강화
+        air_boost = 1.04 if v < (5.0 / 3.6) else 1.0
+        blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
 
+       
         # ----- 접착 한계 적용 -----
         k_srv = 0.85
         k_eb = 0.98
