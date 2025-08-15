@@ -704,7 +704,7 @@ async def ws_endpoint(ws: WebSocket):
                     if name == "setInitial":
                         speed = payload.get("speed")
                         dist = payload.get("dist")
-                        grade = payload.get("grade", 0.0)
+                        grade = payload.get("grade", 0.0) / 10.0
                         mu = float(payload.get("mu", 1.0))
                         if speed is not None and dist is not None:
                             sim.scn.v0 = float(speed) / 3.6
@@ -803,4 +803,4 @@ async def ws_endpoint(ws: WebSocket):
         try:
             await ws.close()
         except RuntimeError:
-            pass
+            pass 
