@@ -409,7 +409,19 @@ class StoppingSim:
             speed_kmh = st.v * 3.6
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2  # EB-1까지
-
+            
+            # --- 초제동 로직 ---
+            if not self.first_brake_done:
+                desired = 2 if speed_kmh >= 70.0 else 1
+                if dwell_ok and cur != desired:
+                    step = 1 if desired > cur else -1
+                    st.lever_notch = self._clamp_notch(cur + step)
+                    self._tasc_last_change_t = st.t
+                elif self.first_brake_start is None:
+                    self.first_brake_start = st.t
+                elif (st.t - self.first_brake_start) >= 2.0:  # ← 2초 유지
+                    self.first_brake_done = True
+          
             # ▶ 활성화 조건 체크 (B4 이상 필요 시점까지 대기)
             if not self.tasc_active:
                 required = self._required_brake_notch(st.v, rem_now)
