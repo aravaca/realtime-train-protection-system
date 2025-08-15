@@ -79,7 +79,7 @@ body{overflow-x:hidden;overflow-y:auto}
       <div>남은 거리 <span class="stat" id="rem">—</span> m</div>
       <div>속도 <span class="stat" id="spd">—</span> km/h</div>
       <div>노치 <span class="stat" id="notch">0.0</span></div>
-      <div>구배 <span class="stat" id="grade_percent">—</span> %</div>
+      <div>구배 <span class="stat" id="grade_percent">—</span> ‰</div>
       <div>경과시간 <span class="stat" id="timer">0.000</span> s</div>
       <div style="margin-top:8px">조작: <span class="kbd">Space</span> 시작 · <span class="kbd">W</span> 강화 · <span class="kbd">S</span> 완화 · <span class="kbd">N</span> 해방</div>
     </div>
@@ -296,7 +296,7 @@ ws.onmessage=(ev)=>{
 notchEl.textContent =
   st.lever_notch === 0 ? "N" :
   st.lever_notch === maxIdx ? "EB" : `B${st.lever_notch}`;
-    grade_percentEl.textContent = st.grade_percent.toFixed(2);
+    grade_percentEl.textContent = (10* st.grade_percent).toFixed(1);
     timerEl.textContent = st.t.toFixed(3);
     drawHUD(st);
 
