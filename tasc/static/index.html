@@ -179,7 +179,7 @@ body{overflow-x:hidden;overflow-y:auto}
       <input id="inputDist" type="number" value="300" min="10" max="900" step="1" class="form-input">
     </label>
     <label class="form-label">경사도 (‰)
-      <input id="inputGrade" type="number" value="0.0" min="-40" max="40" step="0.1" class="form-input">
+      <input id="inputGrade" type="number" value="0.0" min="-10" max="10" step="0.1" class="form-input">
     </label>
 
     <label class="form-label">날씨
@@ -278,7 +278,7 @@ const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 function enforceInt(el,min,max){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^\d-]/g,'');}); el.addEventListener('change',()=>{let v=parseInt(el.value,10); if(isNaN(v)){el.value='';return;} el.value=String(clamp(v,min,max));});}
 function enforceFloat(el,min,max,d=1){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^0-9.\-]/g,'');}); el.addEventListener('change',()=>{let v=parseFloat(el.value); if(isNaN(v)){el.value='';return;} v=clamp(v,min,max); el.value=v.toFixed(d);});}
 enforceInt(inputSpeed,10,130); enforceInt(inputDist,10,900);
-enforceInt(inputLoadRate,0,120); enforceFloat(inputGrade,-40,40,1);
+enforceInt(inputLoadRate,0,120); enforceFloat(inputGrade,-10,10,1);
 
 document.getElementById("inputLoadRate").addEventListener("change",sendLoadRate);
 
