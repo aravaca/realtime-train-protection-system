@@ -233,7 +233,7 @@ class StoppingSim:
         if notch == 1:
         # 1) 속도 비례형(점성형) 부드러운 랜딩: a_soft = -v / T
         #   T를 키우면 더 부드럽게(감속 작게), 줄이면 더 강하게(감속 크게)
-            T = 1.2  # 1.0~1.5 s 사이 권장; 더 부드럽게 하려면 1.3~1.5
+            T = 1.5  # 1.0~1.5 s 사이 권장; 더 부드럽게 하려면 1.3~1.5
             a_soft = -v / max(0.3, T)   # [m/s²], v[m/s]
 
         # 2) 저속 구간에서만 적용 (너무 일찍부터 약해지지 않게)
@@ -437,7 +437,7 @@ class StoppingSim:
         st = self.state
         if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
             return self._need_b5_last
-        s4 = self._stopping_distance(4, v)  # B4 정지거리만 계산
+        s4 = self._stopping_distance(3, v)  # B4 정지거리만 계산
         need = s4 > (remaining + self.tasc_deadband_m)
         self._need_b5_last = need
         self._need_b5_last_t = st.t
