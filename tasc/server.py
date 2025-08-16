@@ -149,7 +149,7 @@ class StoppingSim:
         # 초기 제동(B1/B2) 판정 (1.2초)
         self.first_brake_start = None
         self.first_brake_done = False
-        self.first_brake_hold = 1.2  # ★ 1.2초로 변경
+        self.first_brake_hold = 1.2  # ★ 1.2초
 
         # 기록
         self.notch_history: List[int] = []
@@ -165,7 +165,9 @@ class StoppingSim:
         # ---------- TASC ----------
         self.tasc_enabled = False
         self.manual_override = False
-        self.tasc_deadband_m = 0.01  # ★ 1cm 데드밴드로 미세 정위치
+
+        # 정위치/승차감 파라미터 (요청 반영)
+        self.tasc_deadband_m = 0.10       # ★ 10cm 목표 데드밴드
         self.tasc_hold_min_s = 0.20
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
@@ -173,15 +175,25 @@ class StoppingSim:
         self.tasc_armed = False
         self.tasc_active = False
 
+        # Comfort Relax (부드럽게 B1로 미리 완해)
+        self.comfort_relax_window = (12.0, 28.0)  # 잔여거리 윈도우(미터)
+        self.comfort_relax_speed_kmh = 18.0       # 완해 허용 속도 상한
+        self.comfort_band_m = 0.12                # s(B1) ≈ remaining 매칭 허용치(±12cm)
+        self.min_relax_m = 8.0                    # 이 거리보다 가까우면 더 이상 완해하지 않음
+        self.relax_locked = False                 # B1로 내려간 후 재상향/톱질 금지
+
+        # Near-stop notch freeze
+        self.freeze_speed_kmh = 2.5               # 이 속도 이하면 notch 변경 금지
+
         # 날씨 코스팅 영향
         self.rr_factor = _mu_to_rr_factor(self.scn.mu)
 
         # 예측 캐시 (물리모델 일치 예측)
         self._tasc_pred_cache = {
             "t": -1.0, "v": -1.0, "a": -1.0, "brk": -1.0, "notch": -1,
-            "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')
+            "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf'), "s_b1": float('inf')
         }
-        self._tasc_pred_interval = 0.05
+        self._tasc_pred_interval = 0.06  # 약간 스로틀 업(성능)
         self._tasc_last_pred_t = -1.0
         self._tasc_speed_eps = 0.3
         self._tasc_accel_eps = 0.2
@@ -258,15 +270,14 @@ class StoppingSim:
         """
         - 메인 엔진과 동일한 모델 사용: 제동장치 1차 지연 + 저크 제한 + 경사/데이비스
         - 일정 노치를 고정해 정지까지 수치적분
-        - 성능: dt_pred=0.01, 조기 종료(rem_limit + 여유)
+        - 성능: dt_pred≈0.012, 조기 종료(rem_limit + 여유)
         """
-        dt = 0.01
+        dt = 0.012
         v = max(0.0, v0)
         a_vehicle = a0
         brk = brk0
         s = 0.0
 
-        # 한계: 현재 정지점까지 남은 거리 + 버퍼
         limit = float(rem_limit + 5.0)
 
         tau_apply = self.tau_apply
@@ -275,20 +286,17 @@ class StoppingSim:
         tau_release_lowv = self.tau_release_lowv
         jmax = self.veh.j_max
 
-        is_eb = (notch == (self.veh.notches - 1))
-
-        for _ in range(5000):  # 최대 50초
+        for _ in range(4200):  # 최대 ~50s
             # 목표 제동감속
             a_cmd = self._effective_brake_accel(notch, v)
 
             # 제동장치 1차 지연
             going_stronger = (a_cmd < brk)
             if going_stronger:
-                tau = tau_apply_eb if is_eb else tau_apply
+                tau = tau_apply_eb if notch == (self.veh.notches - 1) else tau_apply
             else:
                 tau = tau_release_lowv if v < 3.0 else tau_release
-            alpha = dt / max(1e-6, tau)
-            brk += (a_cmd - brk) * alpha
+            brk += (a_cmd - brk) * (dt / max(1e-6, tau))
 
             # 외력
             a_grade = self._grade_accel()
@@ -361,25 +369,25 @@ class StoppingSim:
         self.prev_a = 0.0
         self.jerk_history = []
 
-        # TASC 상태 초기화 (토글 상태는 유지)
+        # TASC 상태 초기화
         self.manual_override = False
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
-        # TASC가 켜져 있었다면 '대기'로만 두고 즉시 작동하지 않음
         self.tasc_active = False
         self.tasc_armed = bool(self.tasc_enabled)
+        self.relax_locked = False
 
         # 예측 캐시 초기화
         self._tasc_pred_cache.update({"t": -1.0, "v": -1.0, "a": -1.0, "brk": -1.0, "notch": -1,
-                                      "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')})
+                                      "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf'), "s_b1": float('inf')})
         self._tasc_last_pred_t = -1.0
 
         # B3 필요 여부 캐시 초기화
         self._need_b3_last_t = -1.0
         self._need_b3_last = False
 
-        # (추가) 제동장치 상태 초기화
+        # 제동장치 상태 초기화
         self.brk_accel = 0.0
 
         if DEBUG:
@@ -420,7 +428,8 @@ class StoppingSim:
         if not need:
             return (self._tasc_pred_cache["s_cur"],
                     self._tasc_pred_cache["s_up"],
-                    self._tasc_pred_cache["s_dn"])
+                    self._tasc_pred_cache["s_dn"],
+                    self._tasc_pred_cache["s_b1"])
 
         max_normal_notch = self.veh.notches - 2
         rem_now = self.scn.L - st.s
@@ -430,11 +439,12 @@ class StoppingSim:
                 if cur_notch + 1 <= max_normal_notch else 0.0)
         s_dn = (self._stopping_distance_const(cur_notch - 1, v, a, brk, rem_now)
                 if cur_notch - 1 >= 1 else float('inf'))
+        s_b1 = self._stopping_distance_const(1, v, a, brk, rem_now)
 
         self._tasc_pred_cache.update({"t": st.t, "v": v, "a": a, "brk": brk, "notch": cur_notch,
-                                      "s_cur": s_cur, "s_up": s_up, "s_dn": s_dn})
+                                      "s_cur": s_cur, "s_up": s_up, "s_dn": s_dn, "s_b1": s_b1})
         self._tasc_last_pred_t = st.t
-        return s_cur, s_up, s_dn
+        return s_cur, s_up, s_dn, s_b1
 
     def _need_B3_now(self, v: float, a: float, brk: float, remaining: float) -> bool:
         """
@@ -481,6 +491,10 @@ class StoppingSim:
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2  # EB-1까지
 
+            # 속도 매우 낮으면 마지막 충격 방지 위해 notch 동결
+            if speed_kmh <= self.freeze_speed_kmh:
+                dwell_ok = False  # 아래 notch 변경 로직 자연 비활성화
+
             # (A) B3 필요 시점 감지 → 그때 TASC 활성화(초제동 시퀀스 시작)
             if self.tasc_armed and not self.tasc_active:
                 if self._need_B3_now(st.v, st.a, self.brk_accel, rem_now):
@@ -489,7 +503,10 @@ class StoppingSim:
                     self._tasc_last_change_t = st.t  # 활성화 시각
 
             if self.tasc_active:
-                # (B) 초제동 유지: 활성화 이후에만 B1/B2를 1.2초간 강제
+                # 예측값 계산
+                s_cur, s_up, s_dn, s_b1 = self._tasc_predict(cur, st.v, st.a, self.brk_accel)
+
+                # (B) 초제동 유지: 활성화 이후에만 B1/B2를 1.2초간 강제 (기존 동일)
                 if not self.first_brake_done:
                     desired = 2 if speed_kmh >= 70.0 else 1
                     if dwell_ok and cur != desired:
@@ -497,12 +514,26 @@ class StoppingSim:
                         st.lever_notch = self._clamp_notch(cur + step)
                         self._tasc_last_change_t = st.t
                 else:
-                    # (C) 빌드/릴렉스 로직 (물리예측 기반, 톱질 금지: relax 이후 재상향 금지)
-                    s_cur, s_up, s_dn = self._tasc_predict(cur, st.v, st.a, self.brk_accel)
+                    # ----- Comfort Relax (부드럽게 미리 완해) -----
+                    # 잔여거리/속도 윈도우 내부이고, s(B1)가 remaining과 거의 일치할 때 B1로 단발 완해
+                    relax_lo, relax_hi = self.comfort_relax_window
+                    can_relax_window = (relax_lo <= rem_now <= relax_hi) and (speed_kmh <= self.comfort_relax_speed_kmh)
+                    can_relax_match = abs(s_b1 - rem_now) <= self.comfort_band_m
+                    can_relax_dist = (rem_now >= self.min_relax_m)  # 너무 가까우면 완해 금지 (충격 방지)
 
+                    if (not self.relax_locked) and dwell_ok and can_relax_window and can_relax_match and can_relax_dist:
+                        # 현재가 3 이상이면 2로 먼저 내리고, 그 외엔 B1로 완해 (완해 횟수 최소화)
+                        target = 2 if cur >= 3 else 1
+                        if cur != target:
+                            st.lever_notch = target
+                            self._tasc_last_change_t = st.t
+                        if target == 1:
+                            self.relax_locked = True
+                            self._tasc_phase = "hold"  # 더 이상 notch 변경하지 않음
+
+                    # ----- 기본 빌드/릴렉스 (단, 막판 완해 금지/톤질 방지) -----
                     changed = False
-
-                    if self._tasc_phase == "build":
+                    if self._tasc_phase == "build" and not self.relax_locked:
                         # 더 강한 제동이 필요하면 한 단계 강화
                         if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
                             if dwell_ok:
@@ -511,16 +542,16 @@ class StoppingSim:
                                 self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
                                 changed = True
                         else:
-                            # 충분히 맞아떨어지면 relax로 전환
                             self._tasc_phase = "relax"
 
-                    if self._tasc_phase == "relax" and not changed:
-                        # 더 약한 제동으로도 충분하면 한 단계 완해 (단, 재상향 금지로 톱질 방지)
-                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
+                    if self._tasc_phase == "relax" and not changed and not self.relax_locked:
+                        # 더 약한 제동으로도 충분하면 한 단계 완해 (단, 잔여거리 너무 작으면 금지)
+                        if (cur > 1) and (s_dn <= (rem_now + self.tasc_deadband_m)) and (rem_now >= self.min_relax_m):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
-                        # 마지막은 B1로 정차 유도
+                        # relax 진입 이후에는 notch 재상향 금지(톤질 방지)
+                        # 마지막은 B1로 정차 유도는 Comfort Relax가 담당, 막판 급완해 없음
 
         # ====== 동역학 ======
         # 적분 전 상태 저장 (정위치 보정용)
@@ -528,19 +559,19 @@ class StoppingSim:
         v_prev = st.v
         t_prev = st.t
 
-        # 제동 명령 → 제동장치 동역학 추종(느리게)
+        # 제동 명령 → 제동장치 동역학 추종
         a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v)  # 음수
         is_eb = (st.lever_notch == self.veh.notches - 1)
         self._update_brake_dyn(a_cmd_brake, st.v, is_eb, dt)  # self.brk_accel 갱신
 
-        # 경사/저항
+        # 외력
         a_grade = self._grade_accel()
         a_davis = self._davis_accel(st.v)
 
-        # 목표 가속도: 제동장치가 실제로 내고 있는 감속 + 외력
+        # 목표 가속도
         a_target = self.brk_accel + a_grade + a_davis
 
-        # 차량 가속도에는 저크 제한만 적용
+        # 저크 제한
         max_da = self.veh.j_max * dt
         da = a_target - st.a
         if da > max_da:
@@ -559,11 +590,8 @@ class StoppingSim:
         if not st.finished and (rem <= -5.0 or st.v <= 0.0):
             st.finished = True
 
-            # 정위치 보정: v가 0에 도달한 스텝에서 미세한 적분오차를 줄이기 위해
-            # 가속도 상수 가정하에 정확한 멈춤 시각을 역산하여 s를 보정
-            # (TASC가 정확히 맞췄다면 s ≈ L이므로 보정 크기는 매우 작음)
+            # 정위치 보정: v=0 이 되는 정확한 시각으로 역산하여 s 보정
             if v_prev > 0.0 and st.v <= 0.0:
-                # v_prev + a * tau = 0 → tau = -v_prev / a  (a<0 가정)
                 a_const = st.a
                 if abs(a_const) > 1e-6:
                     tau = max(0.0, min(dt, -v_prev / a_const))
@@ -589,7 +617,7 @@ class StoppingSim:
             else:
                 score += 300
 
-            # 정차시 B1 여부
+            # 정차시 B1 여부 (TASC가 B1로 미리 완해했다면 +300)
             last_notch = self.notch_history[-1] if self.notch_history else 0
             if last_notch == 1:
                 score += 300
@@ -841,6 +869,7 @@ async def ws_endpoint(ws: WebSocket):
                             # 즉시 작동 금지: B3 필요 시점까지 '대기'
                             sim.tasc_armed = True
                             sim.tasc_active = False
+                            sim.relax_locked = False
                         if DEBUG:
                             print(f"TASC set to {enabled}")
 
