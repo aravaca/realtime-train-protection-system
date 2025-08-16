@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>TASC Simulator</title>
+<!-- Google Fonts: Noto Sans JP Bold -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&display=swap">
 <style>
 html, body {
   margin: 0;
@@ -66,14 +68,25 @@ body{overflow-x:hidden;overflow-y:auto}
 
 
 .emoji {
-  width: 1.2em;
-  height: 1.2em;
+  width: 1.4em;
+  height: 1.4em;
   vertical-align: middle;
   transition: transform 0.2s;
 }
 .emoji:hover {
   transform: scale(1.3);
 }
+
+.title {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 700; /* Bold */
+  font-size: 2.4em;
+  color: #004B9A; /* JR-West Blue */
+  display: flex;
+  align-items: center;
+  gap: 8px; /* 아이콘과 텍스트 간격 */
+}
+
 
 </style>
 </head>
@@ -111,15 +124,11 @@ body{overflow-x:hidden;overflow-y:auto}
       <span class="tasc-label">TASC</span>
     </div>
 
-    <h2 class="title" style="
-  font-family: 'Shin Go', 'New Rodin', sans-serif;
-  font-size: 2.2em;
-  font-weight: bold;
-  color: #004B9A;
-">
-  <img src="./Screenshot_20250815_220422_Brave(1).png" alt="E233" class="emoji"> 
-  JR TASC Simulator
-</h2>
+  <h2 class="title">
+    <img src="./Screenshot_20250815_220422_Brave(1).png" alt="E233" class="emoji"> 
+    JR TASC Simulator
+  </h2>
+
 
     <p class="subtitle">초기값 입력 후 <b>TASC(자동정차)</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요. TASC가 활성화된 상태에서도, 운전자는 수동 조작으로 운전에 개입할 수 있습니다.</p>
 
