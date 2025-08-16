@@ -372,7 +372,7 @@ class StoppingSim:
                 break # 정지
             if s > limit:
                 break # 충분히 큼 → 더 계산하지 않음
-        return s+ 0.3
+        return s + 0.8
 
     def _stopping_distance(self, notch: int, v: float) -> float:
         """보수적 예측: 위의 수치예측 사용"""
