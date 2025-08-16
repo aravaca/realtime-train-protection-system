@@ -215,9 +215,13 @@ class StoppingSim:
 
         # 저속(5 km/h 이하)에서 공기 제동 살짝 강화
         
+        # _effective_brake_accel() 내부 저속 보정부 교체
         air_boost = 1.0
-        if v < (5.0/3.6):
-            air_boost = 0.8  # 저속에서 공기제동을 살~짝 약화 → 덜 일찍 선다
+        if v < (8.0/3.6):
+    # 기본 0.80에서, 미끄러울수록/내리막일수록 조금 더 강화
+            slip_term  = 0.15 * (1.0 - float(self.scn.mu))             # mu 1.0→0.6이면 +0.06
+            grade_term = 0.04 * max(0.0, -float(self.scn.grade_percent))# -2% 내리막이면 +0.08
+            air_boost = min(1.05, 0.80 + slip_term + grade_term)        # 상한 1.05
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
 
        
