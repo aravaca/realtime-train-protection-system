@@ -134,7 +134,7 @@ def _mu_to_rr_factor(mu: float) -> float:
 
 
 # ============================
-# PERSISTENT BIAS (추가)
+# PERSISTENT BIAS (EMA 보정)
 # ============================
 
 PRED_BIAS = {}
@@ -236,20 +236,17 @@ class StoppingSim:
         self.tau_apply_eb = 0.15
         self.tau_release_lowv = 0.8
 
-        # ===== 편향(EMA) 관련 (추가) =====
-        self._ema_alpha = 0.2   # 0.1~0.3 권장
-        self._bias_clip = 2.0   # 과도 방지
+        # EMA 편향 파라미터
+        self._ema_alpha = 0.2
+        self._bias_clip = 2.0
 
     # ----------------- Physics helpers -----------------
     def _air_boost(self, v: float) -> float:
         """
-        (추가) 저속에서 공기제동 비율을 낮춰 승차감 부드럽게.
-        3m/s(≈10.8km/h) 미만: 0.70, 6m/s 미만: 0.85, 그 외: 1.00
+        (요청 수정) 매우 저속에서만 공기제동 비율 약화.
+        v ≤ 1.5 m/s: 0.8, 그 외: 1.0
         """
-        if v < 1.5:
-            return 0.80
-        else:
-            return 1.00
+        return 0.8 if v <= 1.5 else 1.0
 
     def _effective_brake_accel(self, notch: int, v: float) -> float:
         """
@@ -263,7 +260,7 @@ class StoppingSim:
         blend_cutoff_speed = 40.0 / 3.6 # m/s (40km/h)
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
 
-        # (변경) 저속 가변 air_boost 적용 - 승차감 개선
+        # (변경) air_boost 적용
         air_boost = self._air_boost(v)
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
 
@@ -388,56 +385,88 @@ class StoppingSim:
     def _estimate_stop_distance(self, notch: int, v0: float) -> float:
         """
         현재 속도 v0에서 '해당 노치 고정'으로 가정하고 실제 동역학과 동일한 모델로
-        간단 수치적분으로 정지거리 추정. (TASC 예측에 사용)
-        - jerk/명령지연은 생략, 제동 응답 tau_brk는 1차 지연으로 반영
-        - 성능 최적화: 더 큰 dt, 조기 종료 (렉 방지)
+        정지거리 추정. (예측-실제 동역학 정합 · 렉 방지)
+          - 제동장치 1차 지연: 속도 의존 τ 적용 (apply/release/저속 release)
+          - 차량 가속도: 저크 제한(j_max) 적용
+          - dt: 저속 구간만 0.01, 그 외 0.03 (연산량 절약)
+          - 조기 종료: 충분히 느리거나 충분히 멀면 컷
         """
-        dt = 0.03 # 더 큰 스텝(≈33Hz)
+        if notch <= 0:
+            return float('inf')
+
         v = max(0.0, v0)
-        a = 0.0
+        a = 0.0               # 차량 실제 가속도(저크 제한 반영)
+        brk = 0.0             # 제동장치가 실제 내는 감속(1차 지연 응답)
         s = 0.0
-        tau = max(0.15, self.veh.tau_brk) # 응답 느림 반영
-
-        # 조기 종료용: 현재 정지점까지 남은 거리 + 버퍼
         rem_now = self.scn.L - self.state.s
-        limit = float(rem_now + 5.0)
+        limit = float(rem_now + 5.0)  # 과도 계산 방지
 
-        for _ in range(1200): # 최대 ≈36s
-            a_brk = self._effective_brake_accel(notch, v)  # (air_boost 포함)
+        for _ in range(2400):  # 최악 dt=0.01 기준 ~24s
+            dt = 0.01 if v < 6.0 else 0.03
+
+            # 목표 제동 감속(장치 명령): air_boost 포함
+            a_cmd_brk = self._effective_brake_accel(notch, v)
+
+            # 제동장치 응답(속도 의존 τ)
+            going_stronger = (a_cmd_brk < brk)
+            if going_stronger:
+                tau = self.tau_apply
+            else:
+                tau = self.tau_release_lowv if v < 3.0 else self.tau_release
+            brk += (a_cmd_brk - brk) * (dt / max(1e-6, tau))
+
+            # 외력
             a_grade = self._grade_accel()
             a_davis = self._davis_accel(v)
-            a_target = a_brk + a_grade + a_davis
-            # 1차 지연 응답
-            a += (a_target - a) * (dt / tau)
+
+            # 차량 목표 가속도
+            a_target = brk + a_grade + a_davis
+
+            # 저크 제한 적용
+            max_da = self.veh.j_max * dt
+            da = a_target - a
+            if da > max_da: da = max_da
+            elif da < -max_da: da = -max_da
+            a += da
+
             # 적분
             v = max(0.0, v + a * dt)
             s += v * dt + 0.5 * a * dt * dt
+
+            # 조기 종료
             if v <= 0.01:
-                break # 정지
+                break
             if s > limit:
-                break # 충분히 큼 → 더 계산하지 않음
+                break
+
         return s
 
     def _stopping_distance(self, notch: int, v: float) -> float:
-        """보수적 예측: 위의 수치예측 사용"""
         if notch <= 0:
             return float('inf')
         return self._estimate_stop_distance(notch, v)
 
-    # ==== (추가) 편향 접근자 ====
+    # ==== EMA 편향 접근자 ====
     def _get_bias(self) -> float:
         key = _bias_key(self.scn.mu, self.scn.grade_percent, self.scn.v0)
         return float(PRED_BIAS.get(key, 0.0))
 
     def _set_bias(self, value: float):
         key = _bias_key(self.scn.mu, self.scn.grade_percent, self.scn.v0)
-        # 양방향 허용, 과도 방지
         value = max(-self._bias_clip, min(self._bias_clip, float(value)))
         PRED_BIAS[key] = value
         save_pred_bias()
 
+    # ---- 가변 데드밴드(연산 경량) ----
+    def _dyn_deadband(self, remaining_m: float, v: float) -> float:
+        # 0.25 m + 0.015 * sqrt(rem), [0.2, 1.0] 클램프. 저속 보너스 약간.
+        base = 0.25 + 0.015 * math.sqrt(max(0.0, remaining_m))
+        if v < 3.0:
+            base += 0.05
+        return max(0.2, min(1.0, base))
+
     def _tasc_predict(self, cur_notch: int, v: float):
-        """TASC 정지거리 예측 스로틀링 + 캐시 (+EMA 편향 반영)"""
+        """TASC 정지거리 예측 스로틀링 + 캐시 (+EMA 편향)"""
         st = self.state
         need = False
         if (st.t - self._tasc_last_pred_t) >= self._tasc_pred_interval:
@@ -456,11 +485,9 @@ class StoppingSim:
         s_up = self._stopping_distance(cur_notch + 1, v) if cur_notch + 1 <= max_normal_notch else 0.0
         s_dn = self._stopping_distance(cur_notch - 1, v) if cur_notch - 1 >= 1 else float('inf')
 
-        # (추가) 예측에 EMA 편향을 더해 오차를 줄임 (양방향)
+        # (추가) EMA 편향 적용
         bias = self._get_bias()
-        s_cur += bias
-        s_up  += bias
-        s_dn  += bias
+        s_cur += bias; s_up += bias; s_dn += bias
 
         self._tasc_pred_cache.update({"t": st.t, "v": v, "notch": cur_notch,
                                       "s_cur": s_cur, "s_up": s_up, "s_dn": s_dn})
@@ -469,15 +496,16 @@ class StoppingSim:
 
     def _need_B5_now(self, v: float, remaining: float) -> bool:
         """
-        'B5가 필요하냐?'를 상수 시간으로 판정.
-        B5 필요 ↔ B4로는 못 멈춘다 ↔ s4 > remaining(+deadband)
+        'B5가 필요하냐?' 판정.
+        B5 필요 ↔ B4로는 못 멈춘다 ↔ s4 > remaining(+가변 데드밴드)
         50ms 스로틀 및 캐시 적용.
         """
         st = self.state
         if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
             return self._need_b5_last
         s4 = self._stopping_distance(2, v) # B4 정지거리만 계산
-        need = s4 > (remaining + self.tasc_deadband_m)
+        deadband = self._dyn_deadband(remaining, v)
+        need = s4 > (remaining + deadband)
         self._need_b5_last = need
         self._need_b5_last_t = st.t
         return need
@@ -528,14 +556,14 @@ class StoppingSim:
                         st.lever_notch = self._clamp_notch(cur + step)
                         self._tasc_last_change_t = st.t
                 else:
-                    # (C) 빌드/릴렉스 로직 (기존 유지)
+                    # (C) 빌드/릴렉스 로직
                     s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
-
                     changed = False
+                    deadband = self._dyn_deadband(rem_now, st.v)
 
                     if self._tasc_phase == "build":
                         # 더 강한 제동이 필요하면 한 단계 강화
-                        if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
+                        if cur < max_normal_notch and s_cur > (rem_now - deadband):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur + 1)
                                 self._tasc_last_change_t = st.t
@@ -547,13 +575,13 @@ class StoppingSim:
 
                     if self._tasc_phase == "relax" and not changed:
                         # 더 약한 제동으로도 충분하면 한 단계 완해
-                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m + 0.1):
+                        if cur > 1 and s_dn <= (rem_now + deadband + 0.1):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
 
         # ====== 동역학 ======
-        # (수정) 제동 명령 → 제동장치 동역학 추종(느리게)
+        # 제동 명령 → 제동장치 동역학 추종(느리게)
         a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v) # 음수
         is_eb = (st.lever_notch == self.veh.notches - 1)
         self._update_brake_dyn(a_cmd_brake, st.v, is_eb, dt) # self.brk_accel 갱신
@@ -562,10 +590,10 @@ class StoppingSim:
         a_grade = self._grade_accel()
         a_davis = self._davis_accel(st.v)
 
-        # 목표 가속도: 제동장치가 실제로 내고 있는 감속 + 외력
+        # 차량 목표 가속도: 제동장치가 실제로 내고 있는 감속 + 외력
         a_target = self.brk_accel + a_grade + a_davis
 
-        # (수정) 차량 가속도에는 저크 제한만 적용
+        # 차량 가속도에는 저크 제한만 적용
         max_da = self.veh.j_max * dt
         da = a_target - st.a
         if da > max_da:
@@ -648,17 +676,14 @@ class StoppingSim:
             st.score = score
             self.running = False
 
-            # ===== (추가) EMA 편향 업데이트: 오버런/언더런 양방향 =====
-            # err = 목표(L) - 실제(s_final); err<0 오버런(더 갔다), err>0 언더런(일찍 멈춤)
-            err = st.stop_error_m or 0.0
+            # ===== EMA 편향 업데이트(양방향) =====
+            err = st.stop_error_m or 0.0  # 목표-실제 (언더런>0, 오버런<0)
             bias_old = self._get_bias()
             bias_new = (1 - self._ema_alpha) * bias_old - self._ema_alpha * err
             self._set_bias(bias_new)
 
             if DEBUG:
-                print(f"[EMA] err={err:.3f} m, bias {bias_old:.3f} -> {bias_new:.3f}")
-                print(f"Avg jerk: {avg_jerk:.4f}, jerk_score: {jerk_score:.2f}, final score: {score}")
-                print(f"Simulation finished: stop_error={st.stop_error_m:.3f} m, score={score}")
+                print(f"[EMA] err={err:.3f} m, bias {bias_old:.3f}->{bias_new:.3f}")
 
     def is_stair_pattern(self, notches: List[int]) -> bool:
         """초기(B1/B2)에서 시작해 한 번만 올라갔다 내려오고, 마지막이 B1인지 체크"""
@@ -772,7 +797,7 @@ async def ws_endpoint(ws: WebSocket):
     vehicle_json_path = os.path.join(BASE_DIR, "vehicle.json")
     scenario_json_path = os.path.join(BASE_DIR, "scenario.json")
 
-    # (추가) pred_bias.json 로드/자동생성
+    # pred_bias.json 로드/자동생성 (영구 저장)
     pred_bias_path = os.path.join(BASE_DIR, "pred_bias.json")
     load_pred_bias(pred_bias_path)
 
