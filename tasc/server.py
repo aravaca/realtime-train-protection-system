@@ -232,7 +232,7 @@ class StoppingSim:
         v_kmh = v * 3.6
         if notch == 1:  # B1에만 적용
         # 8→0 km/h 구간에서 선형으로 감속 상한을 -0.18→-0.08로 줄이기
-            v1, v0 = 8.0, 0.0
+            v1, v0 = 6.0, 0.0
             a_hi, a_lo = -0.18, -0.08   # 취향에 맞게 조절
             if v_kmh < v1:
                 w = max(0.0, min(1.0, (v_kmh - v0)/(v1 - v0)))
