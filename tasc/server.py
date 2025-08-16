@@ -175,12 +175,11 @@ class StoppingSim:
         self.tasc_armed = False
         self.tasc_active = False
 
-        # Comfort Relax (부드럽게 B1로 미리 완해)
-        self.comfort_relax_window = (12.0, 28.0)  # 잔여거리 윈도우(미터)
-        self.comfort_relax_speed_kmh = 18.0       # 완해 허용 속도 상한
-        self.comfort_band_m = 0.12                # s(B1) ≈ remaining 매칭 허용치(±12cm)
-        self.min_relax_m = 8.0                    # 이 거리보다 가까우면 더 이상 완해하지 않음
-        self.relax_locked = False                 # B1로 내려간 후 재상향/톱질 금지
+        # 롱 B1 강제(enforce) 파라미터
+        self.relax_locked = False                 # B1 고정 모드
+        self.b1_lock_band_m = 0.12                # s(B1) ≈ remaining 매칭 허용(±12cm)
+        self.b1_lock_speed_kmh = 22.0             # B1 전환 허용 속도 상한
+        self.min_relax_m = 8.0                    # 이 거리보다 가까우면 더 이상 완해하지 않음 (직전 급완해 금지)
 
         # Near-stop notch freeze
         self.freeze_speed_kmh = 2.5               # 이 속도 이하면 notch 변경 금지
@@ -376,7 +375,7 @@ class StoppingSim:
         self._tasc_peak_notch = 1
         self.tasc_active = False
         self.tasc_armed = bool(self.tasc_enabled)
-        self.relax_locked = False
+        self.relax_locked = False  # ★ B1-lock 해제
 
         # 예측 캐시 초기화
         self._tasc_pred_cache.update({"t": -1.0, "v": -1.0, "a": -1.0, "brk": -1.0, "notch": -1,
@@ -485,73 +484,83 @@ class StoppingSim:
 
         # ---------- TASC 자동 제동 ----------
         if self.tasc_enabled and not self.manual_override and not st.finished:
-            dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
             rem_now = self.scn.L - st.s
             speed_kmh = st.v * 3.6
             cur = st.lever_notch
+            dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
             max_normal_notch = self.veh.notches - 2  # EB-1까지
 
-            # 속도 매우 낮으면 마지막 충격 방지 위해 notch 동결
+            # Near-stop freeze: 아주 저속이면 변경 금지 (마지막 충격 방지)
             if speed_kmh <= self.freeze_speed_kmh:
-                dwell_ok = False  # 아래 notch 변경 로직 자연 비활성화
+                dwell_ok = False
 
-            # (A) B3 필요 시점 감지 → 그때 TASC 활성화(초제동 시퀀스 시작)
-            if self.tasc_armed and not self.tasc_active:
-                if self._need_B3_now(st.v, st.a, self.brk_accel, rem_now):
-                    self.tasc_active = True
-                    self.tasc_armed = False
-                    self._tasc_last_change_t = st.t  # 활성화 시각
+            # 이미 B1-lock이면 끝까지 유지 (강제)
+            if self.relax_locked:
+                if cur != 1:
+                    st.lever_notch = 1
+                    self._tasc_last_change_t = st.t
+                # 더 이상의 notch 로직은 수행하지 않음
+            else:
+                # (A) B3 필요 시점 감지 → 그때 TASC 활성화(초제동 시퀀스 시작)
+                if self.tasc_armed and not self.tasc_active:
+                    if self._need_B3_now(st.v, st.a, self.brk_accel, rem_now):
+                        self.tasc_active = True
+                        self.tasc_armed = False
+                        self._tasc_last_change_t = st.t  # 활성화 시각
 
-            if self.tasc_active:
-                # 예측값 계산
-                s_cur, s_up, s_dn, s_b1 = self._tasc_predict(cur, st.v, st.a, self.brk_accel)
+                if self.tasc_active:
+                    # 예측값 계산
+                    s_cur, s_up, s_dn, s_b1 = self._tasc_predict(cur, st.v, st.a, self.brk_accel)
 
-                # (B) 초제동 유지: 활성화 이후에만 B1/B2를 1.2초간 강제 (기존 동일)
-                if not self.first_brake_done:
-                    desired = 2 if speed_kmh >= 70.0 else 1
-                    if dwell_ok and cur != desired:
-                        step = 1 if desired > cur else -1
-                        st.lever_notch = self._clamp_notch(cur + step)
-                        self._tasc_last_change_t = st.t
-                else:
-                    # ----- Comfort Relax (부드럽게 미리 완해) -----
-                    # 잔여거리/속도 윈도우 내부이고, s(B1)가 remaining과 거의 일치할 때 B1로 단발 완해
-                    relax_lo, relax_hi = self.comfort_relax_window
-                    can_relax_window = (relax_lo <= rem_now <= relax_hi) and (speed_kmh <= self.comfort_relax_speed_kmh)
-                    can_relax_match = abs(s_b1 - rem_now) <= self.comfort_band_m
-                    can_relax_dist = (rem_now >= self.min_relax_m)  # 너무 가까우면 완해 금지 (충격 방지)
-
-                    if (not self.relax_locked) and dwell_ok and can_relax_window and can_relax_match and can_relax_dist:
-                        # 현재가 3 이상이면 2로 먼저 내리고, 그 외엔 B1로 완해 (완해 횟수 최소화)
-                        target = 2 if cur >= 3 else 1
-                        if cur != target:
-                            st.lever_notch = target
+                    # (B) 초제동 유지: 활성화 이후에만 B1/B2를 1.2초간 강제
+                    if not self.first_brake_done:
+                        desired = 2 if speed_kmh >= 70.0 else 1
+                        if dwell_ok and cur != desired:
+                            step = 1 if desired > cur else -1
+                            st.lever_notch = self._clamp_notch(cur + step)
                             self._tasc_last_change_t = st.t
-                        if target == 1:
+                    else:
+                        # ====== ★ 롱 B1 enforce 로직 ======
+                        # 조건: B1만으로 정차 가능(s_b1≈rem), 아직 거리가 충분함, 속도도 적절
+                        can_b1_lock = (
+                            (abs(s_b1 - rem_now) <= self.b1_lock_band_m) and
+                            (rem_now >= self.min_relax_m) and
+                            (speed_kmh <= self.b1_lock_speed_kmh)
+                        )
+
+                        if dwell_ok and can_b1_lock:
+                            # 즉시 B1로 전환하고, 이후 재상향 금지
+                            if cur != 1:
+                                st.lever_notch = 1
+                                self._tasc_last_change_t = st.t
                             self.relax_locked = True
-                            self._tasc_phase = "hold"  # 더 이상 notch 변경하지 않음
-
-                    # ----- 기본 빌드/릴렉스 (단, 막판 완해 금지/톤질 방지) -----
-                    changed = False
-                    if self._tasc_phase == "build" and not self.relax_locked:
-                        # 더 강한 제동이 필요하면 한 단계 강화
-                        if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
-                            if dwell_ok:
-                                st.lever_notch = self._clamp_notch(cur + 1)
-                                self._tasc_last_change_t = st.t
-                                self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
-                                changed = True
+                            self._tasc_phase = "hold"
                         else:
-                            self._tasc_phase = "relax"
+                            # ====== 기본 빌드/릴렉스 (단, 막판 급완해 금지 & B1로는 min_relax_m 이상에서만) ======
+                            changed = False
+                            if self._tasc_phase == "build":
+                                # 더 강한 제동이 필요하면 한 단계 강화
+                                if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
+                                    if dwell_ok:
+                                        st.lever_notch = self._clamp_notch(cur + 1)
+                                        self._tasc_last_change_t = st.t
+                                        self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
+                                        changed = True
+                                else:
+                                    self._tasc_phase = "relax"
 
-                    if self._tasc_phase == "relax" and not changed and not self.relax_locked:
-                        # 더 약한 제동으로도 충분하면 한 단계 완해 (단, 잔여거리 너무 작으면 금지)
-                        if (cur > 1) and (s_dn <= (rem_now + self.tasc_deadband_m)) and (rem_now >= self.min_relax_m):
-                            if dwell_ok:
-                                st.lever_notch = self._clamp_notch(cur - 1)
-                                self._tasc_last_change_t = st.t
-                        # relax 진입 이후에는 notch 재상향 금지(톤질 방지)
-                        # 마지막은 B1로 정차 유도는 Comfort Relax가 담당, 막판 급완해 없음
+                            if self._tasc_phase == "relax" and not changed:
+                                # 더 약한 제동으로도 충분하면 한 단계 완해
+                                if (cur > 1) and (s_dn <= (rem_now + self.tasc_deadband_m)):
+                                    if dwell_ok:
+                                        # 직전 급완해 금지: 잔여거리가 너무 작으면 B2까지만 허용
+                                        target = cur - 1
+                                        if rem_now < self.min_relax_m and target < 2:
+                                            target = 2
+                                        if target != cur:
+                                            st.lever_notch = self._clamp_notch(target)
+                                            self._tasc_last_change_t = st.t
+                                # relax 이후 재상향 금지(톱질 방지). B1-lock 시점은 별도 조건으로만.
 
         # ====== 동역학 ======
         # 적분 전 상태 저장 (정위치 보정용)
@@ -617,7 +626,7 @@ class StoppingSim:
             else:
                 score += 300
 
-            # 정차시 B1 여부 (TASC가 B1로 미리 완해했다면 +300)
+            # 정차시 B1 여부
             last_notch = self.notch_history[-1] if self.notch_history else 0
             if last_notch == 1:
                 score += 300
