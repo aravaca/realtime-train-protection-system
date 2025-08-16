@@ -307,8 +307,8 @@ class StoppingSim:
                     d_win = 0.8     
                     relax_min = 0.70  
                 elif peak <= 3:
-                    d_win = 1.8     
-                    relax_min = 0.25  
+                    d_win = 2.0     
+                    relax_min = 0.1
                 else:
                     d_win = 1.0
                     relax_min = 0.60
