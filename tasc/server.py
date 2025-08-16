@@ -212,9 +212,9 @@ class StoppingSim:
 
         # 마찰 보정
         if mu < 0.5: # 눈길
-            margin -= 0.15
+            margin += 0.25
         elif mu < 0.8: # 비
-            margin -= 0.10
+            margin += 0.15
 
         # 잔여거리 보정
         if rem_now > 120:
@@ -223,10 +223,10 @@ class StoppingSim:
             margin += 0.06
 
         # 구배 보정
-        if grade > 1.0: # 내리막
+        if grade > 1.0: # 오르막
             margin -= 0.10
-        elif grade < -1.0: # 오르막
-            margin += 0.06
+        elif grade < -1.0: # 내리막
+            margin += 0.10
 
         return margin
 
