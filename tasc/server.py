@@ -495,7 +495,7 @@ class StoppingSim:
             if st.lever_notch in (1, 2): # B1 또는 B2
                 if self.first_brake_start is None:
                     self.first_brake_start = st.t
-                elif (st.t - self.first_brake_start) >= 1.2:
+                elif (st.t - self.first_brake_start) >= 0.8:
                     self.first_brake_done = True
             else:
                 self.first_brake_start = None
