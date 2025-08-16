@@ -465,7 +465,7 @@ class StoppingSim:
         st = self.state
         if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
             return self._need_b5_last
-        s_b4 = self._stopping_distance(4, v)  # B4 정지거리
+        s_b4 = self._stopping_distance(2, v)  # B4 정지거리
         need = s_b4 > (remaining + self.tasc_deadband_m)
         self._need_b5_last = need
         self._need_b5_last_t = st.t
