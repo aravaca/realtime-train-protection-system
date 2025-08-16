@@ -1,4 +1,3 @@
-
 import math
 import json
 import asyncio
@@ -198,6 +197,11 @@ class StoppingSim:
         self.tau_apply_eb = 0.15
         self.tau_release_lowv = 0.8
 
+        # ### [TUNED] 단조/터미널 상태 플래그
+        self._relax_started = False
+        self._no_increase_after_relax = False
+        self._terminal_b1_lock = False
+
     # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
         """
@@ -212,11 +216,9 @@ class StoppingSim:
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
 
         # 저속(5 km/h 이하)에서 공기 제동 살짝 강화
-        
         air_boost = 1.0
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
 
-       
         # ----- 접착 한계 적용 -----
         k_srv = 0.85
         k_eb = 0.98
@@ -230,8 +232,6 @@ class StoppingSim:
         if a_eff <= a_cap + 1e-6:
             scale = 0.90 if v > 8.0 else 0.85
             a_eff = a_cap * scale
-    
- 
         return a_eff
 
     def _grade_accel(self) -> float:
@@ -253,7 +253,46 @@ class StoppingSim:
         alpha = dt / max(1e-6, tau)
         self.brk_accel += (a_cmd - self.brk_accel) * alpha
 
-   
+    # ### [TUNED] 예측기: 실제 동특성(적용/해제 지연)을 포함한 정지거리 추정
+    def _estimate_stop_distance_with_cmd(self, cmd_notch: int, v0: float, a0: float) -> float:
+        """
+        현재 상태(a0, v0)에서 'cmd_notch로 명령'했다고 가정하고
+        제동장치 1차 지연(속도 의존)을 반영해 정지거리 추정.
+        """
+        dt = 0.02
+        v = max(0.0, v0)
+        a_mech = float(a0)  # 현재 장치가 내고있는 제동 가속도(음수)
+        s = 0.0
+
+        # 안전한 상한(현재 남은거리 + 여유)
+        rem_now = self.scn.L - self.state.s
+        limit = float(rem_now + 8.0)
+
+        for _ in range(3000):  # 최대 60s
+            a_cmd = self._effective_brake_accel(cmd_notch, v)
+            # 적용/해제 지연 모사
+            going_stronger = (a_cmd < a_mech)
+            if going_stronger:
+                tau = self.tau_apply_eb if (cmd_notch == self.veh.notches - 1) else self.tau_apply
+            else:
+                tau = self.tau_release_lowv if v < 3.0 else self.tau_release
+            a_mech += (a_cmd - a_mech) * (dt / max(1e-6, tau))
+
+            # 외력
+            a_grade = self._grade_accel()
+            a_dav = self._davis_accel(v)
+
+            a_total = a_mech + a_grade + a_dav
+            # 저크 한계는 예측에선 보수적으로 미적용(실제 step에서 적용됨)
+
+            v = max(0.0, v + a_total * dt)
+            s += v * dt + 0.5 * a_total * dt * dt
+            if v <= 0.01:
+                break
+            if s > limit:
+                break
+        return s
+
     # ----------------- Controls -----------------
 
     def _clamp_notch(self, n: int) -> int:
@@ -322,6 +361,11 @@ class StoppingSim:
         # (추가) 제동장치 상태 초기화
         self.brk_accel = 0.0
 
+        # ### [TUNED]
+        self._relax_started = False
+        self._no_increase_after_relax = False
+        self._terminal_b1_lock = False
+
         if DEBUG:
             print("Simulation reset")
 
@@ -339,45 +383,36 @@ class StoppingSim:
 
     def _estimate_stop_distance(self, notch: int, v0: float) -> float:
         """
-        현재 속도 v0에서 '해당 노치 고정'으로 가정하고 실제 동역학과 동일한 모델로
-        간단 수치적분으로 정지거리 추정. (TASC 예측에 사용)
-        - jerk/명령지연은 생략, 제동 응답 tau_brk는 1차 지연으로 반영
-        - 성능 최적화: 더 큰 dt, 조기 종료
+        (기존 보수예측은 사용하지 않음) 호환용으로 남겨두고,
+        본 TASC는 _estimate_stop_distance_with_cmd를 사용.
         """
-        dt = 0.03 # 더 큰 스텝(≈33Hz)
-        v = max(0.0, v0)
-        a = 0.0
-        s = 0.0
-        tau = max(0.15, self.veh.tau_brk) # 응답 느림 반영
-
-        # 조기 종료용: 현재 정지점까지 남은 거리 + 버퍼
-        rem_now = self.scn.L - self.state.s
-        limit = float(rem_now + 5.0)
-
-        for _ in range(1200): # 최대 ≈36s
-            a_brk = self._effective_brake_accel(notch, v)
-            a_grade = self._grade_accel()
-            a_davis = self._davis_accel(v)
-            a_target = a_brk + a_grade + a_davis
-            # 1차 지연 응답
-            a += (a_target - a) * (dt / tau)
-            # 적분
-            v = max(0.0, v + a * dt)
-            s += v * dt + 0.5 * a * dt * dt
-            if v <= 0.01:
-                break # 정지
-            if s > limit:
-                break # 충분히 큼 → 더 계산하지 않음
-        return s
+        return self._estimate_stop_distance_with_cmd(notch, v0, self.brk_accel)
 
     def _stopping_distance(self, notch: int, v: float) -> float:
-        """보수적 예측: 위의 수치예측 사용"""
         if notch <= 0:
             return float('inf')
-        return self._estimate_stop_distance(notch, v)
+        return self._estimate_stop_distance_with_cmd(notch, v, self.brk_accel)
+
+    # ### [TUNED] 동적 데드밴드/마진
+    def _deadband(self, rem: float) -> float:
+        # 근거리일수록 엄격
+        if rem <= 3.0:
+            return 0.05  # 5cm
+        if rem <= 10.0:
+            return 0.10
+        return self.tasc_deadband_m  # 원값 0.3m
+
+    def _build_margin(self, v: float) -> float:
+        # 속도가 높을수록 너무 일찍 강제 증강하지 않도록 여유를 둠
+        # v[m/s] * 0.18(초) + 0.5m
+        return 0.18 * v + 0.5
+
+    def _relax_margin(self, v: float) -> float:
+        # 완해는 보수적으로(약간만 조건 맞아도 낮춰서 톱질 방지)
+        return 0.08 * v + 0.15
 
     def _tasc_predict(self, cur_notch: int, v: float):
-        """TASC 정지거리 예측 스로틀링 + 캐시"""
+        """TASC 정지거리 예측 스로틀링 + 캐시 (동특성 반영 예측 사용)"""
         st = self.state
         need = False
         if (st.t - self._tasc_last_pred_t) >= self._tasc_pred_interval:
@@ -392,9 +427,16 @@ class StoppingSim:
                     self._tasc_pred_cache["s_dn"])
 
         max_normal_notch = self.veh.notches - 2
-        s_cur = self._stopping_distance(cur_notch, v) if cur_notch > 0 else float('inf')
-        s_up = self._stopping_distance(cur_notch + 1, v) if cur_notch + 1 <= max_normal_notch else 0.0
-        s_dn = self._stopping_distance(cur_notch - 1, v) if cur_notch - 1 >= 1 else float('inf')
+        a0 = self.brk_accel
+
+        # 현재 유지 / 한 단계 강화 / 한 단계 완해 각각을 실제 동특성으로 예측
+        s_cur = self._estimate_stop_distance_with_cmd(cur_notch, v, a0) if cur_notch > 0 else float('inf')
+        s_up = self._estimate_stop_distance_with_cmd(
+            min(cur_notch + 1, max_normal_notch), v, a0
+        ) if cur_notch + 1 <= max_normal_notch else 0.0
+        s_dn = self._estimate_stop_distance_with_cmd(
+            max(cur_notch - 1, 1), v, a0
+        ) if cur_notch - 1 >= 1 else float('inf')
 
         self._tasc_pred_cache.update({"t": st.t, "v": v, "notch": cur_notch,
                                       "s_cur": s_cur, "s_up": s_up, "s_dn": s_dn})
@@ -454,37 +496,73 @@ class StoppingSim:
                     self._tasc_last_change_t = st.t # 활성화 시각
 
             if self.tasc_active:
+                # ### [TUNED] 터미널 B1 락(잔여 2m 이내) + 상향 금지
+                if rem_now <= 2.0:
+                    if cur > 1 and dwell_ok:
+                        st.lever_notch = 1
+                        self._tasc_last_change_t = st.t
+                    self._terminal_b1_lock = True
+                    self._no_increase_after_relax = True
+
                 # (B) 초제동 유지: 활성화 이후에만 B1/B2를 2초간 강제
                 if not self.first_brake_done:
                     desired = 2 if speed_kmh >= 70.0 else 1
+                    # 코스팅 금지: 최소 B1 유지
+                    desired = max(1, desired)
                     if dwell_ok and cur != desired:
                         step = 1 if desired > cur else -1
                         st.lever_notch = self._clamp_notch(cur + step)
                         self._tasc_last_change_t = st.t
                 else:
-                    # (C) 빌드/릴렉스 로직 (기존 유지)
+                    # (C) 빌드/릴렉스 로직 (정밀 튜닝)
                     s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
 
-                    changed = False
+                    db = self._deadband(rem_now)
+                    build_margin = self._build_margin(st.v)
+                    relax_margin = self._relax_margin(st.v)
 
-                    if self._tasc_phase == "build":
-                        # 더 강한 제동이 필요하면 한 단계 강화
-                        if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
-                            if dwell_ok:
-                                st.lever_notch = self._clamp_notch(cur + 1)
-                                self._tasc_last_change_t = st.t
-                                self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
-                                changed = True
+                    # 현재 B1 전환이 안전/정확한지 점검
+                    s_b1 = self._estimate_stop_distance_with_cmd(1, st.v, self.brk_accel)
+
+                    # ### [TUNED] 빌드 단계: 너무 이르게 무겁게 가지 않도록 마진 적용
+                    if self._tasc_phase == "build" and not self._terminal_b1_lock:
+                        # 필요할 때만 한 단계 강화 (상향은 relax 시작 후 금지될 수 있음)
+                        if (cur < max_normal_notch) and (not self._no_increase_after_relax):
+                            if s_cur > (rem_now + build_margin):
+                                if dwell_ok:
+                                    st.lever_notch = self._clamp_notch(cur + 1)
+                                    self._tasc_last_change_t = st.t
+                                    self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
+                            else:
+                                # 충분히 맞아떨어지면 relax로 전환
+                                self._tasc_phase = "relax"
+
+                    # ### [TUNED] 릴랙스 단계: 단조 하강 + B1 스나이프
+                    if self._tasc_phase == "relax":
+                        self._relax_started = True
+
+                        # B1로 정확히 맞출 수 있으면 즉시 B1, 이후 상향 금지
+                        if (abs(s_b1 - rem_now) <= max(db, 0.10)) and (cur != 1) and dwell_ok:
+                            st.lever_notch = 1
+                            self._tasc_last_change_t = st.t
+                            self._no_increase_after_relax = True
+
                         else:
-                            # 충분히 맞아떨어지면 relax로 전환
-                            self._tasc_phase = "relax"
+                            # 일반 완해: 한 단계씩만 낮추며 톱질 방지
+                            if cur > 1 and (s_dn <= (rem_now + relax_margin)):
+                                if dwell_ok:
+                                    st.lever_notch = self._clamp_notch(cur - 1)
+                                    self._tasc_last_change_t = st.t
+                                    # 일단 한 번 완해가 시작되면 상향 금지(단조성 보장)
+                                    self._no_increase_after_relax = True
 
-                    if self._tasc_phase == "relax" and not changed:
-                        # 더 약한 제동으로도 충분하면 한 단계 완해
-                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m + 0.1):
-                            if dwell_ok:
-                                st.lever_notch = self._clamp_notch(cur - 1)
-                                self._tasc_last_change_t = st.t
+                        # 상향 금지 강제
+                        if self._no_increase_after_relax and st.lever_notch > cur:
+                            st.lever_notch = cur  # 되올림 차단
+
+                        # 코스팅 금지: 최소 B1
+                        if st.lever_notch < 1:
+                            st.lever_notch = 1
 
         # ====== 동역학 ======
         # (수정) 제동 명령 → 제동장치 동역학 추종(느리게)
