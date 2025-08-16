@@ -223,9 +223,9 @@ class StoppingSim:
             margin += 0.06
 
         # 구배 보정
-        if grade > 1.0: # 오르막
+        if grade >= 1.0: # 오르막
             margin -= 0.10
-        elif grade < -1.0: # 내리막
+        elif grade <= -1.0: # 내리막
             margin += 0.10
 
         return margin
@@ -257,13 +257,13 @@ class StoppingSim:
             error_m = rem_now - s_b1_nominal
 
             # P게인: 0.16~0.22 권장
-            k_base, k_near = 0.20, 0.08
+            k_base, k_near = 0.25, 0.08
             scale = min(1.0, max(0.0, abs(error_m) / 0.8))
             k = k_near + (k_base - k_near) * scale
 
             # I게인: 잔여오차 제거(누수 포함)
             dt_sim = max(1e-3, self.scn.dt)
-            ki, leak = 0.35, 0.985
+            ki, leak = 0.4, 0.985
             self._b1_i = (self._b1_i * leak) + (ki * error_m * dt_sim)
             self._b1_i = max(-0.25, min(0.60, self._b1_i))
 
@@ -300,8 +300,8 @@ class StoppingSim:
         # 남은 거리 0.8m → 1.0배(완화 없음), 0m → 0.7배(30% 완화)로 선형 보간
         if self.state is not None and (not self.state.finished):
             rem_now = max(0.0, self.scn.L - self.state.s)
-            if rem_now <= 0.8 and notch >= 1:
-                relax = 0.7 + 0.3 * (rem_now / 0.8)  # [0.7, 1.0]
+            if rem_now <= 1.0 and notch >= 1:
+                relax = 0.5 + 0.5 * (rem_now / 1.0)  # [0.5, 1.0]
                 a_eff *= relax
 
         return a_eff
@@ -495,7 +495,7 @@ class StoppingSim:
             if st.lever_notch in (1, 2): # B1 또는 B2
                 if self.first_brake_start is None:
                     self.first_brake_start = st.t
-                elif (st.t - self.first_brake_start) >= 0.8:
+                elif (st.t - self.first_brake_start) >= 1.0:
                     self.first_brake_done = True
             else:
                 self.first_brake_start = None
