@@ -147,7 +147,7 @@ class StoppingSim:
         self.notch_history: List[int] = []
         self.time_history: List[float] = []
 
-        # 초제동(B1/B2) 판정
+        # 초기 제동(B1/B2) 판정
         self.first_brake_start = None
         self.first_brake_done = False
 
@@ -191,9 +191,10 @@ class StoppingSim:
         # 예측 중 재귀 방지 플래그
         self._in_predict = False
 
-        # B1 미세조정 스무딩 상태
+        # B1 미세조정 스무딩/적분 상태
         self._b1_air_boost_state = 1.0  # 내부 상태 (LPF)
         self._b1_last_t = 0.0
+        self._b1_i = 0.0               # B1 미세조정용 적분 바이어스
 
     # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
@@ -206,36 +207,45 @@ class StoppingSim:
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
 
         speed_kmh = v * 3.6
-        air_boost_base = 0.70 if speed_kmh <= 3.0 else 1.0
+        air_boost_base = 0.72 if speed_kmh <= 3.0 else 1.0  # 초저속에서 살짝 약화 기반
 
         air_boost = air_boost_base
 
-        # --- B1 notch 미세조정 (롱 B1 제동, 0cm 근접 정위치) ---
+        # --- B1 notch 미세조정 (롱 B1 정차, 0cm 근접) ---
         # 예측 적분중(_in_predict=True)에는 비활성화 → 재귀/프리즈 방지
         if notch == 1 and (not self._in_predict) and self.state is not None:
             rem_now = self.scn.L - self.state.s
 
-            # B1 정지거리 예측 (세이프티마진 제거해서 편향 완화)
-            s_b1 = self._stopping_distance(1, v)
-            s_b1 -= SAFETY_MARGIN
+            # B1 정지거리 예측 (미세조정용은 마진 제거해 편향 최소화)
+            s_b1 = self._stopping_distance(1, v) - SAFETY_MARGIN
 
-            # +: 언더런 경향(남은 거리가 더 김) → 제동을 약하게;  -: 오버런 → 제동 강하게
+            # +: 언더런(남은 거리가 더 김) → 제동 약화,  -: 오버런 → 제동 강화
             error_m = (rem_now - s_b1)
 
-            # 0cm 가까울수록 감도를 낮춰 부드럽게 수렴
-            # |error|=0.8m 이상이면 k≈k_base, 0에 가까우면 k≈k_near
+            # (A) 비례(P): 0cm 가까울수록 감도 낮춰 부드럽게
             k_base = 0.20
             k_near = 0.08
-            scale = min(1.0, max(0.0, abs(error_m) / 0.8))
+            scale = min(1.0, max(0.0, abs(error_m) / 0.8))  # |error|가 0.8m 이상이면 최대 감도
             k = k_near + (k_base - k_near) * scale
 
-            adjust = 1.0 - k * error_m            # error>0(언더런) → adjust<1 → 약한 제동
-            target_boost = max(0.28, min(1.3, adjust))
-
-            # 부드러운 변화(저크 저감): LPF
-            # 업데이트 주기 기반 알파 (대략 50~200ms에 절반 정도 따라가게)
+            # (B) 적분(I): 잔여 오차 누적 보정 (언더런 지속되면 자동으로 더 약하게)
             dt_sim = max(1e-3, self.scn.dt)
-            alpha = min(0.6, dt_sim / 0.025)  # dt=0.005 → alpha=0.1
+            ki = 0.35
+            leak = 0.985
+            self._b1_i = (self._b1_i * leak) + (ki * error_m * dt_sim)
+            self._b1_i = max(-0.25, min(0.60, self._b1_i))  # 바이어스 클램프
+
+            # 목표 부스트 = (P 보정) × (I 바이어스)
+            adjust = 1.0 - k * error_m            # error>0(언더런) → adjust<1 → 제동 약화
+            target_boost = max(0.25, min(1.35, adjust))
+            target_boost *= (1.0 + self._b1_i)
+
+            # (C) 마지막 1.5 m 극미세 보정 (매우 부드럽게)
+            if rem_now < 1.5 and v < 1.2:
+                target_boost = max(0.22, target_boost - 0.06)
+
+            # (D) 스무딩(LPF) – 반응은 빠르되 급격한 변동은 억제
+            alpha = min(0.65, dt_sim / 0.022)  # dt=0.005 → ≈0.227
             self._b1_air_boost_state += alpha * (target_boost - self._b1_air_boost_state)
 
             air_boost *= self._b1_air_boost_state
@@ -339,9 +349,10 @@ class StoppingSim:
         # 제동장치 상태 리셋
         self.brk_accel = 0.0
 
-        # B1 미세조정 LPF 리셋
+        # B1 미세조정 상태 리셋
         self._b1_air_boost_state = 1.0
         self._b1_last_t = 0.0
+        self._b1_i = 0.0
 
         if DEBUG:
             print("Simulation reset")
@@ -419,7 +430,7 @@ class StoppingSim:
         st = self.state
         if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
             return self._need_b5_last
-        s4 = self._stopping_distance(2, v)  # 원 코드 베이스 유지
+        s4 = self._stopping_distance(2, v)  # 원 코드 베이스 유지 (index: B3=2, B4=3 등인 구조면 조정)
         need = s4 > (remaining + self.tasc_deadband_m)
         self._need_b5_last = need
         self._need_b5_last_t = st.t
@@ -515,6 +526,12 @@ class StoppingSim:
         st.v = max(0.0, st.v + st.a * dt)
         st.s += st.v * dt + 0.5 * st.a * dt * dt
         st.t += dt
+
+        # B1이 아니면 적분 바이어스 천천히 소거 (드리프트 방지)
+        if st.lever_notch != 1 or st.finished:
+            self._b1_i *= 0.9
+            if abs(self._b1_i) < 1e-3:
+                self._b1_i = 0.0
 
         # 종료 판정
         rem = self.scn.L - st.s
@@ -757,6 +774,7 @@ async def ws_endpoint(ws: WebSocket):
 
                     elif name == "setMassTons":
                         mass_tons = float(payload.get("mass_tons", 200.0))
+                        # 차량 1량 질량 갱신(정보 목적), 총질량은 mass_kg에 반영
                         vehicle.mass_t = mass_tons / int(payload.get("length", 8))
                         vehicle.mass_kg = mass_tons * 1000.0
                         if DEBUG:
