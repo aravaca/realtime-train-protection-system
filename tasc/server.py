@@ -296,13 +296,26 @@ class StoppingSim:
         if a_eff <= a_cap + 1e-6:
             a_eff = a_cap * (0.90 if v > 8.0 else 0.85)
 
-        # --- 저속 크리핑(마지막 0.8 m 구간에서 감속 최대 30% 완화) ---
-        # 남은 거리 0.8m → 1.0배(완화 없음), 0m → 0.7배(30% 완화)로 선형 보간
+        # --- 저속 크리핑: B1에서만, 패턴 강도(피크 노치)에 따라 가변 완화 ---
         if self.state is not None and (not self.state.finished):
             rem_now = max(0.0, self.scn.L - self.state.s)
-            if self.state.lever_notch == 1 and rem_now <= 1.0 and notch >= 1:
-                relax = 0.5 + 0.5 * (rem_now / 1.0)  # [0.6, 1.0]
-                a_eff *= relax
+            if self.state.lever_notch == 1 and v < 1.2:
+        # 피크 노치 추정: TASC/수동 모두 커버
+                peak = max(getattr(self, "_tasc_peak_notch", 1), max(self.notch_history or [0]))
+        # 가변 파라미터 설정
+                if peak >= 5:
+                    d_win = 0.8     # 완화 시작 거리(짧게)
+                    relax_min = 0.70  # 최종 완화 최소치(작게 완화 = 제동 더 큼)
+                elif peak <= 3:
+                    d_win = 1.2     # 완화 시작 거리(길게)
+                    relax_min = 0.45  # 최종 완화 최소치(더 크게 완화 = 제동 덜 큼)
+                else:
+                    d_win = 1.0
+                    relax_min = 0.60
+
+               if rem_now <= d_win:
+                    relax = relax_min + (1.0 - relax_min) * (rem_now / d_win)  # [relax_min, 1.0]
+                    a_eff *= relax
 
         return a_eff
 
