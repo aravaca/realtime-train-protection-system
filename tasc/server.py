@@ -300,7 +300,7 @@ class StoppingSim:
         # 남은 거리 0.8m → 1.0배(완화 없음), 0m → 0.7배(30% 완화)로 선형 보간
         if self.state is not None and (not self.state.finished):
             rem_now = max(0.0, self.scn.L - self.state.s)
-            if rem_now <= 1.0 and notch >= 1:
+            if self.state.lever_notch == 1 and rem_now <= 1.0 and notch >= 1:
                 relax = 0.5 + 0.5 * (rem_now / 1.0)  # [0.5, 1.0]
                 a_eff *= relax
 
