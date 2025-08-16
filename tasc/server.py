@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 # ------------------------------------------------------------
 # Config
 # ------------------------------------------------------------
-DEBUG = False # 디버그 로그를 보고 싶으면 True
+DEBUG = False  # 디버그 로그를 보고 싶으면 True
 
 # ------------------------------------------------------------
 # Data classes
@@ -33,12 +33,10 @@ class Vehicle:
     tau_brk: float = 0.250
     mass_kg: float = 200000.0
 
-    # Davis 계수 (열차 전체)
     A0: float = 1200.0
     B1: float = 30.0
     C2: float = 8.0
 
-    # 공기계수 등
     C_rr: float = 0.005
     rho_air: float = 1.225
     Cd: float = 1.8
@@ -190,12 +188,12 @@ class StoppingSim:
     def _effective_brake_accel(self, notch: int, v: float) -> float:
         if notch >= len(self.veh.notch_accels):
             return 0.0
-        base = float(self.veh.notch_accels[notch]) 
+        base = float(self.veh.notch_accels[notch])
 
         blend_cutoff_speed = 40.0 / 3.6
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
         speed_kmh = v * 3.6
-        air_boost = 0.72 if speed_kmh <= 3.0 else 1.0 
+        air_boost = 0.72 if speed_kmh <= 3.0 else 1.0
 
         if notch == 1 and (not self._in_predict) and self.state is not None and (not self.state.finished):
             rem_now = self.scn.L - self.state.s
@@ -218,7 +216,7 @@ class StoppingSim:
             if rem_now < 1.5 and v < 1.2:
                 target_boost = max(0.28, target_boost - 0.04)
 
-            alpha = min(0.65, dt_sim / 0.022) 
+            alpha = min(0.65, dt_sim / 0.022)
             self._b1_air_boost_state += alpha * (target_boost - self._b1_air_boost_state)
             air_boost *= self._b1_air_boost_state
 
@@ -256,7 +254,7 @@ class StoppingSim:
 
     # ------ stopping distance helpers ------
     def _estimate_stop_distance(self, notch: int, v0: float, include_margin: bool = True) -> float:
-        dt = 0.01  # 더 정밀한 예측
+        dt = 0.01
         v = max(0.0, v0)
         a = 0.0
         s = 0.0
@@ -265,8 +263,8 @@ class StoppingSim:
 
         self._in_predict = True
         try:
-            for _ in range(5000): 
-                a_brk = self._effective_brake_accel(notch, v) 
+            for _ in range(5000):
+                a_brk = self._effective_brake_accel(notch, v)
                 a_grade = self._grade_accel()
                 a_davis = self._davis_accel(v)
                 a_target = a_brk + a_grade + a_davis
@@ -304,7 +302,7 @@ class StoppingSim:
         self.notch_history.append(st.lever_notch)
         self.time_history.append(st.t)
         if not self.first_brake_done:
-            if st.lever_notch in (1, 2): 
+            if st.lever_notch in (1, 2):
                 if self.first_brake_start is None:
                     self.first_brake_start = st.t
                 elif (st.t - self.first_brake_start) >= 1.0:
@@ -312,8 +310,7 @@ class StoppingSim:
             else:
                 self.first_brake_start = None
 
-        # ====== 동역학 ======
-        a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v) 
+        a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v)
         is_eb = (st.lever_notch == self.veh.notches - 1)
         self._update_brake_dyn(a_cmd_brake, st.v, is_eb, dt)
 
@@ -394,6 +391,7 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
+
 # ------------------------------------------------------------
 # FastAPI app
 # ------------------------------------------------------------
@@ -412,4 +410,14 @@ async def ws_endpoint(ws: WebSocket):
     await ws.accept()
 
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    vehicle_json_path = os.path.join(BASE_DIR, "vehicle
+    vehicle_json_path = os.path.join(BASE_DIR, "vehicle.json")
+    scenario_json_path = os.path.join(BASE_DIR, "scenario.json")
+
+    vehicle = Vehicle.from_json(vehicle_json_path)
+    vehicle.notch_accels = list(reversed(vehicle.notch_accels))
+    scenario = Scenario.from_json(scenario_json_path)
+
+    sim = StoppingSim(vehicle, scenario)
+    sim.start()
+
+    last_sim_time = time.per
