@@ -274,7 +274,7 @@ class StoppingSim:
 
             # 마지막 1.5 m에서 약간 더 약화해 착지감 확보
             if rem_now < 1.5 and v < 1.2:
-                target_boost = max(0.22, target_boost - 0.06)
+                target_boost = max(0.28, target_boost - 0.04)
 
             # 스무딩(LPF)
             alpha = min(0.65, dt_sim / 0.022) # dt=0.005 → ~0.227
