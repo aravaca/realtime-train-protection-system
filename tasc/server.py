@@ -300,21 +300,21 @@ class StoppingSim:
         if self.state is not None and (not self.state.finished):
             rem_now = max(0.0, self.scn.L - self.state.s)
             if self.state.lever_notch == 1 and v < 1.2:
-        # 피크 노치 추정: TASC/수동 모두 커버
+        
                 peak = max(getattr(self, "_tasc_peak_notch", 1), max(self.notch_history or [0]))
         # 가변 파라미터 설정
                 if peak >= 5:
-                    d_win = 0.8     # 완화 시작 거리(짧게)
-                    relax_min = 0.70  # 최종 완화 최소치(작게 완화 = 제동 더 큼)
+                    d_win = 0.8     
+                    relax_min = 0.70  
                 elif peak <= 3:
-                    d_win = 1.2     # 완화 시작 거리(길게)
-                    relax_min = 0.45  # 최종 완화 최소치(더 크게 완화 = 제동 덜 큼)
+                    d_win = 1.2     
+                    relax_min = 0.45  
                 else:
                     d_win = 1.0
                     relax_min = 0.60
 
-               if rem_now <= d_win:
-                    relax = relax_min + (1.0 - relax_min) * (rem_now / d_win)  # [relax_min, 1.0]
+                if rem_now <= d_win:
+                    relax = relax_min + (1.0 - relax_min) * (rem_now / d_win) 
                     a_eff *= relax
 
         return a_eff
