@@ -230,14 +230,35 @@ class StoppingSim:
             a_eff = a_cap * scale
     
         v_kmh = v * 3.6
-        if notch == 1:  # B1에만 적용
-        # 8→0 km/h 구간에서 선형으로 감속 상한을 -0.18→-0.08로 줄이기
+        if notch == 1:
+        # 1) 속도 비례형(점성형) 부드러운 랜딩: a_soft = -v / T
+        #   T를 키우면 더 부드럽게(감속 작게), 줄이면 더 강하게(감속 크게)
+            T = 1.2  # 1.0~1.5 s 사이 권장; 더 부드럽게 하려면 1.3~1.5
+            a_soft = -v / max(0.3, T)   # [m/s²], v[m/s]
+
+        # 2) 저속 구간에서만 적용 (너무 일찍부터 약해지지 않게)
+            if v_kmh < 9.0:
+            # a_soft를 너무 세지 않게 상한/하한(=안전망) 설정
+                a_soft = max(a_soft, -0.12)   # 과도하게 약해져 크리프 방지용 하한
+                a_soft = min(a_soft, -0.02)   # 지나치게 약하게 되는 것 제한(원하면 제거)
+
+            # 3) 기존 계산된 a_eff(더 강한 감속)와 비교해 "더 부드러운 쪽"을 채택
+            #   a_eff, a_soft 모두 음수이므로 max()가 '절대값이 더 작은' 쪽을 선택
+                a_eff = max(a_eff, a_soft)
+
+        # 4) (선택) 아주 마지막 1m에서 살짝만 당겨 마감 (질질 끄는 크리프 억제)
+            rem = self.scn.L - self.state.s
+            if rem < 1.0:
+                a_eff = max(a_eff, -0.10)  # 너무 미약하면 -0.10 정도로 살짝 눌러 마감
+
+        # 5) 원한다면 기존 선형 테이퍼 cap은 "안전망"으로만 약하게 유지
+        #    (너무 세다고 느끼신다면 a_lo 절대값을 더 줄이세요: -0.08~-0.06)
             v1, v0 = 6.0, 0.0
-            a_hi, a_lo = -0.18, -0.08   # 취향에 맞게 조절
+            a_hi, a_lo = -0.17, -0.06   # 이전보다 더 부드럽게
             if v_kmh < v1:
-                w = max(0.0, min(1.0, (v_kmh - v0)/(v1 - v0)))
-                a_cap_soft = a_lo + (a_hi - a_lo) * w  # 속도 내려갈수록 상한 완화
-                a_eff = max(a_eff, a_cap_soft)  # 더 완만하게(절대값 감소)
+                w = max(0.0, min(1.0, (v_kmh - v0) / (v1 - v0)))
+                a_cap_soft = a_lo + (a_hi - a_lo) * w
+                a_eff = max(a_eff, a_cap_soft)
         return a_eff
 
     def _grade_accel(self) -> float:
