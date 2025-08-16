@@ -274,7 +274,7 @@ class StoppingSim:
 
             # 마지막 1.5 m에서 약간 더 약화해 착지감 확보
             if rem_now < 1.5 and v < 1.2:
-                target_boost = max(0.32, target_boost - 0.04)
+                target_boost = max(0.28, target_boost - 0.04)
 
             # 스무딩(LPF)
             alpha = min(0.65, dt_sim / 0.022) # dt=0.005 → ~0.227
@@ -541,7 +541,7 @@ class StoppingSim:
 
                     if self._tasc_phase == "relax" and not changed:
                         # 더 약한 제동으로도 충분하면 한 단계 완해
-                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m - 0.2):
+                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m - 0.1):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
