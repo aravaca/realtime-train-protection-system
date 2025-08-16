@@ -228,7 +228,16 @@ class StoppingSim:
         if a_eff <= a_cap + 1e-6:
             scale = 0.90 if v > 8.0 else 0.85
             a_eff = a_cap * scale
-
+    
+        v_kmh = v * 3.6
+        if notch == 1:  # B1에만 적용
+        # 8→0 km/h 구간에서 선형으로 감속 상한을 -0.18→-0.08로 줄이기
+            v1, v0 = 8.0, 0.0
+            a_hi, a_lo = -0.18, -0.08   # 취향에 맞게 조절
+            if v_kmh < v1:
+                w = max(0.0, min(1.0, (v_kmh - v0)/(v1 - v0)))
+                a_cap_soft = a_lo + (a_hi - a_lo) * w  # 속도 내려갈수록 상한 완화
+                a_eff = max(a_eff, a_cap_soft)  # 더 완만하게(절대값 감소)
         return a_eff
 
     def _grade_accel(self) -> float:
