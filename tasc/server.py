@@ -208,7 +208,7 @@ class StoppingSim:
         grade = self.scn.grade_percent
 
         # 기본값(맑은 날 기준 보정)
-        margin = -0.2
+        margin = -2.0
 
         # 마찰 보정
         if mu < 0.5: # 눈길
