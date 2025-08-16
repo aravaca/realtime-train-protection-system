@@ -172,6 +172,9 @@ class StoppingSim:
         self._tasc_peak_notch = 1
         self.tasc_armed = False
         self.tasc_active = False
+        # __init__ 안 어딘가 TASC 관련 설정들 아래에
+        self.tasc_target_bias_m = 0.35  # +면 ‘목표를 조금 더 앞으로 가게’ 만듦(언더런 교정)
+
 
         # 날씨 코스팅 영향
         self.rr_factor = _mu_to_rr_factor(self.scn.mu)
@@ -213,6 +216,8 @@ class StoppingSim:
         # 저속(5 km/h 이하)에서 공기 제동 살짝 강화
         
         air_boost = 1.0
+        if v < (5.0/3.6):
+            air_boost = 0.92  # 저속에서 공기제동을 살~짝 약화 → 덜 일찍 선다
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
 
        
@@ -432,7 +437,7 @@ class StoppingSim:
             if st.lever_notch in (1, 2): # B1 또는 B2
                 if self.first_brake_start is None:
                     self.first_brake_start = st.t
-                elif (st.t - self.first_brake_start) >= 2.0: # 2초로 연장
+                elif (st.t - self.first_brake_start) >= 1.2: # 1.2초로 연장
                     self.first_brake_done = True
             else:
                 self.first_brake_start = None
@@ -468,7 +473,7 @@ class StoppingSim:
 
                     if self._tasc_phase == "build":
                         # 더 강한 제동이 필요하면 한 단계 강화
-                        if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
+                        if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m + self.tasc_target_bias_m):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur + 1)
                                 self._tasc_last_change_t = st.t
@@ -480,7 +485,7 @@ class StoppingSim:
 
                     if self._tasc_phase == "relax" and not changed:
                         # 더 약한 제동으로도 충분하면 한 단계 완해
-                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m + 0.1):
+                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m + 0.1 + self.tasc_target_bias_m):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
