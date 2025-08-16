@@ -165,7 +165,7 @@ class StoppingSim:
         # ---------- TASC ----------
         self.tasc_enabled = False
         self.manual_override = False
-        self.tasc_deadband_m = 0.3
+        self.tasc_deadband_m = 1.0
         self.tasc_hold_min_s = 0.20
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
@@ -217,7 +217,7 @@ class StoppingSim:
         
         air_boost = 1.0
         if v < (5.0/3.6):
-            air_boost = 0.92  # 저속에서 공기제동을 살~짝 약화 → 덜 일찍 선다
+            air_boost = 0.8  # 저속에서 공기제동을 살~짝 약화 → 덜 일찍 선다
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
 
        
@@ -372,7 +372,7 @@ class StoppingSim:
                 break # 정지
             if s > limit:
                 break # 충분히 큼 → 더 계산하지 않음
-        return s
+        return s+ 0.3
 
     def _stopping_distance(self, notch: int, v: float) -> float:
         """보수적 예측: 위의 수치예측 사용"""
