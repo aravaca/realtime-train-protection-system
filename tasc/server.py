@@ -301,7 +301,7 @@ class StoppingSim:
         if self.state is not None and (not self.state.finished):
             rem_now = max(0.0, self.scn.L - self.state.s)
             if self.state.lever_notch == 1 and rem_now <= 1.0 and notch >= 1:
-                relax = 0.6 + 0.4 * (rem_now / 1.0)  # [0.6, 1.0]
+                relax = 0.5 + 0.5 * (rem_now / 1.0)  # [0.6, 1.0]
                 a_eff *= relax
 
         return a_eff
@@ -541,7 +541,7 @@ class StoppingSim:
 
                     if self._tasc_phase == "relax" and not changed:
                         # 더 약한 제동으로도 충분하면 한 단계 완해
-                        if cur > 1 and s_dn <= (rem_now - 0.05):
+                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m - 0.2):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
