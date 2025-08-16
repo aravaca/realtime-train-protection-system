@@ -191,10 +191,10 @@ class StoppingSim:
 
         # ---------- 제동장치 동역학 ----------
         self.brk_accel = 0.0
-        self.tau_apply = 0.35
+        self.tau_apply = 0.25
         self.tau_release = 0.8
         self.tau_apply_eb = 0.15
-        self.tau_release_lowv = 1.20
+        self.tau_release_lowv = 0.8
 
     # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
