@@ -230,30 +230,7 @@ class StoppingSim:
             scale = 0.90 if v > 8.0 else 0.85
             a_eff = a_cap * scale
     
-        # --- Low-speed smooth landing (B1 전용) ---
-        v_kmh = v * 3.6
-        if notch == 1:
-    # 0~9 km/h 구간에서만 작동
-            if v_kmh < 9.0:
-                v1 = 9.0  # 적용 상한 속도
-        # T를 속도에 따라 1.6s ~ 2.6s로 선형 증가 (끝으로 갈수록 더 늘어짐)
-                T_base = 2.6
-                T_gain = 1.3   # 1.0 → 필요하면 1.3 정도까지
-                w = 1.0 - max(0.0, min(1.0, v_kmh / v1))   # 9→0 km/h에서 0→1
-                T = T_base + T_gain * w                    # 1.6→2.6 s
-        
-                a_soft = -v / max(0.3, T)  # 점성형 완화
-
-        # 안전망(너무 약하면 질질 끌림)
-                a_soft = max(a_soft, -0.08)   # 하한 더 약하게 (기존 -0.10에서 완화)
-        # a_soft = min(a_soft, -0.015)  # 상한도 더 약하게 하고 싶으면 사용
-
-                a_eff = max(a_eff, a_soft)
-
-        # 마지막 1m에서 '살짝만' 눌러 마감 (너무 늘어지면 이 줄을 주석처리)
-                rem = self.scn.L - self.state.s
-                if rem < 1.0:
-                    a_eff = max(a_eff, -0.09)  # 기존 -0.10 → -0.09로 더 부드럽게
+ 
         return a_eff
 
     def _grade_accel(self) -> float:
@@ -432,7 +409,7 @@ class StoppingSim:
         st = self.state
         if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
             return self._need_b5_last
-        s4 = self._stopping_distance(1, v)  # B4 정지거리만 계산
+        s4 = self._stopping_distance(3, v)  # B4 정지거리만 계산
         need = s4 > (remaining + self.tasc_deadband_m)
         self._need_b5_last = need
         self._need_b5_last_t = st.t
