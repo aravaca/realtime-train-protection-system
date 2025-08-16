@@ -436,7 +436,10 @@ class StoppingSim:
                 a_grade = self._grade_accel()
                 a_davis = self._davis_accel(v)
                 a_target = a_brk + a_grade + a_davis
-                a += (a_target - a) * (dt / tau)
+                da = a_target - a
+                max_da = self.veh.j_max * dt
+                da = min(max_da, max(-max_da, da))
+                a += da
                 v = max(0.0, v + a * dt)
                 s += v * dt + 0.5 * a * dt * dt
                 if v <= 0.01 or s > limit:
