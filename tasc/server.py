@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 # Config
 # ------------------------------------------------------------
 DEBUG = False  # 디버그 로그를 보고 싶으면 True
-SAFETY_MARGIN = 0  # 정지거리 예측 보수 마진 (m)
+SAFETY_MARGIN = -1  # 정지거리 예측 보수 마진 (m)
 
 # ------------------------------------------------------------
 # Data classes
