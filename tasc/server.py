@@ -113,7 +113,6 @@ class State:
 # ------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------
-
 def build_vref(L: float, a_ref: float):
     def vref(s: float):
         rem = max(0.0, L - s)
@@ -128,18 +127,17 @@ def _mu_to_rr_factor(mu: float) -> float:
 # ------------------------------------------------------------
 # Simulator
 # ------------------------------------------------------------
-
 class StoppingSim:
     def __init__(self, veh: Vehicle, scn: Scenario):
         self.veh = veh
         self.scn = scn
-        self.state = State(t=0.0, s=0.0, v=scn.v0, a=0.0, lever_notch=0, finished=False)
+        self.state = State(t=0.0, s=0.0, v=scn.v0, a=0.0,
+                           lever_notch=0, finished=False)
         self.running = False
         self.vref = build_vref(scn.L, 0.75 * veh.a_max)
         self._cmd_queue = deque()
 
         self.eb_used = False
-
         self.notch_history: List[int] = []
         self.time_history: List[float] = []
 
@@ -195,9 +193,10 @@ class StoppingSim:
         speed_kmh = v * 3.6
         air_boost = 0.72 if speed_kmh <= 3.0 else 1.0
 
-        if notch == 1 and (not self._in_predict) and self.state is not None and (not self.state.finished):
+        # --- B1 미세조정 (예측 중에도 동일 적용) ---
+        if notch == 1 and self.state is not None and (not self.state.finished):
             rem_now = self.scn.L - self.state.s
-            s_b1_nominal = self._estimate_stop_distance(1, v, include_margin=False)
+            s_b1_nominal = 0.0  # 실제 예측과 일치시키므로 margin 없음
             error_m = rem_now - s_b1_nominal
 
             k_base, k_near = 0.25, 0.08
@@ -252,9 +251,14 @@ class StoppingSim:
         alpha = dt / max(1e-6, tau)
         self.brk_accel += (a_cmd - self.brk_accel) * alpha
 
-    # ------ stopping distance helpers ------
+
+# ------ stopping distance helpers ------
     def _estimate_stop_distance(self, notch: int, v0: float, include_margin: bool = True) -> float:
-        dt = 0.01
+        """
+        실제 step과 동일한 동역학 모델로 정지거리 예측.
+        margin 등 보정은 제거함.
+        """
+        dt = 0.01  # 예측용 타임스텝
         v = max(0.0, v0)
         a = 0.0
         s = 0.0
@@ -263,7 +267,7 @@ class StoppingSim:
 
         self._in_predict = True
         try:
-            for _ in range(5000):
+            for _ in range(5000):  # 최대 50초분 예측
                 a_brk = self._effective_brake_accel(notch, v)
                 a_grade = self._grade_accel()
                 a_davis = self._davis_accel(v)
@@ -296,11 +300,14 @@ class StoppingSim:
         st = self.state
         dt = self.scn.dt
 
+        # 예약된 명령 처리
         while self._cmd_queue and self._cmd_queue[0]["t"] <= st.t:
             self._apply_command(self._cmd_queue.popleft())
 
+        # notch 기록
         self.notch_history.append(st.lever_notch)
         self.time_history.append(st.t)
+
         if not self.first_brake_done:
             if st.lever_notch in (1, 2):
                 if self.first_brake_start is None:
@@ -310,15 +317,16 @@ class StoppingSim:
             else:
                 self.first_brake_start = None
 
+        # 동역학
         a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v)
         is_eb = (st.lever_notch == self.veh.notches - 1)
         self._update_brake_dyn(a_cmd_brake, st.v, is_eb, dt)
 
         a_grade = self._grade_accel()
         a_davis = self._davis_accel(st.v)
-
         a_target = self.brk_accel + a_grade + a_davis
 
+        # 저크 제한
         max_da = self.veh.j_max * dt
         da = a_target - st.a
         if da > max_da:
@@ -331,11 +339,13 @@ class StoppingSim:
         st.s += st.v * dt + 0.5 * st.a * dt * dt
         st.t += dt
 
+        # B1 I항 소거
         if st.lever_notch != 1 or st.finished:
             self._b1_i *= 0.9
             if abs(self._b1_i) < 1e-3:
                 self._b1_i = 0.0
 
+        # 종료 판정
         rem = self.scn.L - st.s
         if not st.finished and (rem <= -5.0 or st.v <= 0.0):
             st.finished = True
@@ -344,6 +354,7 @@ class StoppingSim:
             st.score = 0
             self.running = False
 
+    # ----------------- Commands -----------------
     def _clamp_notch(self, n: int) -> int:
         return max(0, min(self.veh.notches - 1, n))
 
@@ -383,7 +394,9 @@ class StoppingSim:
         self.tasc_active = False
         self.tasc_armed = bool(self.tasc_enabled)
         self._tasc_pred_cache.update({"t": -1.0, "v": -1.0, "notch": -1,
-                                      "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')})
+                                      "s_cur": float('inf'),
+                                      "s_up": float('inf'),
+                                      "s_dn": float('inf')})
         self._tasc_last_pred_t = -1.0
         self._need_b5_last_t = -1.0
         self._need_b5_last = False
@@ -391,11 +404,29 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
+    def snapshot(self):
+        st = self.state
+        return {
+            "t": round(st.t, 3),
+            "s": st.s,
+            "v": st.v,
+            "a": st.a,
+            "lever_notch": st.lever_notch,
+            "remaining_m": self.scn.L - st.s,
+            "L": self.scn.L,
+            "v_ref": self.vref(st.s),
+            "finished": st.finished,
+            "stop_error_m": st.stop_error_m,
+            "residual_speed_kmh": st.v * 3.6,
+            "running": self.running,
+            "grade_percent": self.scn.grade_percent,
+            "score": getattr(st, "score", 0),
+        }
+
 
 # ------------------------------------------------------------
 # FastAPI app
 # ------------------------------------------------------------
-
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -414,10 +445,128 @@ async def ws_endpoint(ws: WebSocket):
     scenario_json_path = os.path.join(BASE_DIR, "scenario.json")
 
     vehicle = Vehicle.from_json(vehicle_json_path)
+    # 프론트는 EB→...→N으로 보내고, 서버는 N→...→EB로 쓰기 위해 반전
     vehicle.notch_accels = list(reversed(vehicle.notch_accels))
+
     scenario = Scenario.from_json(scenario_json_path)
 
     sim = StoppingSim(vehicle, scenario)
     sim.start()
 
-    last_sim_time = time.per
+    last_sim_time = time.perf_counter()
+    last_send = 0.0
+    send_interval = 1.0 / 30.0  # 30Hz 송신 제한
+
+    try:
+        while True:
+            now = time.perf_counter()
+            elapsed = now - last_sim_time
+
+            # 클라이언트 입력 처리
+            try:
+                msg = await asyncio.wait_for(ws.receive_text(), timeout=0.01)
+                data = json.loads(msg)
+                if data.get("type") == "cmd":
+                    payload = data["payload"]
+                    name = payload.get("name")
+
+                    if name == "setInitial":
+                        speed = payload.get("speed")
+                        dist = payload.get("dist")
+                        grade = payload.get("grade", 0.0) / 10.0  # 프론트에서 퍼밀→퍼센트 변환됨
+                        mu = float(payload.get("mu", 1.0))
+                        if speed is not None and dist is not None:
+                            sim.scn.v0 = float(speed) / 3.6
+                            sim.scn.L = float(dist)
+                            sim.scn.grade_percent = float(grade)
+                            sim.scn.mu = mu
+                            sim.rr_factor = _mu_to_rr_factor(mu)
+                            if DEBUG:
+                                print(f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}")
+                            sim.reset()
+
+                    elif name == "start":
+                        sim.start()
+
+                    elif name in ("stepNotch", "applyNotch"):
+                        delta = int(payload.get("delta", 0))
+                        sim.manual_override = True
+                        sim.tasc_enabled = False
+                        sim.queue_command("stepNotch", delta)
+
+                    elif name == "release":
+                        sim.manual_override = True
+                        sim.tasc_enabled = False
+                        sim.queue_command("release", 0)
+
+                    elif name == "emergencyBrake":
+                        sim.manual_override = True
+                        sim.tasc_enabled = False
+                        sim.queue_command("emergencyBrake", 0)
+
+                    elif name == "setTrainLength":
+                        length = int(payload.get("length", 8))
+                        vehicle.update_mass(length)
+                        if DEBUG:
+                            print(f"Train length set to {length} cars.")
+                        sim.reset()
+
+                    elif name == "setMassTons":
+                        mass_tons = float(payload.get("mass_tons", 200.0))
+                        vehicle.mass_t = mass_tons / int(payload.get("length", 8))
+                        vehicle.mass_kg = mass_tons * 1000.0
+                        if DEBUG:
+                            print(f"차량 전체 중량을 {mass_tons:.2f} 톤으로 업데이트했습니다.")
+                        sim.reset()
+
+                    elif name == "setTASC":
+                        enabled = bool(payload.get("enabled", False))
+                        sim.tasc_enabled = enabled
+                        if enabled:
+                            sim.manual_override = False
+                            sim._tasc_last_change_t = sim.state.t
+                            sim._tasc_phase = "build"
+                            sim._tasc_peak_notch = 1
+                            sim.tasc_armed = True
+                            sim.tasc_active = False
+                        if DEBUG:
+                            print(f"TASC set to {enabled}")
+
+                    elif name == "setMu":
+                        value = float(payload.get("value", 1.0))
+                        sim.scn.mu = value
+                        sim.rr_factor = _mu_to_rr_factor(value)
+                        if DEBUG:
+                            print(f"마찰계수(mu)={value}")
+                        sim.reset()
+
+                    elif name == "reset":
+                        sim.reset()
+
+            except asyncio.TimeoutError:
+                pass
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                if DEBUG:
+                    print(f"Error during receive: {e}")
+
+            # 시뮬 시간 흐름
+            dt = sim.scn.dt
+            while elapsed >= dt:
+                if sim.running:
+                    sim.step()
+                last_sim_time += dt
+                elapsed -= dt
+
+            # 상태 전송
+            if (now - last_send) >= send_interval:
+                await ws.send_text(json.dumps({"type": "state", "payload": sim.snapshot()}))
+                last_send = now
+
+            await asyncio.sleep(0)
+    finally:
+        try:
+            await ws.close()
+        except RuntimeError:
+            pass
