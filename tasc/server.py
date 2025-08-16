@@ -208,7 +208,7 @@ class StoppingSim:
         grade = self.scn.grade_percent
 
         # 기본값(맑은 날 기준 보정)
-        margin = -0.67
+        margin = -0.2
 
         # 마찰 보정
         if mu < 0.5: # 눈길
@@ -557,7 +557,7 @@ class StoppingSim:
 
                     if self._tasc_phase == "relax" and not changed:
                         # 더 약한 제동으로도 충분하면 한 단계 완해
-                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m - 0.1):
+                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m + 0.1):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
