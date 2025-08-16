@@ -206,7 +206,7 @@ class StoppingSim:
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
 
         speed_kmh = v * 3.6
-        air_boost_base = 0.8 if speed_kmh <= 3.0 else 1.0
+        air_boost_base = 0.75 if speed_kmh <= 3.0 else 1.0
 
         air_boost = air_boost_base
 
@@ -224,18 +224,18 @@ class StoppingSim:
 
             # 0cm 가까울수록 감도를 낮춰 부드럽게 수렴
             # |error|=0.8m 이상이면 k≈k_base, 0에 가까우면 k≈k_near
-            k_base = 0.08
-            k_near = 0.04
+            k_base = 0.14
+            k_near = 0.06
             scale = min(1.0, max(0.0, abs(error_m) / 0.8))
             k = k_near + (k_base - k_near) * scale
 
             adjust = 1.0 - k * error_m            # error>0(언더런) → adjust<1 → 약한 제동
-            target_boost = max(0.5, min(1.3, adjust))
+            target_boost = max(0.35, min(1.3, adjust))
 
             # 부드러운 변화(저크 저감): LPF
             # 업데이트 주기 기반 알파 (대략 50~200ms에 절반 정도 따라가게)
             dt_sim = max(1e-3, self.scn.dt)
-            alpha = min(0.35, dt_sim / 0.05)  # dt=0.005 → alpha=0.1
+            alpha = min(0.5, dt_sim / 0.03)  # dt=0.005 → alpha=0.1
             self._b1_air_boost_state += alpha * (target_boost - self._b1_air_boost_state)
 
             air_boost *= self._b1_air_boost_state
