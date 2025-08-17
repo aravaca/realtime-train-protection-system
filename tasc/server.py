@@ -201,11 +201,6 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
-        # --------- 추가: 기준점/바이어스 상태 ---------
-        self.v_nom = 70.0 / 3.6
-        self.L_nom = 300.0
-        self._margin_bias_m = 0.0
-
 
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
 
@@ -227,7 +222,7 @@ class StoppingSim:
         elif mass_corr < -0.05:
             mass_corr = -0.05
         #중량 이전 opt 값=-0.05 -0.05 -0.05
-        margin = -1.15
+        margin = -0.15
         # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
         scale = min(1.0, self.scn.L / 100.0)
         if grade_permil >= 0:
@@ -261,24 +256,6 @@ class StoppingSim:
         # margin += 0.06
 
         return margin
-
-    # --------- 추가: 스케일링/분해 마진 항 ---------
-    def _dynamic_margin_terms(self, v0: float, rem_now: float):
-        # (a) additive: 기존 compute_margin 결과
-        M_add = self.compute_margin(
-            self.scn.mu,
-            self.scn.grade_percent * 10.0,
-            self._tasc_peak_notch,
-            self._tasc_peak_duration
-        )
-        # (b) fractional: 요구 평균감속 비율 기반 스케일링
-        eps = 1e-6
-        phi = (v0*v0 * self.L_nom) / (max(self.v_nom*self.v_nom*rem_now, eps))
-        phi = max(0.6, min(1.8, phi))
-        k1 = 0.28
-        k_frac = k1 * (phi - 1.0)
-        k_frac = max(-0.25, min(0.35, k_frac))
-        return M_add, k_frac
 
     # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
@@ -416,7 +393,7 @@ class StoppingSim:
         # 예측 캐시 초기화
         self._tasc_pred_cache.update({"t": -1.0, "v": -1.0, "notch": -1,
                                       "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')})
-        self._tasc_last_pred_t = st.t if (st := self.state) else -1.0
+        self._tasc_last_pred_t = -1.0
 
         # B5 필요 여부 캐시 초기화
         self._need_b5_last_t = -1.0
@@ -428,9 +405,6 @@ class StoppingSim:
         # B1 미세조정 상태 초기화
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
-
-        # 추가: 마진 바이어스 초기화
-        self._margin_bias_m = 0.0
 
         if DEBUG:
             print("Simulation reset")
@@ -474,8 +448,7 @@ class StoppingSim:
             self._in_predict = False
 
         if include_margin:
-            M_add, k_frac = self._dynamic_margin_terms(v0, rem_now)
-            s = s * (1.0 + k_frac) + M_add + self._margin_bias_m
+            s += self._dynamic_margin(v0, rem_now)
         return s
 
     def _stopping_distance(self, notch: int, v: float, include_margin: bool = True) -> float:
@@ -569,13 +542,6 @@ class StoppingSim:
                 else:
                     # (C) 빌드/릴렉스 로직
                     s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
-
-                    # ---- 추가: 온라인 마진 바이어스 업데이트 ----
-                    if 10.0 < rem_now < 200.0 and st.v > (3.0/3.6):
-                        resid = rem_now - s_cur
-                        self._margin_bias_m += 0.05 * resid
-                        self._margin_bias_m = max(-1.5, min(1.5, self._margin_bias_m))
-
                     changed = False
 
                     if self._tasc_phase == "build":
