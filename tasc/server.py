@@ -232,12 +232,19 @@ class StoppingSim:
 
         mu_corr = (mu - 1.0) * (0.03 / (0.3 - 1.0))
         
-        if peak_notch > 3:
-            hist_corr = -0.1 * ((peak_notch - 2) ** 1.3) - 0.04 * peak_dur_s
-        else:
-            hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * peak_dur_s
+        hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
 
-        return margin + grade_corr + mu_corr + mass_corr + hist_corr
+        v0 = self.scn.v0  # m/s
+        BI = (v0 ** 2) / (2.0 * max(1.0, self.scn.L))  # 단위: m/s²
+
+    # 기준 BI ≈ 0.8~1.0 부근을 "적정 제동"으로 가정
+        if BI > 0.9:
+            bi_corr = -0.08 * (BI - 0.9)
+        else:
+            bi_corr = +0.05 * (0.9 - BI)
+  
+
+        return margin + grade_corr + mu_corr + mass_corr + hist_corr + bi_corr
 
 
     # ----------------- 동적 마진 함수 -----------------
