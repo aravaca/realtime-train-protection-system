@@ -204,21 +204,23 @@ class StoppingSim:
 
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
 
-        mass_tons = self.veh.mass_kg / 1000.0  # self 사용 가능
-        # baseline: 10량 70% 기준
-        delta = mass_tons - 430.0
+        BASE_1C_T = vehicle.mass_t   # JSON 기반
+        PAX_1C_T  = 10.5            
+        REF_LOAD  = 0.70
 
-# odd cubic: 근처(작은 |delta|)에선 선형으로 미세 보정, 멀어질수록 부드럽게 강도 증가
-        k1 = 5.0e-4     # 선형 기울기(근처 미세보정)
-        k3 = 3.5e-8     # 3차 항(원거리 보정 강도, 부호 반전 지점 결정)
+        mass_tons = self.veh.mass_kg / 1000.0
+        L = getattr(self, "train_length", 10)
 
-        mass_corr = (-k1 * delta) + (k3 * (delta ** 3))
+        baseline_tons = L * (BASE_1C_T + PAX_1C_T * REF_LOAD)
+        delta = mass_tons - baseline_tons
 
-# 과보정 방지 소프트 클램프 (원하면 살짝 조정: 상한. 0.16~0.20, 하한 -0.22~-0.28)
+        mass_corr = (-1.2e-3) * delta + (-8.0e-9) * (delta ** 3)
+
+# 클램프
         if mass_corr > 0.18:
             mass_corr = 0.18
-        elif mass_corr < -0.25:
-            mass_corr = -0.25
+        elif mass_corr < -0.22:
+            mass_corr = -0.22
 
         margin = -0.05
         # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
