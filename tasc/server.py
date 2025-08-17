@@ -210,7 +210,7 @@ class StoppingSim:
 
         grade_corr = -0.05 * grade_permil
 
-        mu_corr = (mu - 1.0) * (0.1 / (0.3 - 1.0))
+        mu_corr = (mu - 1.0) * (0.03 / (0.3 - 1.0))
         mass_corr = -0.00182 * (mass_tons - 400.0)
         hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
 
