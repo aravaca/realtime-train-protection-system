@@ -204,7 +204,7 @@ class StoppingSim:
 
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
 
-        BASE_1C_T = vehicle.mass_t   # JSON 기반
+        BASE_1C_T = self.veh.mass_t   # JSON 기반
         PAX_1C_T  = 10.5            
         REF_LOAD  = 0.70
 
@@ -846,14 +846,7 @@ async def ws_endpoint(ws: WebSocket):
                             print(f"Train length set to {length} cars.")
                         sim.reset()
 
-                    elif name == "setMassTons":
-                        mass_tons = float(payload.get("mass_tons", 200.0))
-                        # 차량 1량 질량 갱신(정보 목적), 총질량은 mass_kg에 반영
-                        vehicle.mass_t = mass_tons / int(payload.get("length", 8))
-                        vehicle.mass_kg = mass_tons * 1000.0
-                        if DEBUG:
-                            print(f"차량 전체 중량을 {mass_tons:.2f} 톤으로 업데이트 했습니다.")
-                        sim.reset()
+                    
                     elif name == "setLoadRate":
                         load_rate = float(payload.get("loadRate", 0.0)) / 100.0
                         length = int(payload.get("length", 8))
