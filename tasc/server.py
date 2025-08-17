@@ -214,13 +214,12 @@ class StoppingSim:
         baseline_tons = L * (BASE_1C_T + PAX_1C_T * REF_LOAD)
         delta = mass_tons - baseline_tons
 
-        mass_corr = (-1.2e-3) * delta + (-8.0e-9) * (delta ** 3)
+        mass_corr = (-8.5e-4) * delta + (3.0e-9) * (delta ** 3)
 
-# 클램프
         if mass_corr > 0.18:
             mass_corr = 0.18
-        elif mass_corr < -0.22:
-            mass_corr = -0.22
+        elif mass_corr < -0.15:
+            mass_corr = -0.15
 
         margin = -0.05
         # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
