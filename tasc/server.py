@@ -209,7 +209,7 @@ class StoppingSim:
 
         mass_tons = self.veh.mass_kg / 1000.0  # self 사용 가능
 
-        margin = 0.15
+        margin = 0
 
         grade_corr = -0.05 * grade_permil
         mu_corr = (mu - 1.0) * (0.5 / (0.3 - 1.0))
