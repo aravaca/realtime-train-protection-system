@@ -137,7 +137,7 @@ def compute_margin(mu: float, grade_permil: float, mass_tons: float,
     baseline: 맑음(μ=1.0), 평지(0‰), 기준질량(예: 8량=320t)에서의 잔차를 -0.71m로 고정.
     이후 구배/마찰/중량/제동히스토리의 선형 보정값을 더함.
     """
-    margin = -0.1
+    margin = 0.2
 
     # 구배: ±10‰ → ±0.5m (내리막 +, 실제 더 멀리 → 예측 늘리기 → 음수 방향)
     grade_corr = -0.05 * grade_permil
