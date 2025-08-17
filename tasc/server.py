@@ -131,28 +131,6 @@ def _mu_to_rr_factor(mu: float) -> float:
 # ------------------------------------------------------------
 # 선형 보정 함수 (테이블 제거, 기준점 -0.71)
 # ------------------------------------------------------------
-def compute_margin(mu: float, grade_permil: float, mass_tons: float,
-                   peak_notch: int, peak_dur_s: float) -> float:
-    """
-    baseline: 맑음(μ=1.0), 평지(0‰), 기준질량(예: 8량=320t)에서의 잔차를 -0.71m로 고정.
-    이후 구배/마찰/중량/제동히스토리의 선형 보정값을 더함.
-    """
-    margin = 0.15
-
-    # 구배: ±10‰ → ±0.5m (내리막 +, 실제 더 멀리 → 예측 늘리기 → 음수 방향)
-    grade_corr = -0.05 * grade_permil
-
-    # 마찰: μ=1.0→0.0, μ=0.3→-0.5m (비(0.6)≈-0.2m)
-    mu_corr = (mu - 1.0) * (0.5 / (0.3 - 1.0))  # ≈ -0.714*(mu-1)
-
-    # 중량: 10량 400t 기준, 4량=+0.2m, 15량=–0.6m → 기울기 ≈ -0.00182 m/t
-    mass_tons = self.veh.mass_kg / 1000.0   # 현재 열차 총 질량 (ton)
-    mass_corr = -0.00182 * (mass_tons - 400.0)  # 10량 400t 기준
-
-    # 제동 히스토리 보정: peak notch가 클수록/오래갈수록 실제 더 짧게 섬 → 예측 보수적으로(+거리) = 음수
-    hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
-
-    return margin + grade_corr + mu_corr + mass_corr + hist_corr
 
 
 # ------------------------------------------------------------
@@ -226,6 +204,21 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
+
+    def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
+
+        mass_tons = self.veh.mass_kg / 1000.0  # self 사용 가능
+
+        margin = 0.15
+
+        grade_corr = -0.05 * grade_permil
+        mu_corr = (mu - 1.0) * (0.5 / (0.3 - 1.0))
+        mass_corr = -0.00182 * (mass_tons - 400.0)
+        hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
+
+        return margin + grade_corr + mu_corr + mass_corr + hist_corr
+
+
     # ----------------- 동적 마진 함수 -----------------
     def _dynamic_margin(self, v0: float, rem_now: float) -> float:
         """
@@ -236,8 +229,7 @@ class StoppingSim:
         grade_permil = self.scn.grade_percent * 10.0
         mass_tons = self.veh.mass_kg / 1000.0
 
-        margin = compute_margin(mu, grade_permil, mass_tons,
-                                self._tasc_peak_notch, self._tasc_peak_duration)
+        margin = self.compute_margin(mu, grade_permil, mass_tons, self._tasc_peak_notch, self._tasc_peak_duration)
 
         # 필요 시 잔여거리 보정 재도입
         # if rem_now > 120:
