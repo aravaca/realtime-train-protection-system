@@ -208,8 +208,11 @@ class StoppingSim:
 
         margin = -0.05
         # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
-        scale = min(1.0, self.scn.L / 100.0)  
-        grade_corr = -0.02 * grade_permil * scale
+        scale = min(1.0, self.scn.L / 100.0)
+        if grade_permil >= 0:
+            grade_corr = -0.02 * grade_permil * scale   # 오르막은 유지
+        else:
+            grade_corr = -0.010 * grade_permil * scale  # 내리막은 완화
 
         mu_corr = (mu - 1.0) * (0.03 / (0.3 - 1.0))
         mass_corr = -0.00182 * (mass_tons - 400.0)
