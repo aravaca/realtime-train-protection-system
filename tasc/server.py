@@ -38,7 +38,7 @@ class Vehicle:
     B1: float = 30.0
     C2: float = 8.0
 
-    # 공기계수 등
+    # 공기계수 등 (현재는 rr_factor로만 반영)
     C_rr: float = 0.005
     rho_air: float = 1.225
     Cd: float = 1.8
@@ -129,23 +129,29 @@ def _mu_to_rr_factor(mu: float) -> float:
 
 
 # ------------------------------------------------------------
-# 보정 테이블
+# 선형 보정 함수 (테이블 제거, 기준점 -0.71)
 # ------------------------------------------------------------
+def compute_margin(mu: float, grade_permil: float, mass_tons: float,
+                   peak_notch: int, peak_dur_s: float) -> float:
+    """
+    baseline: 맑음(μ=1.0), 평지(0‰), 기준질량(예: 8량=320t)에서의 잔차를 -0.71m로 고정.
+    이후 구배/마찰/중량/제동히스토리의 선형 보정값을 더함.
+    """
+    margin = -0.71
 
-GRADE_CORRECTION = {
-    -20: +0.6, -10: +0.3, 0: 0.0, +10: -0.3, +20: -0.6
-}
-MU_CORRECTION = {
-    1.0: 0.0, 0.8: +0.1, 0.5: +0.3
-}
-MASS_CORRECTION = {
-    200: 0.0, 300: -0.2, 400: -0.5
-}
+    # 구배: ±10‰ → ±0.5m (내리막 +, 실제 더 멀리 → 예측 늘리기 → 음수 방향)
+    grade_corr = -0.05 * grade_permil
 
-def lookup_table(value, table: dict):
-    keys = sorted(table.keys())
-    closest = min(keys, key=lambda k: abs(k - value))
-    return table[closest]
+    # 마찰: μ=1.0→0.0, μ=0.3→-0.5m (비(0.6)≈-0.2m)
+    mu_corr = (mu - 1.0) * (0.5 / (0.3 - 1.0))  # ≈ -0.714*(mu-1)
+
+    # 중량: 8량 320t 기준, 4량=+0.2m, 15량=–0.6m → 기울기 ≈ -0.00182 m/t
+    mass_corr = -0.00182 * (mass_tons - 320.0)
+
+    # 제동 히스토리 보정: peak notch가 클수록/오래갈수록 실제 더 짧게 섬 → 예측 보수적으로(+거리) = 음수
+    hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
+
+    return margin + grade_corr + mu_corr + mass_corr + hist_corr
 
 
 # ------------------------------------------------------------
@@ -184,6 +190,7 @@ class StoppingSim:
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
+        self._tasc_peak_duration = 0.0  # peak notch 유지 누적 시간(s)
         self.tasc_armed = False
         self.tasc_active = False
 
@@ -220,62 +227,78 @@ class StoppingSim:
 
     # ----------------- 동적 마진 함수 -----------------
     def _dynamic_margin(self, v0: float, rem_now: float) -> float:
-        margin = -0.71
+        """
+        baseline(-0.71) + 선형 보정(grade/mu/mass) + 제동 히스토리 보정.
+        (기존 잔여거리 기반 미세보정은 제거 — 필요 시 아래 주석 해제)
+        """
         mu = self.scn.mu
-        grade = self.scn.grade_percent
+        grade_permil = self.scn.grade_percent * 10.0
+        mass_tons = self.veh.mass_kg / 1000.0
 
-        # 보정 테이블 적용
-        margin += lookup_table(grade, GRADE_CORRECTION)
-        margin += lookup_table(mu, MU_CORRECTION)
-        margin += lookup_table(self.veh.mass_t, MASS_CORRECTION)
+        margin = compute_margin(mu, grade_permil, mass_tons,
+                                self._tasc_peak_notch, self._tasc_peak_duration)
 
-        # 잔여거리 보정 (기존 로직 유지)
-        if rem_now > 120:
-            margin -= 0.08
-        elif rem_now < 50:
-            margin += 0.06
+        # 필요 시 잔여거리 보정 재도입
+        # if rem_now > 120:
+        #     margin -= 0.08
+        # elif rem_now < 50:
+        #     margin += 0.06
 
         return margin
 
     # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
+        """
+        노치별 장비 목표감속 + 속도 기반 전기/공기 블렌딩
+        + B1 롱브레이크 미세조정(P+I) — _in_predict로 재귀 차단
+        + 마지막 1.5m/1.0m에서 B1일 때만 에어부스트 완화(0.50~0.60)
+        """
         if notch >= len(self.veh.notch_accels):
             return 0.0
         base = float(self.veh.notch_accels[notch]) # 음수
 
+        # 전기/공기 블렌딩 기본
         blend_cutoff_speed = 40.0 / 3.6
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
         speed_kmh = v * 3.6
-        air_boost = 0.72 if speed_kmh <= 3.0 else 1.0
+        air_boost = 0.72 if speed_kmh <= 3.0 else 1.0 # 저속 기본 약화
 
+        # --- B1 미세조정: 롱 B1 유지하면서 0cm 근접 ---
         if notch == 1 and (not self._in_predict) and self.state is not None and (not self.state.finished):
             rem_now = self.scn.L - self.state.s
+
+            # B1 정지거리 '편향 없는' 예측: 마진 제외
             s_b1_nominal = self._estimate_stop_distance(1, v, include_margin=False)
+
+            # error(+): 언더런(남은거리가 더 김) → 제동 약화(air_boost ↓)
             error_m = rem_now - s_b1_nominal
 
-            k_base, k_near = 0.20, 0.08
-            scale = min(1.0, max(0.0, abs(error_m) / 0.8))
-            k = k_near + (k_base - k_near) * scale
-
+            # 간결한 P+I
             dt_sim = max(1e-3, self.scn.dt)
+            k_p = 0.20
             ki, leak = 0.35, 0.985
             self._b1_i = (self._b1_i * leak) + (ki * error_m * dt_sim)
             self._b1_i = max(-0.25, min(0.60, self._b1_i))
 
-            adjust = 1.0 - k * error_m
+            adjust = 1.0 - k_p * error_m
             target_boost = max(0.25, min(1.35, adjust))
             target_boost *= (1.0 + self._b1_i)
 
-           
+            # 마지막 구간 완화 (B1에서만 동작)
+            if rem_now < 1.5 and v < 1.2 and notch == 1:
+                target_boost = max(0.22, target_boost - 0.06)
             if rem_now < 1.0 and notch == 1:
                 target_boost = max(0.50, min(0.60, target_boost))
 
+            # 스무딩(LPF)
             alpha = min(0.65, dt_sim / 0.022)
             self._b1_air_boost_state += alpha * (target_boost - self._b1_air_boost_state)
             air_boost *= self._b1_air_boost_state
 
+        # 최종 블렌딩
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
 
+        # 접착 한계 및 간단 WSP
         k_srv, k_eb = 0.85, 0.98
         is_eb = (notch == self.veh.notches - 1)
         k_adh = k_eb if is_eb else k_srv
@@ -287,14 +310,12 @@ class StoppingSim:
 
         return a_eff
 
-
-
     def _grade_accel(self) -> float:
         return -9.81 * (self.scn.grade_percent / 100.0)
 
     def _davis_accel(self, v: float) -> float:
-        A0 = self.veh.A0 * self.rr_factor
-        B1 = self.veh.B1 * self.rr_factor
+        A0 = self.veh.A0 * (0.7 + 0.3 * self.scn.mu)  # rr_factor 반영
+        B1 = self.veh.B1 * (0.7 + 0.3 * self.scn.mu)
         C2 = self.veh.C2
         F = A0 + B1 * v + C2 * v * v
         return -F / self.veh.mass_kg if v != 0 else 0.0
@@ -354,6 +375,7 @@ class StoppingSim:
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
+        self._tasc_peak_duration = 0.0
         self.tasc_active = False
         self.tasc_armed = bool(self.tasc_enabled)
 
@@ -456,7 +478,7 @@ class StoppingSim:
         st = self.state
         if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
             return self._need_b5_last
-        s_b4 = self._stopping_distance(2, v) # B4 정지거리
+        s_b4 = self._stopping_distance(2, v) # TODO: 환경에 맞게 인덱스 조정 필요시 변경
         need = s_b4 > (remaining + self.tasc_deadband_m)
         self._need_b5_last = need
         self._need_b5_last_t = st.t
@@ -554,6 +576,14 @@ class StoppingSim:
         st.v = max(0.0, st.v + st.a * dt)
         st.s += st.v * dt + 0.5 * st.a * dt * dt
         st.t += dt
+
+        # ----- peak notch 지속시간 누적 -----
+        # 최고 노치를 갱신하면 지속시간 초기화, 동일 최고노치 유지 시 누적
+        if st.lever_notch > self._tasc_peak_notch:
+            self._tasc_peak_notch = st.lever_notch
+            self._tasc_peak_duration = 0.0
+        if st.lever_notch == self._tasc_peak_notch and st.lever_notch > 0:
+            self._tasc_peak_duration += dt
 
         # B1이 아니거나 종료면 I항 서서히 소거(드리프트 방지)
         if st.lever_notch != 1 or st.finished:
@@ -704,10 +734,13 @@ class StoppingSim:
             "tasc_enabled": getattr(self, "tasc_enabled", False),
             # HUD/디버그용
             "mu": float(self.scn.mu),
-            "rr_factor": float(self.rr_factor),
+            "rr_factor": float(0.7 + 0.3 * self.scn.mu),
             "davis_A0": self.veh.A0,
             "davis_B1": self.veh.B1,
             "davis_C2": self.veh.C2,
+            # 히스토리 디버그
+            "peak_notch": self._tasc_peak_notch,
+            "peak_dur_s": self._tasc_peak_duration,
         }
 
 
@@ -773,6 +806,7 @@ async def ws_endpoint(ws: WebSocket):
                             if DEBUG:
                                 print(f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}, rr_factor={sim.rr_factor:.3f}")
                             sim.reset()
+                            sim.running = True
 
                     elif name == "start":
                         sim.start()
@@ -818,6 +852,7 @@ async def ws_endpoint(ws: WebSocket):
                             sim._tasc_last_change_t = sim.state.t
                             sim._tasc_phase = "build"
                             sim._tasc_peak_notch = 1
+                            sim._tasc_peak_duration = 0.0
                             # 즉시 작동 금지: B5 필요 시점까지 '대기'
                             sim.tasc_armed = True
                             sim.tasc_active = False
@@ -862,5 +897,3 @@ async def ws_endpoint(ws: WebSocket):
             await ws.close()
         except RuntimeError:
             pass
-
-
