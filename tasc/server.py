@@ -207,8 +207,9 @@ class StoppingSim:
         mass_tons = self.veh.mass_kg / 1000.0  # self 사용 가능
 
         margin = -0.05
-
-        grade_corr = -0.05 * grade_permil
+        # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
+        scale = min(1.0, self.scn.L / 100.0)  
+        grade_corr = -0.02 * grade_permil * scale
 
         mu_corr = (mu - 1.0) * (0.03 / (0.3 - 1.0))
         mass_corr = -0.00182 * (mass_tons - 400.0)
