@@ -166,7 +166,7 @@ class StoppingSim:
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
-        self._tasc_peak_duration = 0.0  # peak notch 유지 누적 시간(s)
+        self._tasc_peak_duration = 0.0 # peak notch 유지 누적 시간(s)
         self.tasc_armed = False
         self.tasc_active = False
 
@@ -201,12 +201,17 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
+        # --------- 추가: 기준점/바이어스 상태 ---------
+        self.v_nom = 70.0 / 3.6
+        self.L_nom = 300.0
+        self._margin_bias_m = 0.0
+
 
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
 
-        BASE_1C_T = self.veh.mass_t   # JSON 기반
-        PAX_1C_T  = 10.5            
-        REF_LOAD  = 0.70
+        BASE_1C_T = self.veh.mass_t # JSON 기반
+        PAX_1C_T = 10.5            
+        REF_LOAD = 0.70
 
         mass_tons = self.veh.mass_kg / 1000.0
         L = getattr(self, "train_length", 10)
@@ -234,17 +239,7 @@ class StoppingSim:
         
         hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
 
-        v0 = self.scn.v0  # m/s
-        BI = (v0 ** 2) / (2.0 * max(1.0, self.scn.L))  # 단위: m/s²
-
-    # 기준 BI ≈ 0.8~1.0 부근을 "적정 제동"으로 가정
-        if BI > 0.9:
-            bi_corr = -0.08 * (BI - 0.9)
-        else:
-            bi_corr = +0.05 * (0.9 - BI)
-  
-
-        return margin + grade_corr + mu_corr + mass_corr + hist_corr + bi_corr
+        return margin + grade_corr + mu_corr + mass_corr + hist_corr
 
 
     # ----------------- 동적 마진 함수 -----------------
@@ -261,11 +256,29 @@ class StoppingSim:
 
         # 필요 시 잔여거리 보정 재도입
         # if rem_now > 120:
-        #     margin -= 0.08
+        # margin -= 0.08
         # elif rem_now < 50:
-        #     margin += 0.06
+        # margin += 0.06
 
         return margin
+
+    # --------- 추가: 스케일링/분해 마진 항 ---------
+    def _dynamic_margin_terms(self, v0: float, rem_now: float):
+        # (a) additive: 기존 compute_margin 결과
+        M_add = self.compute_margin(
+            self.scn.mu,
+            self.scn.grade_percent * 10.0,
+            self._tasc_peak_notch,
+            self._tasc_peak_duration
+        )
+        # (b) fractional: 요구 평균감속 비율 기반 스케일링
+        eps = 1e-6
+        phi = (v0*v0 * self.L_nom) / (max(self.v_nom*self.v_nom*rem_now, eps))
+        phi = max(0.6, min(1.8, phi))
+        k1 = 0.28
+        k_frac = k1 * (phi - 1.0)
+        k_frac = max(-0.25, min(0.35, k_frac))
+        return M_add, k_frac
 
     # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
@@ -335,7 +348,7 @@ class StoppingSim:
         return -9.81 * (self.scn.grade_percent / 100.0)
 
     def _davis_accel(self, v: float) -> float:
-        A0 = self.veh.A0 * (0.7 + 0.3 * self.scn.mu)  # rr_factor 반영
+        A0 = self.veh.A0 * (0.7 + 0.3 * self.scn.mu) # rr_factor 반영
         B1 = self.veh.B1 * (0.7 + 0.3 * self.scn.mu)
         C2 = self.veh.C2
         F = A0 + B1 * v + C2 * v * v
@@ -403,7 +416,7 @@ class StoppingSim:
         # 예측 캐시 초기화
         self._tasc_pred_cache.update({"t": -1.0, "v": -1.0, "notch": -1,
                                       "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')})
-        self._tasc_last_pred_t = -1.0
+        self._tasc_last_pred_t = st.t if (st := self.state) else -1.0
 
         # B5 필요 여부 캐시 초기화
         self._need_b5_last_t = -1.0
@@ -415,6 +428,9 @@ class StoppingSim:
         # B1 미세조정 상태 초기화
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
+
+        # 추가: 마진 바이어스 초기화
+        self._margin_bias_m = 0.0
 
         if DEBUG:
             print("Simulation reset")
@@ -458,7 +474,8 @@ class StoppingSim:
             self._in_predict = False
 
         if include_margin:
-            s += self._dynamic_margin(v0, rem_now)
+            M_add, k_frac = self._dynamic_margin_terms(v0, rem_now)
+            s = s * (1.0 + k_frac) + M_add + self._margin_bias_m
         return s
 
     def _stopping_distance(self, notch: int, v: float, include_margin: bool = True) -> float:
@@ -552,6 +569,13 @@ class StoppingSim:
                 else:
                     # (C) 빌드/릴렉스 로직
                     s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
+
+                    # ---- 추가: 온라인 마진 바이어스 업데이트 ----
+                    if 10.0 < rem_now < 200.0 and st.v > (3.0/3.6):
+                        resid = rem_now - s_cur
+                        self._margin_bias_m += 0.05 * resid
+                        self._margin_bias_m = max(-1.5, min(1.5, self._margin_bias_m))
+
                     changed = False
 
                     if self._tasc_phase == "build":
@@ -862,8 +886,8 @@ async def ws_endpoint(ws: WebSocket):
                         length = int(payload.get("length", 8))
 
     # JSON에서 읽은 차량 기본 질량 (1량)
-                        base_1c_t = vehicle.mass_t      # 예: 39.9
-                        pax_1c_t  = 10.5                # 승객 만석 시 1량당 질량 (톤). json에 넣을 수도 있음.
+                        base_1c_t = vehicle.mass_t # 예: 39.9
+                        pax_1c_t = 10.5 # 승객 만석 시 1량당 질량 (톤). json에 넣을 수도 있음.
 
     # 총 질량 (tons)
                         total_tons = length * (base_1c_t + pax_1c_t * load_rate)
