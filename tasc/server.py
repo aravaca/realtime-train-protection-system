@@ -212,8 +212,7 @@ class StoppingSim:
             mass_corr = -0.0009 * delta - 0.0000010 * (delta ** 2)
 
 # 미세 오프셋
-        mass_corr += 0.20
-
+        
         margin = -0.05
         # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
         scale = min(1.0, self.scn.L / 100.0)
