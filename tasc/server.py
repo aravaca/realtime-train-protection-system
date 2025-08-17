@@ -232,7 +232,10 @@ class StoppingSim:
 
         mu_corr = (mu - 1.0) * (0.03 / (0.3 - 1.0))
         
-        hist_corr = -0.05 * max(0, peak_notch - 2) - 0.02 * max(0.0, peak_dur_s)
+        if peak_notch <= 3:
+            hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * peak_dur_s
+        else:
+            hist_corr = -0.1 * (peak_notch - 2)**1.3 - 0.05 * peak_dur_s
 
         return margin + grade_corr + mu_corr + mass_corr + hist_corr
 
