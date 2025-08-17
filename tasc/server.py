@@ -856,17 +856,21 @@ async def ws_endpoint(ws: WebSocket):
                         load_rate = float(payload.get("loadRate", 0.0)) / 100.0
                         length = int(payload.get("length", 8))
 
-    # vehicle.json에서 읽어온 값 사용
-                        base = vehicle.mass_t   # 차량 1량 공차 질량[t]
-                        pax  = 10.5             # 1량 만석 승객 질량[t] (json에 있으면 거기서 읽어오기)
+    # JSON에서 읽은 차량 기본 질량 (1량)
+                        base_1c_t = vehicle.mass_t      # 예: 39.9
+                        pax_1c_t  = 10.5                # 승객 만석 시 1량당 질량 (톤). json에 넣을 수도 있음.
 
-                        total_tons = length * (base + pax * load_rate)
+    # 총 질량 (tons)
+                        total_tons = length * (base_1c_t + pax_1c_t * load_rate)
+
+    # vehicle 객체 갱신
                         vehicle.update_mass(length)
                         vehicle.mass_kg = total_tons * 1000.0
+                        sim.train_length = length
+                        sim.reset()
 
                         if DEBUG:
-                            print(f"LoadRate 적용: {load_rate*100:.1f}% / length={length}, total={total_tons:.2f} t")
-                        sim.reset()
+                            print(f"[LoadRate] {length}량, 탑승률={load_rate*100:.1f}%, 총 {total_tons:.1f} t")
 
                     elif name == "setTASC":
                         enabled = bool(payload.get("enabled", False))
