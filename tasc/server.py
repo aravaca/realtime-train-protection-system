@@ -137,7 +137,7 @@ def compute_margin(mu: float, grade_permil: float, mass_tons: float,
     baseline: 맑음(μ=1.0), 평지(0‰), 기준질량(예: 8량=320t)에서의 잔차를 -0.71m로 고정.
     이후 구배/마찰/중량/제동히스토리의 선형 보정값을 더함.
     """
-    margin = -0.71
+    margin = -0.1
 
     # 구배: ±10‰ → ±0.5m (내리막 +, 실제 더 멀리 → 예측 늘리기 → 음수 방향)
     grade_corr = -0.05 * grade_permil
@@ -285,8 +285,8 @@ class StoppingSim:
             target_boost *= (1.0 + self._b1_i)
 
             # 마지막 구간 완화 (B1에서만 동작)
-            if rem_now < 1.5 and v < 1.2 and notch == 1:
-                target_boost = max(0.22, target_boost - 0.06)
+            if rem_now < 0.3 and notch == 1:
+                target_boost = 0.3
             if rem_now < 1.0 and notch == 1:
                 target_boost = max(0.50, min(0.60, target_boost))
 
