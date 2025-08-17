@@ -82,7 +82,7 @@ class Scenario:
     v0: float = 25.0
     grade_percent: float = 0.0
     mu: float = 1.0
-    dt: float = 0.005
+    dt: float = 0.03
 
     @classmethod
     def from_json(cls, filepath):
