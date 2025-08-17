@@ -518,7 +518,7 @@ class StoppingSim:
             if self.tasc_active:
                 # (B) 초제동 유지: 활성화 이후에만 B1/B2를 2초간 강제
                 if not self.first_brake_done:
-                    desired = 2 if speed_kmh >= 70.0 else 1
+                    desired = 2 if speed_kmh >= 75.0 else 1
                     if dwell_ok and cur != desired:
                         stepv = 1 if desired > cur else -1
                         st.lever_notch = self._clamp_notch(cur + stepv)
