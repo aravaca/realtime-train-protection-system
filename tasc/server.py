@@ -95,7 +95,7 @@ class Scenario:
             v0=v0_ms,
             grade_percent=data.get("grade_percent", 0.0),
             mu=data.get("mu", 1.0),
-            dt=data.get("dt", 0.005),
+            dt=data.get("dt", 0.03),
         )
 
 
@@ -229,7 +229,7 @@ class StoppingSim:
         grade_permil = self.scn.grade_percent * 10.0
         mass_tons = self.veh.mass_kg / 1000.0
 
-        margin = self.compute_margin(mu, grade_permil, mass_tons, self._tasc_peak_notch, self._tasc_peak_duration)
+        margin = self.compute_margin(mu, grade_permil,self._tasc_peak_notch, self._tasc_peak_duration)
 
         # 필요 시 잔여거리 보정 재도입
         # if rem_now > 120:
