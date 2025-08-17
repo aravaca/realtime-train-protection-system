@@ -205,14 +205,11 @@ class StoppingSim:
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
 
         mass_tons = self.veh.mass_kg / 1000.0  # self 사용 가능
-        delta = mass_tons - 400.0
-        if mass_tons < 400:
-            mass_corr = -0.00003 * delta - 0.00000003 * (delta ** 2)
-        else:
-            mass_corr = -0.0009 * delta - 0.0000010 * (delta ** 2)
+        delta = mass_tons - 430.0  # baseline = 10량 70%
+        mass_corr = -0.0008 * delta - 0.0000010 * (delta ** 2)
 
-# 미세 오프셋
-        
+
+
         margin = -0.05
         # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
         scale = min(1.0, self.scn.L / 100.0)
