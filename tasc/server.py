@@ -206,7 +206,7 @@ class StoppingSim:
 
         mass_tons = self.veh.mass_kg / 1000.0  # self 사용 가능
         delta = mass_tons - 430.0  # baseline = 10량 70%
-        mass_corr = -0.0008 * delta - 0.0000010 * (delta ** 2)
+        mass_corr = -0.0012 * delta - 0.0000008 * (delta ** 2)
 
 
 
