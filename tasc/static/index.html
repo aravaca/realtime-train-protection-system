@@ -268,9 +268,15 @@ function updateTrainLength(){ const L=document.getElementById("trainLength").val
 function sendLoadRate(){
   const loadRate=parseFloat(document.getElementById("inputLoadRate").value)||0;
   const trainLength=parseInt(document.getElementById("trainLength").value)||8;
-  const base=39.9, pax=10.5; const total=trainLength*(base+pax*(loadRate/100));
-  ws.send(JSON.stringify({type:"cmd",payload:{name:"setMassTons",mass_tons:total}}));
-}
+
+ws.send(JSON.stringify({
+  type: "cmd",
+  payload: { 
+    name: "setLoadRate", 
+    loadRate: loadRate,
+    length: trainLength
+  }
+}));
 
 /* 입력 보정 */
 const inputSpeed=document.getElementById("inputSpeed"), inputDist=document.getElementById("inputDist"), inputGrade=document.getElementById("inputGrade");
