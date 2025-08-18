@@ -3,6 +3,7 @@ import json
 import asyncio
 import time
 import os
+import random  # <<< 추가: pre-training 샘플링용
 
 from dataclasses import dataclass
 from collections import deque
@@ -16,6 +17,127 @@ from fastapi.staticfiles import StaticFiles
 # Config
 # ------------------------------------------------------------
 DEBUG = False # 디버그 로그를 보고 싶으면 True
+
+# ------------------------------------------------------------
+# RLS 보정 모델 (v0, L 전용) + JSON 저장/로드
+# ------------------------------------------------------------
+
+class CorrectionModelRLS:
+    """
+    온라인 RLS(Recursive Least Squares) 회귀로 correction = f(v0, L)을 학습
+    - 입력: v0[km/h], L[m]
+    - 특성: [1, v0, L, v0^2, L^2, v0*L] (6차원)
+    - 저장: JSON (w, P, lam, n_features)
+    - 의존성: 순수 파이썬(리스트/루프) → 외부 라이브러리 불필요
+    """
+    def __init__(self, n_features: int = 6, lam: float = 0.99, delta: float = 1000.0):
+        self.n = n_features
+        self.lam = float(lam)
+        # 가중치 벡터 w (n x 1)
+        self.w = [0.0] * self.n
+        # 공분산 행렬 P (n x n) — 초기: (1/delta) * I
+        self.P = [[0.0]*self.n for _ in range(self.n)]
+        inv_delta = 1.0 / float(delta)
+        for i in range(self.n):
+            self.P[i][i] = inv_delta
+
+    # ---- 선형대수 유틸 (순수 파이썬) ----
+    def _features(self, v0_kmh: float, L_m: float):
+        v = float(v0_kmh)
+        L = float(L_m)
+        return [1.0, v, L, v*v, L*L, v*L]
+
+    @staticmethod
+    def _dot(a: List[float], b: List[float]) -> float:
+        return sum(x*y for x, y in zip(a, b))
+
+    @staticmethod
+    def _matvec(M: List[List[float]], x: List[float]) -> List[float]:
+        return [sum(row[j]*x[j] for j in range(len(x))) for row in M]
+
+    @staticmethod
+    def _transpose(M: List[List[float]]) -> List[List[float]]:
+        n = len(M); m = len(M[0]) if n else 0
+        return [[M[i][j] for i in range(n)] for j in range(m)]
+
+    def predict(self, v0_kmh: float, L_m: float) -> float:
+        x = self._features(v0_kmh, L_m)
+        return self._dot(self.w, x)
+
+    def update(self, v0_kmh: float, L_m: float, target_correction: float) -> float:
+        """
+        RLS 업데이트: w, P 갱신
+        반환: 업데이트 후 잔차(= target - 예측)
+        """
+        x = self._features(v0_kmh, L_m)               # (n,)
+        y = float(target_correction)
+
+        # Px = P @ x
+        Px = self._matvec(self.P, x)                  # (n,)
+        # den = lam + x^T P x
+        den = self.lam + self._dot(x, Px)
+        if den == 0.0:
+            den = 1e-9
+
+        # k = Px / den
+        k = [val/den for val in Px]                   # (n,)
+        # 예측 오차 e = y - w^T x
+        wx = self._dot(self.w, x)
+        e = y - wx
+
+        # w += k * e
+        for i in range(self.n):
+            self.w[i] += k[i] * e
+
+        # P = (P - k (x^T P)) / lam
+        #   x^T P = (P^T x)^T → 먼저 Pt_x 계산
+        Pt = self._transpose(self.P)
+        Pt_x = self._matvec(Pt, x)                    # (n,)
+        # 행렬 업데이트
+        for i in range(self.n):
+            ki = k[i]
+            if ki == 0.0:
+                continue
+            row = self.P[i]
+            for j in range(self.n):
+                row[j] -= ki * Pt_x[j]
+        inv_lam = 1.0 / self.lam
+        for i in range(self.n):
+            for j in range(self.n):
+                self.P[i][j] *= inv_lam
+
+        return e
+
+    # ---- JSON 저장/로드 ----
+    def save(self, path: str):
+        data = {
+            "w": self.w,
+            "P": self.P,
+            "lam": self.lam,
+            "n_features": self.n
+        }
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    @classmethod
+    def load(cls, path: str):
+        if not os.path.exists(path):
+            return cls()
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        m = cls(n_features=int(data.get("n_features", 6)), lam=float(data.get("lam", 0.99)))
+        m.w = list(map(float, data.get("w", [0.0]*m.n)))
+        P = data.get("P", None)
+        if not P:
+            m.P = [[0.0]*m.n for _ in range(m.n)]
+            inv_delta = 1.0/1000.0
+            for i in range(m.n):
+                m.P[i][i] = inv_delta
+        else:
+            # 안전하게 float 변환
+            m.P = [[float(v) for v in row] for row in P]
+        return m
+
 
 # ------------------------------------------------------------
 # Data classes
@@ -128,8 +250,6 @@ def _mu_to_rr_factor(mu: float) -> float:
     return 0.7 + 0.3 * mu_clamped
 
 
-
-
 # ------------------------------------------------------------
 # Simulator
 # ------------------------------------------------------------
@@ -201,6 +321,10 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
+        # ---------- RLS 보정 관련 ----------
+        self.rls_model: Optional[CorrectionModelRLS] = None
+        self.rls_save_path: Optional[str] = None
+        self._rls_updates: int = 0  # 저장 주기 제어
 
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
 
@@ -216,12 +340,12 @@ class StoppingSim:
 
         mass_corr = (-2.5e-4) * delta + (1.5e-8) * (delta ** 3)
 
-# 클램프 극단적으로 조정
+        # 클램프 극단적으로 조정
         if mass_corr > 0.08:
             mass_corr = 0.08
         elif mass_corr < -0.05:
             mass_corr = -0.05
-        #중량 이전 opt 값=-0.05 -0.05 -0.05
+        # 중량 이전 opt 값=-0.05 -0.05 -0.05
         margin = -0.675
         # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
         scale = min(1.0, self.scn.L / 100.0)
@@ -236,34 +360,35 @@ class StoppingSim:
 
         return margin + grade_corr + mu_corr + mass_corr
 
-
     # ----------------- 동적 마진 함수 -----------------
     def _dynamic_margin(self, v0: float, rem_now: float) -> float:
         """
-        baseline(-0.71) + 선형 보정(grade/mu/mass) + 제동 히스토리 보정.
-        (기존 잔여거리 기반 미세보정은 제거 — 필요 시 아래 주석 해제)
+        baseline(튜닝값) + (grade/mu/mass) 보정 + [RLS 예측 보정(v0,L)].
         """
         mu = self.scn.mu
         grade_permil = self.scn.grade_percent * 10.0
-        mass_tons = self.veh.mass_kg / 1000.0
 
-        margin = self.compute_margin(mu, grade_permil,self._tasc_peak_notch, self._tasc_peak_duration)
+        margin = self.compute_margin(mu, grade_permil, self._tasc_peak_notch, self._tasc_peak_duration)
 
-        # 필요 시 잔여거리 보정 재도입
-        # if rem_now > 120:
-        # margin -= 0.08
-        # elif rem_now < 50:
-        # margin += 0.06
+        # --- RLS 보정 추가 (v0,L만 사용) ---
+        # v0: m/s -> km/h
+        if self.rls_model is not None:
+            try:
+                v0_kmh = float(self.scn.v0) * 3.6
+                delta = self.rls_model.predict(v0_kmh, float(self.scn.L))
+                # 안전 클리핑(과보정 방지)
+                if delta > 0.8:
+                    delta = 0.8
+                elif delta < -0.8:
+                    delta = -0.8
+                margin += float(delta)
+            except Exception:
+                pass
 
         return margin
 
     # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
-        """
-        노치별 장비 목표감속 + 속도 기반 전기/공기 블렌딩
-        + B1 롱브레이크 미세조정(P+I) — _in_predict로 재귀 차단
-        + 마지막 1.5m/1.0m에서 B1일 때만 에어부스트 완화(0.50~0.60)
-        """
         if notch >= len(self.veh.notch_accels):
             return 0.0
         base = float(self.veh.notch_accels[notch]) # 음수
@@ -274,17 +399,11 @@ class StoppingSim:
         speed_kmh = v * 3.6
         air_boost = 0.72 if speed_kmh <= 3.0 else 1.0 # 저속 기본 약화
 
-        # --- B1 미세조정: 롱 B1 유지하면서 0cm 근접 ---
+        # --- B1 미세조정 ---
         if notch == 1 and (not self._in_predict) and self.state is not None and (not self.state.finished):
             rem_now = self.scn.L - self.state.s
-
-            # B1 정지거리 '편향 없는' 예측: 마진 제외
             s_b1_nominal = self._estimate_stop_distance(1, v, include_margin=False)
-
-            # error(+): 언더런(남은거리가 더 김) → 제동 약화(air_boost ↓)
             error_m = rem_now - s_b1_nominal
-
-            # 간결한 P+I
             dt_sim = max(1e-3, self.scn.dt)
             k_p = 0.20
             ki, leak = 0.35, 0.985
@@ -295,21 +414,17 @@ class StoppingSim:
             target_boost = max(0.25, min(1.35, adjust))
             target_boost *= (1.0 + self._b1_i)
 
-            # 마지막 구간 완화 (B1에서만 동작)
             if rem_now < 0.3 and notch == 1:
                 target_boost = 0.3
             if rem_now < 1.0 and notch == 1:
                 target_boost = max(0.50, min(0.60, target_boost))
 
-            # 스무딩(LPF)
             alpha = min(0.65, dt_sim / 0.022)
             self._b1_air_boost_state += alpha * (target_boost - self._b1_air_boost_state)
             air_boost *= self._b1_air_boost_state
 
-        # 최종 블렌딩
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
 
-        # 접착 한계 및 간단 WSP
         k_srv, k_eb = 0.85, 0.98
         is_eb = (notch == self.veh.notches - 1)
         k_adh = k_eb if is_eb else k_srv
@@ -418,11 +533,6 @@ class StoppingSim:
 
     # ------ stopping distance helpers ------
     def _estimate_stop_distance(self, notch: int, v0: float, include_margin: bool = True) -> float:
-        """
-        해당 노치 고정 가정한 정지거리 예측.
-        include_margin=True면 동적마진을 포함해 편향 보정(제어에서 사용).
-        B1 미세조정용에는 include_margin=False로 '편향 없는' 값을 사용.
-        """
         dt = 0.03 # 예측은 더 큰 스텝(≈33Hz)로 성능 확보
         v = max(0.0, v0)
         a = 0.0
@@ -481,11 +591,6 @@ class StoppingSim:
         return s_cur, s_up, s_dn
 
     def _need_B5_now(self, v: float, remaining: float) -> bool:
-        """
-        'B5가 필요하냐?'를 상수 시간으로 판정.
-        여기서는 'B4로 못 멈추면'으로 판정: s(B4) > 남은거리(+데드밴드)
-        Notch index: 0:N, 1:B1, 2:B2, 3:B3, 4:B4, 5:B5 ...
-        """
         st = self.state
         if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
             return self._need_b5_last
@@ -545,7 +650,6 @@ class StoppingSim:
                     changed = False
 
                     if self._tasc_phase == "build":
-                        # 더 강한 제동이 필요하면 한 단계 강화
                         if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur + 1)
@@ -556,7 +660,6 @@ class StoppingSim:
                             self._tasc_phase = "relax"
 
                     if self._tasc_phase == "relax" and not changed:
-                        # 더 약한 제동으로도 충분하면 한 단계 완해
                         if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m + 0.1):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
@@ -589,14 +692,13 @@ class StoppingSim:
         st.t += dt
 
         # ----- peak notch 지속시간 누적 -----
-        # 최고 노치를 갱신하면 지속시간 초기화, 동일 최고노치 유지 시 누적
         if st.lever_notch > self._tasc_peak_notch:
             self._tasc_peak_notch = st.lever_notch
             self._tasc_peak_duration = 0.0
         if st.lever_notch == self._tasc_peak_notch and st.lever_notch > 0:
             self._tasc_peak_duration += dt
 
-        # B1이 아니거나 종료면 I항 서서히 소거(드리프트 방지)
+        # B1이 아니거나 종료면 I항 서서히 소거
         if st.lever_notch != 1 or st.finished:
             self._b1_i *= 0.9
             if abs(self._b1_i) < 1e-3:
@@ -670,14 +772,26 @@ class StoppingSim:
 
             st.score = score
             self.running = False
+
+            # ---- Online RLS 학습 + 저장(주기적) ----
+            if self.rls_model is not None:
+                try:
+                    v0_kmh = float(self.scn.v0) * 3.6
+                    target = -float(st.stop_error_m or 0.0)
+                    self.rls_model.update(v0_kmh, float(self.scn.L), target)
+                    self._rls_updates += 1
+                    # 파일 I/O 부담 줄이기: 8회마다 저장
+                    if self.rls_save_path and (self._rls_updates % 8 == 0):
+                        self.rls_model.save(self.rls_save_path)
+                except Exception:
+                    pass
+
             if DEBUG:
                 print(f"Simulation finished: stop_error={st.stop_error_m:.3f} m, score={score}")
 
     def is_stair_pattern(self, notches: List[int]) -> bool:
-        """초기(B1/B2)에서 시작해 한 번만 올라갔다 내려오고, 마지막이 B1인지 체크"""
         if len(notches) < 3:
             return False
-        # 최초 유효 노치: B1 또는 B2 허용
         first_brake_notch = None
         for n in notches:
             if n > 0:
@@ -704,7 +818,6 @@ class StoppingSim:
         return True
 
     def compute_jerk_score(self):
-        """최근 1초 평균 저크 기반 점수 (<=25: 500점, 25~50: 선형감점, >50: 0점)"""
         dt = self.scn.dt
         window_time = 1.0
         n = int(window_time / dt)
@@ -768,6 +881,49 @@ async def root():
     return HTMLResponse(open("static/index.html", "r", encoding="utf-8").read())
 
 
+def _pretrain_rls(rls_model: CorrectionModelRLS, vehicle_json_path: str, scenario_json_path: str, n_samples: int = 180):
+    """
+    시작 전에 빠르게 N회 시뮬로 RLS를 예열(Pre-training).
+    - v0: 40~130 km/h
+    - L:  150~600 m
+    - mu/grade/mass: 중립(1.0/0‰/10량)로 고정 → v0,L 형상만 학습
+    - 저장은 호출측에서 한 번만 수행
+    """
+    if n_samples <= 0:
+        return
+
+    vehicle2 = Vehicle.from_json(vehicle_json_path)
+    vehicle2.notch_accels = list(reversed(vehicle2.notch_accels))
+    scenario2 = Scenario.from_json(scenario_json_path)
+    sim2 = StoppingSim(vehicle2, scenario2)
+
+    # 중립 조건: 튜닝된 compute_margin의 상정값에 가깝게
+    vehicle2.update_mass(10)
+    sim2.train_length = 10
+    sim2.scn.mu = 1.0
+    sim2.scn.grade_percent = 0.0
+
+    for _ in range(int(n_samples)):
+        v0 = random.uniform(40.0, 130.0)         # km/h
+        L = random.uniform(150.0, 600.0)         # m
+        sim2.scn.v0 = v0 / 3.6
+        sim2.scn.L = L
+        # vref는 HUD용이지만 형식상 갱신
+        sim2.vref = build_vref(sim2.scn.L, 0.75 * sim2.veh.a_max)
+
+        # RLS를 실제 제어에도 반영하도록 동일 모델 연결
+        sim2.rls_model = rls_model
+        sim2.rls_save_path = None  # pretrain 중 파일 저장은 생략하여 I/O 최소화
+
+        sim2.reset()
+        sim2.running = True
+        # 빠른 동기 루프 (웹소켓 송수신 없음 → 매우 가벼움)
+        while sim2.running:
+            sim2.step()
+    # 호출측에서 한 번만 저장 (I/O 1회)
+    # rls_model.save(path) 는 호출측에서 수행
+
+
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
     await ws.accept()
@@ -775,6 +931,7 @@ async def ws_endpoint(ws: WebSocket):
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     vehicle_json_path = os.path.join(BASE_DIR, "vehicle.json")
     scenario_json_path = os.path.join(BASE_DIR, "scenario.json")
+    rls_model_path = os.path.join(BASE_DIR, "rls_model.json")
 
     vehicle = Vehicle.from_json(vehicle_json_path)
     # 프론트가 EB→...→N으로 올 때 서버는 N→...→EB로 쓰기 위해 반전
@@ -782,7 +939,26 @@ async def ws_endpoint(ws: WebSocket):
 
     scenario = Scenario.from_json(scenario_json_path)
 
+    # ---- RLS 모델 로드 ----
+    rls_model = CorrectionModelRLS.load(rls_model_path)
+
+    # ---- Pre-training (빠르게 예열) ----
+    try:
+        preN = int(os.environ.get("RLS_PRETRAIN_N", "180"))
+    except ValueError:
+        preN = 180
+    # 가벼운 동기 pretrain (≈ 1초 내외) → 렉 체감 없음
+    _pretrain_rls(rls_model, vehicle_json_path, scenario_json_path, n_samples=preN)
+    # 1회 저장
+    try:
+        rls_model.save(rls_model_path)
+    except Exception:
+        pass
+
     sim = StoppingSim(vehicle, scenario)
+    # RLS 모델을 시뮬에 주입 + 저장 경로 설정
+    sim.rls_model = rls_model
+    sim.rls_save_path = rls_model_path
     sim.start()
 
     last_sim_time = time.perf_counter()
@@ -814,6 +990,8 @@ async def ws_endpoint(ws: WebSocket):
                             sim.scn.grade_percent = float(grade)
                             sim.scn.mu = mu
                             sim.rr_factor = _mu_to_rr_factor(mu)
+                            # vref(HUD) 갱신
+                            sim.vref = build_vref(sim.scn.L, 0.75 * sim.veh.a_max)
                             if DEBUG:
                                 print(f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}, rr_factor={sim.rr_factor:.3f}")
                             sim.reset()
@@ -842,23 +1020,23 @@ async def ws_endpoint(ws: WebSocket):
                     elif name == "setTrainLength":
                         length = int(payload.get("length", 8))
                         vehicle.update_mass(length)
+                        sim.train_length = length
                         if DEBUG:
                             print(f"Train length set to {length} cars.")
                         sim.reset()
 
-                    
                     elif name == "setLoadRate":
                         load_rate = float(payload.get("loadRate", 0.0)) / 100.0
                         length = int(payload.get("length", 8))
 
-    # JSON에서 읽은 차량 기본 질량 (1량)
+                        # JSON에서 읽은 차량 기본 질량 (1량)
                         base_1c_t = vehicle.mass_t # 예: 39.9
-                        pax_1c_t = 10.5 # 승객 만석 시 1량당 질량 (톤). json에 넣을 수도 있음.
+                        pax_1c_t = 10.5 # 승객 만석 시 1량당 질량 (톤)
 
-    # 총 질량 (tons)
+                        # 총 질량 (tons)
                         total_tons = length * (base_1c_t + pax_1c_t * load_rate)
 
-    # vehicle 객체 갱신
+                        # vehicle 객체 갱신
                         vehicle.update_mass(length)
                         vehicle.mass_kg = total_tons * 1000.0
                         sim.train_length = length
@@ -911,12 +1089,18 @@ async def ws_endpoint(ws: WebSocket):
 
             # ---- 송신 속도 제한 (30Hz) ----
             if (now - last_send) >= send_interval:
+                # 필요 시 RLS 모델 주기적 저장(온라인 업데이트는 step()쪽에서 8회마다 저장)
                 await ws.send_text(json.dumps({"type": "state", "payload": sim.snapshot()}))
                 last_send = now
 
             await asyncio.sleep(0)
     finally:
         try:
+            # 세션 종료 시 마지막으로 한 번 저장(안전망)
+            try:
+                rls_model.save(rls_model_path)
+            except Exception:
+                pass
             await ws.close()
         except RuntimeError:
             pass
