@@ -222,7 +222,7 @@ class StoppingSim:
         elif mass_corr < -0.05:
             mass_corr = -0.05
         #중량 이전 opt 값=-0.05 -0.05 -0.05
-        margin = -0.15
+        margin = -0.625
         # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
         scale = min(1.0, self.scn.L / 100.0)
         if grade_permil >= 0:
@@ -232,9 +232,9 @@ class StoppingSim:
 
         mu_corr = (mu - 1.0) * (0.03 / (0.3 - 1.0))
         
-        hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
+        #hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
 
-        return margin + grade_corr + mu_corr + mass_corr + hist_corr
+        return margin + grade_corr + mu_corr + mass_corr
 
 
     # ----------------- 동적 마진 함수 -----------------
