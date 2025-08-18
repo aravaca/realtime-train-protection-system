@@ -3,7 +3,7 @@ import json
 import asyncio
 import time
 import os
-import random  # <<< 추가: pre-training 샘플링용
+import random  # <<< pre-training 샘플링용
 
 from dataclasses import dataclass
 from collections import deque
@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 # ------------------------------------------------------------
 # Config
 # ------------------------------------------------------------
-DEBUG = False # 디버그 로그를 보고 싶으면 True
+DEBUG = False  # 디버그 로그를 보고 싶으면 True
 
 # ------------------------------------------------------------
 # RLS 보정 모델 (v0, L 전용) + JSON 저장/로드
@@ -90,10 +90,8 @@ class CorrectionModelRLS:
             self.w[i] += k[i] * e
 
         # P = (P - k (x^T P)) / lam
-        #   x^T P = (P^T x)^T → 먼저 Pt_x 계산
         Pt = self._transpose(self.P)
         Pt_x = self._matvec(Pt, x)                    # (n,)
-        # 행렬 업데이트
         for i in range(self.n):
             ki = k[i]
             if ki == 0.0:
@@ -134,7 +132,6 @@ class CorrectionModelRLS:
             for i in range(m.n):
                 m.P[i][i] = inv_delta
         else:
-            # 안전하게 float 변환
             m.P = [[float(v) for v in row] for row in P]
         return m
 
@@ -329,7 +326,7 @@ class StoppingSim:
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
 
         BASE_1C_T = self.veh.mass_t # JSON 기반
-        PAX_1C_T = 10.5            
+        PAX_1C_T = 10.5
         REF_LOAD = 0.70
 
         mass_tons = self.veh.mass_kg / 1000.0
@@ -355,8 +352,6 @@ class StoppingSim:
             grade_corr = -0.010 * grade_permil * scale
 
         mu_corr = (mu - 1.0) * (0.03 / (0.3 - 1.0))
-        
-        #hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
 
         return margin + grade_corr + mu_corr + mass_corr
 
@@ -371,17 +366,26 @@ class StoppingSim:
         margin = self.compute_margin(mu, grade_permil, self._tasc_peak_notch, self._tasc_peak_duration)
 
         # --- RLS 보정 추가 (v0,L만 사용) ---
-        # v0: m/s -> km/h
         if self.rls_model is not None:
             try:
                 v0_kmh = float(self.scn.v0) * 3.6
-                delta = self.rls_model.predict(v0_kmh, float(self.scn.L))
+                Lm = float(self.scn.L)
+
+                # ✅ 70/300 면역 처리: 기존 튜닝 유지 (보정 0)
+                if abs(v0_kmh - 70.0) < 0.5 and abs(Lm - 300.0) < 0.5:
+                    delta = 0.0
+                else:
+                    delta = self.rls_model.predict(v0_kmh, Lm)
+
                 # 안전 클리핑(과보정 방지)
-                if delta > 0.8:
-                    delta = 0.8
-                elif delta < -0.8:
-                    delta = -0.8
+                if delta > 0.8:   delta = 0.8
+                if delta < -0.8:  delta = -0.8
+
                 margin += float(delta)
+
+                if DEBUG:
+                    tasc_on = (self.tasc_enabled and not self.manual_override)
+                    print(f"[RLS] v0={v0_kmh:.1f} L={Lm:.1f} delta={delta:+.3f} TASC={'ON' if tasc_on else 'OFF'}")
             except Exception:
                 pass
 
@@ -903,6 +907,15 @@ def _pretrain_rls(rls_model: CorrectionModelRLS, vehicle_json_path: str, scenari
     sim2.scn.mu = 1.0
     sim2.scn.grade_percent = 0.0
 
+    # ✅ 예열은 TASC와 동일 제어 경로로 학습되도록 TASC ON
+    sim2.tasc_enabled = True
+    sim2.tasc_armed = True
+    sim2.tasc_active = False
+
+    # ✅ 기준 구간(70/300)은 보정 0으로 여러 번 주입 → 면역 강화
+    for _ in range(32):
+        rls_model.update(70.0, 300.0, 0.0)
+
     for _ in range(int(n_samples)):
         v0 = random.uniform(40.0, 130.0)         # km/h
         L = random.uniform(150.0, 600.0)         # m
@@ -920,8 +933,7 @@ def _pretrain_rls(rls_model: CorrectionModelRLS, vehicle_json_path: str, scenari
         # 빠른 동기 루프 (웹소켓 송수신 없음 → 매우 가벼움)
         while sim2.running:
             sim2.step()
-    # 호출측에서 한 번만 저장 (I/O 1회)
-    # rls_model.save(path) 는 호출측에서 수행
+    # 호출측에서 한 번만 저장 (I/O 1회) — save는 ws 종료시/주기 저장에서 처리
 
 
 @app.websocket("/ws")
@@ -947,9 +959,8 @@ async def ws_endpoint(ws: WebSocket):
         preN = int(os.environ.get("RLS_PRETRAIN_N", "180"))
     except ValueError:
         preN = 180
-    # 가벼운 동기 pretrain (≈ 1초 내외) → 렉 체감 없음
     _pretrain_rls(rls_model, vehicle_json_path, scenario_json_path, n_samples=preN)
-    # 1회 저장
+    # 예열 후 1회 저장(안전)
     try:
         rls_model.save(rls_model_path)
     except Exception:
@@ -1030,8 +1041,8 @@ async def ws_endpoint(ws: WebSocket):
                         length = int(payload.get("length", 8))
 
                         # JSON에서 읽은 차량 기본 질량 (1량)
-                        base_1c_t = vehicle.mass_t # 예: 39.9
-                        pax_1c_t = 10.5 # 승객 만석 시 1량당 질량 (톤)
+                        base_1c_t = vehicle.mass_t
+                        pax_1c_t = 10.5  # 승객 만석 시 1량당 질량 (톤)
 
                         # 총 질량 (tons)
                         total_tons = length * (base_1c_t + pax_1c_t * load_rate)
