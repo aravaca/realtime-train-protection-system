@@ -161,8 +161,8 @@ class StoppingSim:
         # ---------- TASC ----------
         self.tasc_enabled = False
         self.manual_override = False
-        self.tasc_deadband_m = 0.2       # <<< NEW: 0.3 → 0.2 (수렴 가속)
-        self.tasc_hold_min_s = 0.15      # <<< NEW: 0.20 → 0.15
+        self.tasc_deadband_m = 0.3
+        self.tasc_hold_min_s = 0.20
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
@@ -201,10 +201,81 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
-        # <<< NEW: 적응형 예측기 상태 >>>
-        self.gamma_pred = 1.0    # 예측기 전용 제동 이득 스케일(곱)
-        self.bias_m = 0.0        # 예측-현실 잔여거리 바이어스(가산, m)
-        self._last_v = scn.v0    # a_meas 산출용 최근 속도
+        # <<< POLY-BIAS: JSON 다항 보정 모델 로딩 >>>
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self._bias_model_path = os.path.join(base_dir, "bias_model.json")
+        self._bias_model = self._load_poly_bias_model(self._bias_model_path)
+
+    # <<< POLY-BIAS: 다항 모델 로딩/생성 >>>
+    def _default_bias_model(self):
+        # degree=2, terms: 1, 1차 4개, 제곱 4개, 쌍곱 6개 = 총 15항
+        terms = [
+            "1",
+            "v0","L","grade","mass",
+            "v0^2","L^2","grade^2","mass^2",
+            "v0*L","v0*grade","v0*mass","L*grade","L*mass","grade*mass"
+        ]
+        coeffs = [0.0]*len(terms)  # 초기엔 영향 0
+        return {"degree": 2, "terms": terms, "coeffs": coeffs, "features": ["v0","L","grade","mass"]}
+
+    def _load_poly_bias_model(self, path: str):
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                # 간단 검증
+                if not all(k in data for k in ("degree","terms","coeffs","features")):
+                    raise ValueError("bias_model.json malformed")
+                if len(data["terms"]) != len(data["coeffs"]):
+                    raise ValueError("terms/coeffs length mismatch")
+                return data
+            else:
+                data = self._default_bias_model()
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                if DEBUG:
+                    print(f"[POLY-BIAS] Created template at {path}")
+                return data
+        except Exception as e:
+            if DEBUG:
+                print(f"[POLY-BIAS] Failed to load model: {e}")
+            # 안전하게 템플릿 반환
+            return self._default_bias_model()
+
+    # <<< POLY-BIAS: 항 평가기 >>>
+    def _poly_term_value(self, term: str, v0: float, L: float, grade: float, mass: float) -> float:
+        if term == "1":
+            return 1.0
+        # 단항 제곱
+        if term.endswith("^2"):
+            base = term[:-2]
+            if base == "v0":   x = v0
+            elif base == "L":  x = L
+            elif base == "grade": x = grade
+            elif base == "mass":  x = mass
+            else: return 0.0
+            return x * x
+        # 쌍곱
+        if "*" in term:
+            a,b = term.split("*",1)
+            def val(name):
+                return {"v0":v0, "L":L, "grade":grade, "mass":mass}.get(name, 0.0)
+            return val(a) * val(b)
+        # 1차항
+        return {"v0":v0, "L":L, "grade":grade, "mass":mass}.get(term, 0.0)
+
+    # <<< POLY-BIAS: 보정 예측 >>>
+    def _predict_bias_from_json(self, v0_kmh: float, L_m: float, grade_percent: float, mass_tons: float) -> float:
+        m = self._bias_model
+        if not m:
+            return 0.0
+        terms = m["terms"]
+        coeffs = m["coeffs"]
+        # 입력 스케일: v0[km/h], L[m], grade[%], mass[ton]
+        total = 0.0
+        for t, c in zip(terms, coeffs):
+            total += float(c) * self._poly_term_value(t, v0_kmh, L_m, grade_percent, mass_tons)
+        return float(total)
 
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
 
@@ -220,12 +291,12 @@ class StoppingSim:
 
         mass_corr = (-2.5e-4) * delta + (1.5e-8) * (delta ** 3)
 
-        # 클램프
+        # 클램프 극단적으로 조정
         if mass_corr > 0.08:
             mass_corr = 0.08
         elif mass_corr < -0.05:
             mass_corr = -0.05
-
+        #중량 이전 opt 값=-0.05 -0.05 -0.05
         margin = -0.675
         # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
         scale = min(1.0, self.scn.L / 100.0)
@@ -235,15 +306,38 @@ class StoppingSim:
             grade_corr = -0.010 * grade_permil * scale
 
         mu_corr = (mu - 1.0) * (0.03 / (0.3 - 1.0))
+        
+        #hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
 
-        return margin + grade_corr + mu_corr + mass_corr
+        base_margin = margin + grade_corr + mu_corr + mass_corr
 
+        # <<< POLY-BIAS: (v0,L,grade,mass) 다항 보정 추가 >>>
+        v0_kmh = self.scn.v0 * 3.6
+        L_m = self.scn.L
+        grade_percent = self.scn.grade_percent
+        mass_total_tons = self.veh.mass_kg / 1000.0
+        bias_poly = self._predict_bias_from_json(v0_kmh, L_m, grade_percent, mass_total_tons)
+
+        return base_margin + bias_poly
 
     # ----------------- 동적 마진 함수 -----------------
     def _dynamic_margin(self, v0: float, rem_now: float) -> float:
+        """
+        baseline(-0.71) + 선형 보정(grade/mu/mass) + 제동 히스토리 보정.
+        (기존 잔여거리 기반 미세보정은 제거 — 필요 시 아래 주석 해제)
+        """
         mu = self.scn.mu
         grade_permil = self.scn.grade_percent * 10.0
-        margin = self.compute_margin(mu, grade_permil, self._tasc_peak_notch, self._tasc_peak_duration)
+        mass_tons = self.veh.mass_kg / 1000.0
+
+        margin = self.compute_margin(mu, grade_permil,self._tasc_peak_notch, self._tasc_peak_duration)
+
+        # 필요 시 잔여거리 보정 재도입
+        # if rem_now > 120:
+        #     margin -= 0.08
+        # elif rem_now < 50:
+        #     margin += 0.06
+
         return margin
 
     # ----------------- Physics helpers -----------------
@@ -297,10 +391,6 @@ class StoppingSim:
 
         # 최종 블렌딩
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
-
-        # <<< NEW: 예측기 경로에서만 제동 이득 스케일 γ 적용 >>>
-        if self._in_predict:
-            blended_accel *= self.gamma_pred
 
         # 접착 한계 및 간단 WSP
         k_srv, k_eb = 0.85, 0.98
@@ -399,13 +489,6 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
-        # <<< NEW: 적응형 예측기 상태 초기화 유지/리셋 >>>
-        self._last_v = self.scn.v0
-        # gamma_pred/bias_m는 누적 학습을 유지해도 되지만, 시나리오 크게 바꾸면 원복 추천
-        # 여기서는 보수적으로 유지(유저 취향 따라 reset 시 1.0/0.0으로 재설정해도 됨)
-        # self.gamma_pred = 1.0
-        # self.bias_m = 0.0
-
         if DEBUG:
             print("Simulation reset")
 
@@ -420,7 +503,7 @@ class StoppingSim:
     def _estimate_stop_distance(self, notch: int, v0: float, include_margin: bool = True) -> float:
         """
         해당 노치 고정 가정한 정지거리 예측.
-        include_margin=True면 동적마진 + 적응 바이어스(bias_m) 포함.
+        include_margin=True면 동적마진을 포함해 편향 보정(제어에서 사용).
         B1 미세조정용에는 include_margin=False로 '편향 없는' 값을 사용.
         """
         dt = 0.03 # 예측은 더 큰 스텝(≈33Hz)로 성능 확보
@@ -435,7 +518,7 @@ class StoppingSim:
         self._in_predict = True
         try:
             for _ in range(1200): # 최대 ≈36s
-                a_brk = self._effective_brake_accel(notch, v) # _in_predict=True → γ 적용 & B1 미세조정 비활성
+                a_brk = self._effective_brake_accel(notch, v) # _in_predict=True → B1 미세조정 비활성
                 a_grade = self._grade_accel()
                 a_davis = self._davis_accel(v)
                 a_target = a_brk + a_grade + a_davis
@@ -448,7 +531,7 @@ class StoppingSim:
             self._in_predict = False
 
         if include_margin:
-            s += self._dynamic_margin(v0, rem_now) + self.bias_m  # <<< NEW: bias_m 추가
+            s += self._dynamic_margin(v0, rem_now)
         return s
 
     def _stopping_distance(self, notch: int, v: float, include_margin: bool = True) -> float:
@@ -589,6 +672,7 @@ class StoppingSim:
         st.t += dt
 
         # ----- peak notch 지속시간 누적 -----
+        # 최고 노치를 갱신하면 지속시간 초기화, 동일 최고노치 유지 시 누적
         if st.lever_notch > self._tasc_peak_notch:
             self._tasc_peak_notch = st.lever_notch
             self._tasc_peak_duration = 0.0
@@ -600,33 +684,6 @@ class StoppingSim:
             self._b1_i *= 0.9
             if abs(self._b1_i) < 1e-3:
                 self._b1_i = 0.0
-
-        # <<< NEW: 적응형 예측기 식별 로직 (EMA) >>>
-        # 1) 측정 가속도
-        a_meas = (st.v - self._last_v) / max(1e-6, dt)
-        self._last_v = st.v
-
-        # 2) 제동성분만 분리(외력 제거)
-        a_brk_meas = a_meas - a_grade - a_davis
-        a_brk_model = self.brk_accel  # 모델 제동 성분(음수)
-
-        # 3) γ 업데이트: 유효 조건에서만
-        if st.lever_notch >= 1 and st.v > 1.0 and a_brk_model < -1e-3:
-            ratio = a_brk_meas / min(-1e-3, a_brk_model)  # 둘 다 음수 → 양수 비율
-            ratio = max(0.5, min(1.5, ratio))
-            alpha_g = 0.06
-            self.gamma_pred = (1 - alpha_g) * self.gamma_pred + alpha_g * ratio
-            self.gamma_pred = max(0.7, min(1.3, self.gamma_pred))
-
-        # 4) b 업데이트: '편향 없는' 현재 노치 정지거리 대비 현재 잔여거리 오차
-        if not st.finished and st.v > 0.8:
-            cur_notch = max(1, st.lever_notch)
-            s_pred_nominal = self._estimate_stop_distance(cur_notch, st.v, include_margin=False)
-            rem_now = self.scn.L - st.s
-            err_m = rem_now - s_pred_nominal
-            alpha_b = 0.12
-            target_b = max(-2.0, min(2.0, err_m))
-            self.bias_m = (1 - alpha_b) * self.bias_m + alpha_b * target_b
 
         # 종료 판정
         rem = self.scn.L - st.s
@@ -778,9 +835,6 @@ class StoppingSim:
             # 히스토리 디버그
             "peak_notch": self._tasc_peak_notch,
             "peak_dur_s": self._tasc_peak_duration,
-            # <<< NEW: 적응기 모니터링 >>>
-            "gamma_pred": self.gamma_pred,
-            "bias_m": self.bias_m,
         }
 
 
@@ -875,13 +929,14 @@ async def ws_endpoint(ws: WebSocket):
                             print(f"Train length set to {length} cars.")
                         sim.reset()
 
+                    
                     elif name == "setLoadRate":
                         load_rate = float(payload.get("loadRate", 0.0)) / 100.0
                         length = int(payload.get("length", 8))
 
                         # JSON에서 읽은 차량 기본 질량 (1량)
-                        base_1c_t = vehicle.mass_t
-                        pax_1c_t = 10.5 # 승객 만석 시 1량당 질량 (톤)
+                        base_1c_t = vehicle.mass_t # 예: 39.9
+                        pax_1c_t = 10.5 # 승객 만석 시 1량당 질량 (톤). json에 넣을 수도 있음.
 
                         # 총 질량 (tons)
                         total_tons = length * (base_1c_t + pax_1c_t * load_rate)
