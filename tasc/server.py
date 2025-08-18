@@ -222,7 +222,7 @@ class StoppingSim:
         elif mass_corr < -0.05:
             mass_corr = -0.05
         #중량 이전 opt 값=-0.05 -0.05 -0.05
-        margin = -0.625
+        margin = -0.635
         # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
         scale = min(1.0, self.scn.L / 100.0)
         if grade_permil >= 0:
