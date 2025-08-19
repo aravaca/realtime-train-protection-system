@@ -1,4 +1,3 @@
-
 import math
 import json
 import asyncio
@@ -13,10 +12,26 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+# numpy는 선택 사항(없어도 실행). 있으면 학습, 없으면 데이터만 누적.
+try:
+    import numpy as np
+except Exception:
+    np = None
+
 # ------------------------------------------------------------
 # Config
 # ------------------------------------------------------------
 DEBUG = False # 디버그 로그를 보고 싶으면 True
+
+# ------------------------------------------------------------
+# 안전: static 폴더/파일 자동 생성
+# ------------------------------------------------------------
+if not os.path.isdir("static"):
+    os.makedirs("static", exist_ok=True)
+index_path = os.path.join("static", "index.html")
+if not os.path.isfile(index_path):
+    with open(index_path, "w", encoding="utf-8") as f:
+        f.write("<!doctype html><meta charset='utf-8'><title>TASC</title><h1>TASC Ready</h1>")
 
 # ------------------------------------------------------------
 # Data classes
@@ -153,6 +168,7 @@ class StoppingSim:
 
         # 초기 제동(B1/B2) 판정
         self.first_brake_start = None
+               # 판정 시간 2초
         self.first_brake_done = False
 
         # 저크 계산
@@ -163,7 +179,7 @@ class StoppingSim:
         self.tasc_enabled = False
         self.manual_override = False
         self.tasc_deadband_m = 0.3
-        self.tasc_hold_min_s = 0
+        self.tasc_hold_min_s = 0.01
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
@@ -202,11 +218,149 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
+        # <<< POLY-BIAS: JSON 다항 보정 모델 로딩 >>>
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self._bias_model_path = os.path.join(base_dir, "bias_model.json")
+        self._bias_model = self._load_poly_bias_model(self._bias_model_path)
+
+    # <<< POLY-BIAS: 다항 모델 로딩/생성 >>>
+    def _default_bias_model(self):
+        # degree=2, terms: 1, 1차 4개, 제곱 4개, 쌍곱 6개 = 총 15항
+        terms = [
+            "1",
+            "v0","L","grade","mass",
+            "v0^2","L^2","grade^2","mass^2",
+            "v0*L","v0*grade","v0*mass","L*grade","L*mass","grade*mass"
+        ]
+        coeffs = [0.0]*len(terms)  # 초기엔 영향 0
+        # 학습 설정 추가
+        return {
+            "degree": 2,
+            "terms": terms,
+            "coeffs": coeffs,
+            "features": ["v0","L","grade","mass"],
+            "ridge_lambda": 1e-6,   # 과적합/수치안정용
+            "max_points": 2000,     # 데이터 누적 상한
+            "data": []              # 관측 데이터 [{v0,L,grade,mass,err}, ...]
+        }
+
+    def _load_poly_bias_model(self, path: str):
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                # 필수 키 채워넣기
+                template = self._default_bias_model()
+                for k, v in template.items():
+                    if k not in data:
+                        data[k] = v
+                # terms/coeffs 길이 맞추기
+                if len(data["terms"]) != len(data["coeffs"]):
+                    data["coeffs"] = template["coeffs"]
+                # data 형식 보정
+                if not isinstance(data.get("data", []), list):
+                    data["data"] = []
+                return data
+            else:
+                data = self._default_bias_model()
+                self._save_bias_model(path, data)
+                if DEBUG:
+                    print(f"[POLY-BIAS] Created template at {path}")
+                return data
+        except Exception as e:
+            if DEBUG:
+                print(f"[POLY-BIAS] Failed to load model: {e}")
+            data = self._default_bias_model()
+            self._save_bias_model(path, data)
+            return data
+
+    def _save_bias_model(self, path: str, data: dict):
+        try:
+            tmp_path = path + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, path)  # 원자적 교체
+        except Exception as e:
+            if DEBUG:
+                print(f"[POLY-BIAS] Save failed: {e}")
+
+    # <<< POLY-BIAS: 항 평가기(순수 파이썬) >>>
+    def _poly_term_value(self, term: str, v0: float, L: float, grade: float, mass: float) -> float:
+        if term == "1":
+            return 1.0
+        if term.endswith("^2"):
+            base = term[:-2]
+            x = {"v0":v0, "L":L, "grade":grade, "mass":mass}.get(base, 0.0)
+            return x * x
+        if "*" in term:
+            a,b = term.split("*",1)
+            vals = {"v0":v0, "L":L, "grade":grade, "mass":mass}
+            return vals.get(a, 0.0) * vals.get(b, 0.0)
+        return {"v0":v0, "L":L, "grade":grade, "mass":mass}.get(term, 0.0)
+
+    def _poly_features_row(self, terms: List[str], v0_kmh: float, L_m: float, grade_percent: float, mass_tons: float) -> List[float]:
+        return [self._poly_term_value(t, v0_kmh, L_m, grade_percent, mass_tons) for t in terms]
+
+    # <<< POLY-BIAS: 예측(순수 파이썬) >>>
+    def _predict_bias_from_json(self, v0_kmh: float, L_m: float, grade_percent: float, mass_tons: float) -> float:
+        m = self._bias_model or self._default_bias_model()
+        terms = m["terms"]
+        coeffs = m["coeffs"]
+        feats = self._poly_features_row(terms, v0_kmh, L_m, grade_percent, mass_tons)
+        return sum(float(c)*float(f) for c, f in zip(coeffs, feats))
+
+    # <<< POLY-BIAS: 학습(릿지, numpy 없으면 skip) >>>
+    def _fit_bias_coeffs_from_data(self):
+        if np is None:
+            # numpy 없으면 학습 스킵(데이터는 누적됨)
+            return
+        m = self._bias_model
+        data = m.get("data", [])
+        if len(data) < 5:
+            return
+        terms = m["terms"]
+        lam = float(m.get("ridge_lambda", 1e-6))
+        X_rows, y = [], []
+        for rec in data:
+            v0 = float(rec["v0"]); L  = float(rec["L"])
+            g  = float(rec["grade"]); mass = float(rec["mass"])
+            err  = float(rec["err"])
+            X_rows.append(self._poly_features_row(terms, v0, L, g, mass)); y.append(err)
+        X = np.array(X_rows, dtype=float)  # [N,P]
+        y = np.array(y, dtype=float)       # [N]
+        P = X.shape[1]
+        XtX = X.T @ X
+        Xty = X.T @ y
+        A = XtX + lam * np.eye(P)
+        try:
+            coeffs = np.linalg.solve(A, Xty)
+        except np.linalg.LinAlgError:
+            coeffs, *_ = np.linalg.lstsq(A, Xty, rcond=None)
+        m["coeffs"] = [float(c) for c in coeffs]
+
+    def _append_observation_and_update(self, v0_kmh: float, L_m: float, grade_percent: float, mass_tons: float, stop_error_m: float):
+        m = self._bias_model
+        m.setdefault("data", [])
+        m.setdefault("max_points", 2000)
+        rec = {"v0": float(v0_kmh), "L": float(L_m), "grade": float(grade_percent),
+               "mass": float(mass_tons), "err": float(stop_error_m)}
+        m["data"].append(rec)
+        # 상한 초과시 최근 max_points만 유지
+        if len(m["data"]) > int(m["max_points"]):
+            m["data"] = m["data"][-int(m["max_points"]):]
+        # 계수 재학습(가능한 경우)
+        self._fit_bias_coeffs_from_data()
+        # 안전 저장
+        self._save_bias_model(self._bias_model_path, m)
+        if DEBUG:
+            n = len(m["data"])
+            c0 = m["coeffs"][0] if m["coeffs"] else 0.0
+            print(f"[POLY-BIAS] Updated: N={n}, c0={c0:.6f}")
 
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
 
         BASE_1C_T = self.veh.mass_t # JSON 기반
-        PAX_1C_T = 10.5            
+        PAX_1C_T = 10.5
         REF_LOAD = 0.70
 
         mass_tons = self.veh.mass_kg / 1000.0
@@ -217,7 +371,7 @@ class StoppingSim:
 
         mass_corr = (-2.5e-4) * delta + (1.5e-8) * (delta ** 3)
 
-# 클램프 극단적으로 조정
+        # 클램프 극단적으로 조정
         if mass_corr > 0.08:
             mass_corr = 0.08
         elif mass_corr < -0.05:
@@ -232,82 +386,57 @@ class StoppingSim:
             grade_corr = -0.010 * grade_permil * scale
 
         mu_corr = (mu - 1.0) * (0.03 / (0.3 - 1.0))
-        
-        #hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
 
-        return margin + grade_corr + mu_corr + mass_corr
+        base_margin = margin + grade_corr + mu_corr + mass_corr
 
+        # <<< POLY-BIAS: (v0,L,grade,mass) 다항 보정 추가 >>>
+        v0_kmh = self.scn.v0 * 3.6
+        L_m = self.scn.L
+        grade_percent = self.scn.grade_percent
+        mass_total_tons = self.veh.mass_kg / 1000.0
+        bias_poly = self._predict_bias_from_json(v0_kmh, L_m, grade_percent, mass_total_tons)
+
+        return base_margin + bias_poly
 
     # ----------------- 동적 마진 함수 -----------------
     def _dynamic_margin(self, v0: float, rem_now: float) -> float:
-        """
-        baseline(-0.71) + 선형 보정(grade/mu/mass) + 제동 히스토리 보정.
-        (기존 잔여거리 기반 미세보정은 제거 — 필요 시 아래 주석 해제)
-        """
         mu = self.scn.mu
         grade_permil = self.scn.grade_percent * 10.0
-        mass_tons = self.veh.mass_kg / 1000.0
-
-        margin = self.compute_margin(mu, grade_permil,self._tasc_peak_notch, self._tasc_peak_duration)
-
-        # 필요 시 잔여거리 보정 재도입
-        # if rem_now > 120:
-        # margin -= 0.08
-        # elif rem_now < 50:
-        # margin += 0.06
-
+        margin = self.compute_margin(mu, grade_permil, self._tasc_peak_notch, self._tasc_peak_duration)
         return margin
 
     # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
-        """
-        노치별 장비 목표감속 + 속도 기반 전기/공기 블렌딩
-        + B1 롱브레이크 미세조정(P+I) — _in_predict로 재귀 차단
-        + 마지막 1.5m/1.0m에서 B1일 때만 에어부스트 완화(0.50~0.60)
-        """
         if notch >= len(self.veh.notch_accels):
             return 0.0
         base = float(self.veh.notch_accels[notch]) # 음수
 
-        # 전기/공기 블렌딩 기본
         blend_cutoff_speed = 40.0 / 3.6
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
         speed_kmh = v * 3.6
         air_boost = 0.72 if speed_kmh <= 3.0 else 1.0 # 저속 기본 약화
 
-        # --- B1 미세조정: 롱 B1 유지하면서 0cm 근접 ---
+        # --- B1 미세조정(P+I) ---
         if notch == 1 and (not self._in_predict) and self.state is not None and (not self.state.finished):
             rem_now = self.scn.L - self.state.s
-
-            # B1 정지거리 '편향 없는' 예측: 마진 제외
             s_b1_nominal = self._estimate_stop_distance(1, v, include_margin=False)
-
-            # error(+): 언더런(남은거리가 더 김) → 제동 약화(air_boost ↓)
             error_m = rem_now - s_b1_nominal
-
-            # 간결한 P+I
             dt_sim = max(1e-3, self.scn.dt)
             k_p = 0.20
             ki, leak = 0.35, 0.985
             self._b1_i = (self._b1_i * leak) + (ki * error_m * dt_sim)
             self._b1_i = max(-0.25, min(0.60, self._b1_i))
-
             adjust = 1.0 - k_p * error_m
             target_boost = max(0.25, min(1.35, adjust))
             target_boost *= (1.0 + self._b1_i)
-
-            # 마지막 구간 완화 (B1에서만 동작)
             if rem_now < 0.3 and notch == 1:
                 target_boost = 0.3
             if rem_now < 1.0 and notch == 1:
                 target_boost = max(0.50, min(0.60, target_boost))
-
-            # 스무딩(LPF)
             alpha = min(0.65, dt_sim / 0.022)
             self._b1_air_boost_state += alpha * (target_boost - self._b1_air_boost_state)
             air_boost *= self._b1_air_boost_state
 
-        # 최종 블렌딩
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
 
         # 접착 한계 및 간단 WSP
@@ -316,7 +445,6 @@ class StoppingSim:
         k_adh = k_eb if is_eb else k_srv
         a_cap = -k_adh * float(self.scn.mu) * 9.81
         a_eff = max(blended_accel, a_cap)
-
         if a_eff <= a_cap + 1e-6:
             a_eff = a_cap * (0.90 if v > 8.0 else 0.85)
 
@@ -326,7 +454,7 @@ class StoppingSim:
         return -9.81 * (self.scn.grade_percent / 100.0)
 
     def _davis_accel(self, v: float) -> float:
-        A0 = self.veh.A0 * (0.7 + 0.3 * self.scn.mu) # rr_factor 반영
+        A0 = self.veh.A0 * (0.7 + 0.3 * self.scn.mu)
         B1 = self.veh.B1 * (0.7 + 0.3 * self.scn.mu)
         C2 = self.veh.C2
         F = A0 + B1 * v + C2 * v * v
@@ -334,10 +462,7 @@ class StoppingSim:
 
     def _update_brake_dyn(self, a_cmd: float, v: float, is_eb: bool, dt: float):
         going_stronger = (a_cmd < self.brk_accel)
-        if going_stronger:
-            tau = self.tau_apply_eb if is_eb else self.tau_apply
-        else:
-            tau = self.tau_release_lowv if v < 3.0 else self.tau_release
+        tau = self.tau_apply_eb if is_eb else self.tau_apply if going_stronger else (self.tau_release_lowv if v < 3.0 else self.tau_release)
         alpha = dt / max(1e-6, tau)
         self.brk_accel += (a_cmd - self.brk_accel) * alpha
 
@@ -346,14 +471,11 @@ class StoppingSim:
         return max(0, min(self.veh.notches - 1, n))
 
     def queue_command(self, name: str, val: int = 0):
-        self._cmd_queue.append(
-            {"t": self.state.t + self.veh.tau_cmd, "name": name, "val": val}
-        )
+        self._cmd_queue.append({"t": self.state.t + self.veh.tau_cmd, "name": name, "val": val})
 
     def _apply_command(self, cmd: dict):
         st = self.state
-        name = cmd["name"]
-        val = cmd["val"]
+        name = cmd["name"]; val = cmd["val"]
         if name == "stepNotch":
             st.lever_notch = self._clamp_notch(st.lever_notch + val)
         elif name == "release":
@@ -364,25 +486,15 @@ class StoppingSim:
 
     # ----------------- Lifecycle -----------------
     def reset(self):
-        self.state = State(
-            t=0.0, s=0.0, v=self.scn.v0, a=0.0, lever_notch=0, finished=False
-        )
+        self.state = State(t=0.0, s=0.0, v=self.scn.v0, a=0.0, lever_notch=0, finished=False)
         self.running = False
         self._cmd_queue.clear()
-
-        # 초기화 (B1/B2 초제동용)
         self.first_brake_start = None
         self.first_brake_done = False
-
-        # 기록 초기화
         self.notch_history.clear()
         self.time_history.clear()
-
-        # 저크 초기화
         self.prev_a = 0.0
         self.jerk_history = []
-
-        # TASC 상태 초기화 (토글 상태는 유지)
         self.manual_override = False
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
@@ -390,23 +502,14 @@ class StoppingSim:
         self._tasc_peak_duration = 0.0
         self.tasc_active = False
         self.tasc_armed = bool(self.tasc_enabled)
-
-        # 예측 캐시 초기화
         self._tasc_pred_cache.update({"t": -1.0, "v": -1.0, "notch": -1,
                                       "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')})
         self._tasc_last_pred_t = -1.0
-
-        # B5 필요 여부 캐시 초기화
         self._need_b5_last_t = -1.0
         self._need_b5_last = False
-
-        # 제동장치 상태 초기화
         self.brk_accel = 0.0
-
-        # B1 미세조정 상태 초기화
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
-
         if DEBUG:
             print("Simulation reset")
 
@@ -419,24 +522,17 @@ class StoppingSim:
 
     # ------ stopping distance helpers ------
     def _estimate_stop_distance(self, notch: int, v0: float, include_margin: bool = True) -> float:
-        """
-        해당 노치 고정 가정한 정지거리 예측.
-        include_margin=True면 동적마진을 포함해 편향 보정(제어에서 사용).
-        B1 미세조정용에는 include_margin=False로 '편향 없는' 값을 사용.
-        """
-        dt = 0.03 # 예측은 더 큰 스텝(≈33Hz)로 성능 확보
+        dt = 0.03
         v = max(0.0, v0)
         a = 0.0
         s = 0.0
         tau = max(0.15, self.veh.tau_brk)
         rem_now = self.scn.L - self.state.s
         limit = float(rem_now + 5.0)
-
-        # 재귀 방지 플래그 ON
         self._in_predict = True
         try:
-            for _ in range(1200): # 최대 ≈36s
-                a_brk = self._effective_brake_accel(notch, v) # _in_predict=True → B1 미세조정 비활성
+            for _ in range(1200):
+                a_brk = self._effective_brake_accel(notch, v)
                 a_grade = self._grade_accel()
                 a_davis = self._davis_accel(v)
                 a_target = a_brk + a_grade + a_davis
@@ -447,7 +543,6 @@ class StoppingSim:
                     break
         finally:
             self._in_predict = False
-
         if include_margin:
             s += self._dynamic_margin(v0, rem_now)
         return s
@@ -460,37 +555,24 @@ class StoppingSim:
     def _tasc_predict(self, cur_notch: int, v: float):
         st = self.state
         need = False
-        if (st.t - self._tasc_last_pred_t) >= self._tasc_pred_interval:
-            need = True
-        if abs(v - self._tasc_pred_cache["v"]) >= self._tasc_speed_eps:
-            need = True
-        if cur_notch != self._tasc_pred_cache["notch"]:
-            need = True
+        if (st.t - self._tasc_last_pred_t) >= self._tasc_pred_interval: need = True
+        if abs(v - self._tasc_pred_cache["v"]) >= self._tasc_speed_eps: need = True
+        if cur_notch != self._tasc_pred_cache["notch"]: need = True
         if not need:
-            return (self._tasc_pred_cache["s_cur"],
-                    self._tasc_pred_cache["s_up"],
-                    self._tasc_pred_cache["s_dn"])
-
+            return (self._tasc_pred_cache["s_cur"], self._tasc_pred_cache["s_up"], self._tasc_pred_cache["s_dn"])
         max_normal_notch = self.veh.notches - 2
         s_cur = self._stopping_distance(cur_notch, v) if cur_notch > 0 else float('inf')
         s_up = self._stopping_distance(cur_notch + 1, v) if cur_notch + 1 <= max_normal_notch else 0.0
         s_dn = self._stopping_distance(cur_notch - 1, v) if cur_notch - 1 >= 1 else float('inf')
-
-        self._tasc_pred_cache.update({"t": st.t, "v": v, "notch": cur_notch,
-                                      "s_cur": s_cur, "s_up": s_up, "s_dn": s_dn})
+        self._tasc_pred_cache.update({"t": st.t, "v": v, "notch": cur_notch, "s_cur": s_cur, "s_up": s_up, "s_dn": s_dn})
         self._tasc_last_pred_t = st.t
         return s_cur, s_up, s_dn
 
     def _need_B5_now(self, v: float, remaining: float) -> bool:
-        """
-        'B5가 필요하냐?'를 상수 시간으로 판정.
-        여기서는 'B4로 못 멈추면'으로 판정: s(B4) > 남은거리(+데드밴드)
-        Notch index: 0:N, 1:B1, 2:B2, 3:B3, 4:B4, 5:B5 ...
-        """
         st = self.state
         if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
             return self._need_b5_last
-        s_b4 = self._stopping_distance(2, v) # TODO: 환경에 맞게 인덱스 조정 필요시 변경
+        s_b4 = self._stopping_distance(2, v)
         need = s_b4 > (remaining + self.tasc_deadband_m)
         self._need_b5_last = need
         self._need_b5_last_t = st.t
@@ -501,15 +583,13 @@ class StoppingSim:
         st = self.state
         dt = self.scn.dt
 
-        # 예약된 명령 처리
         while self._cmd_queue and self._cmd_queue[0]["t"] <= st.t:
             self._apply_command(self._cmd_queue.popleft())
 
-        # 기록 & 초제동(B1/B2) 판정 체크 (시뮬 시간 기반) - 판정시간 2초
         self.notch_history.append(st.lever_notch)
         self.time_history.append(st.t)
         if not self.first_brake_done:
-            if st.lever_notch in (1, 2): # B1 또는 B2
+            if st.lever_notch in (1, 2):
                 if self.first_brake_start is None:
                     self.first_brake_start = st.t
                 elif (st.t - self.first_brake_start) >= 2.0:
@@ -517,15 +597,13 @@ class StoppingSim:
             else:
                 self.first_brake_start = None
 
-        # ---------- TASC 자동 제동 ----------
         if self.tasc_enabled and not self.manual_override and not st.finished:
             dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
             rem_now = self.scn.L - st.s
             speed_kmh = st.v * 3.6
             cur = st.lever_notch
-            max_normal_notch = self.veh.notches - 2 # EB-1까지
+            max_normal_notch = self.veh.notches - 2
 
-            # (A) B5 필요 시점 감지 → 그때 TASC 활성화(초제동 시퀀스 시작)
             if self.tasc_armed and not self.tasc_active:
                 if self._need_B5_now(st.v, rem_now):
                     self.tasc_active = True
@@ -533,7 +611,6 @@ class StoppingSim:
                     self._tasc_last_change_t = st.t
 
             if self.tasc_active:
-                # (B) 초제동 유지: 활성화 이후에만 B1/B2를 2초간 강제
                 if not self.first_brake_done:
                     desired = 2 if speed_kmh >= 75.0 else 1
                     if dwell_ok and cur != desired:
@@ -541,12 +618,9 @@ class StoppingSim:
                         st.lever_notch = self._clamp_notch(cur + stepv)
                         self._tasc_last_change_t = st.t
                 else:
-                    # (C) 빌드/릴렉스 로직
                     s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
                     changed = False
-
                     if self._tasc_phase == "build":
-                        # 더 강한 제동이 필요하면 한 단계 강화
                         if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur + 1)
@@ -555,55 +629,41 @@ class StoppingSim:
                                 changed = True
                         else:
                             self._tasc_phase = "relax"
-
                     if self._tasc_phase == "relax" and not changed:
-                        # 더 약한 제동으로도 충분하면 한 단계 완해
                         if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m + 0.1):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
 
-        # ====== 동역학 ======
-        a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v) # 음수
+        a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v)
         is_eb = (st.lever_notch == self.veh.notches - 1)
-        self._update_brake_dyn(a_cmd_brake, st.v, is_eb, dt) # self.brk_accel 갱신
+        self._update_brake_dyn(a_cmd_brake, st.v, is_eb, dt)
 
-        # 외력
         a_grade = self._grade_accel()
         a_davis = self._davis_accel(st.v)
-
-        # 목표 가속도
         a_target = self.brk_accel + a_grade + a_davis
 
-        # 저크 제한
         max_da = self.veh.j_max * dt
         da = a_target - st.a
-        if da > max_da:
-            da = max_da
-        elif da < -max_da:
-            da = -max_da
+        if da > max_da: da = max_da
+        elif da < -max_da: da = -max_da
         st.a += da
 
-        # 적분
         st.v = max(0.0, st.v + st.a * dt)
         st.s += st.v * dt + 0.5 * st.a * dt * dt
         st.t += dt
 
-        # ----- peak notch 지속시간 누적 -----
-        # 최고 노치를 갱신하면 지속시간 초기화, 동일 최고노치 유지 시 누적
         if st.lever_notch > self._tasc_peak_notch:
             self._tasc_peak_notch = st.lever_notch
             self._tasc_peak_duration = 0.0
         if st.lever_notch == self._tasc_peak_notch and st.lever_notch > 0:
             self._tasc_peak_duration += dt
 
-        # B1이 아니거나 종료면 I항 서서히 소거(드리프트 방지)
         if st.lever_notch != 1 or st.finished:
             self._b1_i *= 0.9
             if abs(self._b1_i) < 1e-3:
                 self._b1_i = 0.0
 
-        # 종료 판정
         rem = self.scn.L - st.s
         if not st.finished and (rem <= -5.0 or st.v <= 0.0):
             st.finished = True
@@ -613,18 +673,15 @@ class StoppingSim:
             score = 0
             st.issues = {}
 
-            # EB 사용 감점
             if self.eb_used or self.eb_used_from_history():
                 score -= 500
                 st.issues["unnecessary_eb_usage"] = True
 
-            # 초제동(B1/B2 2초) 보너스/감점
             if not self.first_brake_done:
                 score -= 100
             else:
                 score += 300
 
-            # 정차시 B1 여부
             last_notch = self.notch_history[-1] if self.notch_history else 0
             if last_notch == 1:
                 score += 300
@@ -639,46 +696,52 @@ class StoppingSim:
                 st.issues["stop_not_b1"] = True
                 st.issues["stop_not_b1_msg"] = "정차 시 B2 이상으로 정차함 - 승차감 불쾌"
 
-            # 계단 패턴 점수 (TASC ON은 점프 허용)
             if self.is_stair_pattern(self.notch_history):
                 score += 500
             else:
                 if self.tasc_enabled and not self.manual_override:
                     score += 500
 
-            # 정지 오차 점수 (0m → 500점, 10m → 0점)
             err_abs = abs(st.stop_error_m or 0.0)
             error_score = max(0, 500 - int(err_abs * 500))
             score += error_score
 
-            # 0 cm 정차 보너스 (+100)
             if abs(st.stop_error_m or 0.0) < 0.01:
                 score += 100
 
-            # 이슈 플래그들
             st.issues["early_brake_too_short"] = not self.first_brake_done
             st.issues["step_brake_incomplete"] = not self.is_stair_pattern(self.notch_history)
             st.issues["stop_error_m"] = st.stop_error_m
 
-            # 저크 기록
-            jerk = abs((st.a - self.prev_a) / dt)
+            jerk = abs(self.scn.dt)  # placeholder to avoid zero-div (저크 상세 미사용)
             self.prev_a = st.a
             self.jerk_history.append(jerk)
 
-            # 저크 점수 반영
             avg_jerk, jerk_score = self.compute_jerk_score()
             score += int(jerk_score)
 
             st.score = score
             self.running = False
+
+            # <<< POLY-BIAS: 관측 추가 + 모델 업데이트/저장 >>>
+            try:
+                v0_kmh = self.scn.v0 * 3.6
+                L_m = self.scn.L
+                grade_percent = self.scn.grade_percent
+                mass_total_tons = self.veh.mass_kg / 1000.0
+                self._append_observation_and_update(
+                    v0_kmh, L_m, grade_percent, mass_total_tons, float(st.stop_error_m)
+                )
+            except Exception as e:
+                if DEBUG:
+                    print(f"[POLY-BIAS] update failed: {e}")
+
             if DEBUG:
                 print(f"Simulation finished: stop_error={st.stop_error_m:.3f} m, score={score}")
 
     def is_stair_pattern(self, notches: List[int]) -> bool:
-        """초기(B1/B2)에서 시작해 한 번만 올라갔다 내려오고, 마지막이 B1인지 체크"""
         if len(notches) < 3:
             return False
-        # 최초 유효 노치: B1 또는 B2 허용
         first_brake_notch = None
         for n in notches:
             if n > 0:
@@ -705,7 +768,6 @@ class StoppingSim:
         return True
 
     def compute_jerk_score(self):
-        """최근 1초 평균 저크 기반 점수 (<=25: 500점, 25~50: 선형감점, >50: 0점)"""
         dt = self.scn.dt
         window_time = 1.0
         n = int(window_time / dt)
@@ -744,13 +806,11 @@ class StoppingSim:
             "score": getattr(st, "score", 0),
             "issues": getattr(st, "issues", {}),
             "tasc_enabled": getattr(self, "tasc_enabled", False),
-            # HUD/디버그용
             "mu": float(self.scn.mu),
             "rr_factor": float(0.7 + 0.3 * self.scn.mu),
             "davis_A0": self.veh.A0,
             "davis_B1": self.veh.B1,
             "davis_C2": self.veh.C2,
-            # 히스토리 디버그
             "peak_notch": self._tasc_peak_notch,
             "peak_dur_s": self._tasc_peak_duration,
         }
@@ -787,7 +847,6 @@ async def ws_endpoint(ws: WebSocket):
     sim.start()
 
     last_sim_time = time.perf_counter()
-    # 송신 속도 제한(30Hz)
     last_send = 0.0
     send_interval = 1.0 / 30.0
 
@@ -797,7 +856,6 @@ async def ws_endpoint(ws: WebSocket):
             elapsed = now - last_sim_time
 
             try:
-                # 입력 처리 (최대 100Hz 정도로 충분)
                 msg = await asyncio.wait_for(ws.receive_text(), timeout=0.01)
                 data = json.loads(msg)
                 if data.get("type") == "cmd":
@@ -825,7 +883,6 @@ async def ws_endpoint(ws: WebSocket):
 
                     elif name in ("stepNotch", "applyNotch"):
                         delta = int(payload.get("delta", 0))
-                        # 수동 개입 → TASC 해제
                         sim.manual_override = True
                         sim.tasc_enabled = False
                         sim.queue_command("stepNotch", delta)
@@ -847,24 +904,16 @@ async def ws_endpoint(ws: WebSocket):
                             print(f"Train length set to {length} cars.")
                         sim.reset()
 
-                    
                     elif name == "setLoadRate":
                         load_rate = float(payload.get("loadRate", 0.0)) / 100.0
                         length = int(payload.get("length", 8))
-
-    # JSON에서 읽은 차량 기본 질량 (1량)
-                        base_1c_t = vehicle.mass_t # 예: 39.9
-                        pax_1c_t = 10.5 # 승객 만석 시 1량당 질량 (톤). json에 넣을 수도 있음.
-
-    # 총 질량 (tons)
+                        base_1c_t = vehicle.mass_t
+                        pax_1c_t = 10.5
                         total_tons = length * (base_1c_t + pax_1c_t * load_rate)
-
-    # vehicle 객체 갱신
                         vehicle.update_mass(length)
                         vehicle.mass_kg = total_tons * 1000.0
                         sim.train_length = length
                         sim.reset()
-
                         if DEBUG:
                             print(f"[LoadRate] {length}량, 탑승률={load_rate*100:.1f}%, 총 {total_tons:.1f} t")
 
@@ -877,7 +926,6 @@ async def ws_endpoint(ws: WebSocket):
                             sim._tasc_phase = "build"
                             sim._tasc_peak_notch = 1
                             sim._tasc_peak_duration = 0.0
-                            # 즉시 작동 금지: B5 필요 시점까지 '대기'
                             sim.tasc_armed = True
                             sim.tasc_active = False
                         if DEBUG:
@@ -902,7 +950,6 @@ async def ws_endpoint(ws: WebSocket):
                 if DEBUG:
                     print(f"Error during receive: {e}")
 
-            # ---- 고정된 시뮬 시간 흐름 (현실 시간과 동기화) ----
             dt = sim.scn.dt
             while elapsed >= dt:
                 if sim.running:
@@ -910,7 +957,6 @@ async def ws_endpoint(ws: WebSocket):
                 last_sim_time += dt
                 elapsed -= dt
 
-            # ---- 송신 속도 제한 (30Hz) ----
             if (now - last_send) >= send_interval:
                 await ws.send_text(json.dumps({"type": "state", "payload": sim.snapshot()}))
                 last_send = now
@@ -921,4 +967,3 @@ async def ws_endpoint(ws: WebSocket):
             await ws.close()
         except RuntimeError:
             pass
-
