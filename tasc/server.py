@@ -12,11 +12,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-# numpy는 선택 사항(없어도 실행). 있으면 학습, 없으면 데이터만 누적.
-try:
-    import numpy as np
-except Exception:
-    np = None
+
+import numpy as np
+
 
 # ------------------------------------------------------------
 # Config
