@@ -9,7 +9,7 @@ import time
 from server import Vehicle, Scenario, StoppingSim, _mu_to_rr_factor
 
 # --------- 튜닝 파라미터 ---------
-RUNS = 100000            # 총 학습 회수 (원하면 5만~10만도 OK)
+RUNS = 100          # 총 학습 회수 (원하면 5만~10만도 OK)
 BATCH_FIT = 5          # 매 N회마다 강제 추가 피팅
 GAIN = 10            # 오차 가중(수렴 가속)
 DEADBAND_M = 0.05       # 5 cm: 이 범위 이하면 0으로 간주
@@ -57,7 +57,7 @@ def _one_episode(sim: StoppingSim, v0_kmh: float, L: float, grade_pct: float, mu
     start_t = time.time()
     while sim.running:
         sim.step()
-        if time.time() - start_t > 30:  # 30초 이상이면 강제 종료
+        if time.time() - start_t > 1:  # 30초 이상이면 강제 종료
             sim.running = False
             break
 
@@ -142,7 +142,7 @@ def main():
         else:
             ema_mae = 0.9 * ema_mae + 0.1 * mae
 
-        if (i % 100) == 0:
+        if (i % 1) == 0:
             elapsed = time.time() - t0
             print(f"[train] {i}/{RUNS}  EMA|err|={ema_mae:.3f} m  elapsed={elapsed:.1f}s")
 
