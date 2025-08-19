@@ -460,7 +460,7 @@ class StoppingSim:
 
         # 관측 추가
         rec = {"v0": float(v0_kmh), "L": float(L_m), "grade": float(grade_percent),
-               "mass": float(mass_tons), "err": float(stop_error_m)}
+               "mass": float(mass_tons), "err": float(-stop_error_m)}
         m["data"].append(rec)
 
         # 상한 유지 (최근 max_points)
