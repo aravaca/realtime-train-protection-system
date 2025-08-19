@@ -1,3 +1,4 @@
+
 import math
 import json
 import asyncio
@@ -11,9 +12,6 @@ from typing import Optional, List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-
-# 추가: 학습을 위해 numpy 사용
-import numpy as np
 
 # ------------------------------------------------------------
 # Config
@@ -204,170 +202,11 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
-        # <<< POLY-BIAS: JSON 다항 보정 모델 로딩 >>>
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        self._bias_model_path = os.path.join(base_dir, "bias_model.json")
-        self._bias_model = self._load_poly_bias_model(self._bias_model_path)
-
-    # <<< POLY-BIAS: 다항 모델 로딩/생성 >>>
-    def _default_bias_model(self):
-        # degree=2, terms: 1, 1차 4개, 제곱 4개, 쌍곱 6개 = 총 15항
-        terms = [
-            "1",
-            "v0","L","grade","mass",
-            "v0^2","L^2","grade^2","mass^2",
-            "v0*L","v0*grade","v0*mass","L*grade","L*mass","grade*mass"
-        ]
-        coeffs = [0.0]*len(terms)  # 초기엔 영향 0
-        # 학습 설정 추가
-        return {
-            "degree": 2,
-            "terms": terms,
-            "coeffs": coeffs,
-            "features": ["v0","L","grade","mass"],
-            "ridge_lambda": 1e-6,   # 과적합/수치안정용
-            "max_points": 2000,     # 데이터 누적 상한
-            "data": []              # 관측 데이터 [{v0,L,grade,mass,err}, ...]
-        }
-
-    def _load_poly_bias_model(self, path: str):
-        try:
-            if os.path.exists(path):
-                with open(path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                # 필수 키 검사 및 보정
-                template = self._default_bias_model()
-                for k, v in template.items():
-                    if k not in data:
-                        data[k] = v
-                # terms/coeffs 길이 일치 확인
-                if len(data["terms"]) != len(data["coeffs"]):
-                    # 길이 불일치면 초기화(안전)
-                    data["coeffs"] = template["coeffs"]
-                # data 형식 보정
-                if not isinstance(data.get("data", []), list):
-                    data["data"] = []
-                return data
-            else:
-                data = self._default_bias_model()
-                self._save_bias_model(path, data)
-                if DEBUG:
-                    print(f"[POLY-BIAS] Created template at {path}")
-                return data
-        except Exception as e:
-            if DEBUG:
-                print(f"[POLY-BIAS] Failed to load model: {e}")
-            # 안전하게 템플릿 반환
-            data = self._default_bias_model()
-            self._save_bias_model(path, data)
-            return data
-
-    def _save_bias_model(self, path: str, data: dict):
-        tmp_path = path + ".tmp"
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        # 원자적 교체
-        os.replace(tmp_path, path)
-
-    # <<< POLY-BIAS: 항 평가기 >>>
-    def _poly_term_value(self, term: str, v0: float, L: float, grade: float, mass: float) -> float:
-        if term == "1":
-            return 1.0
-        # 단항 제곱
-        if term.endswith("^2"):
-            base = term[:-2]
-            if base == "v0":   x = v0
-            elif base == "L":  x = L
-            elif base == "grade": x = grade
-            elif base == "mass":  x = mass
-            else: return 0.0
-            return x * x
-        # 쌍곱
-        if "*" in term:
-            a,b = term.split("*",1)
-            def val(name):
-                return {"v0":v0, "L":L, "grade":grade, "mass":mass}.get(name, 0.0)
-            return val(a) * val(b)
-        # 1차항
-        return {"v0":v0, "L":L, "grade":grade, "mass":mass}.get(term, 0.0)
-
-    def _poly_features_row(self, terms: List[str], v0_kmh: float, L_m: float, grade_percent: float, mass_tons: float) -> List[float]:
-        return [self._poly_term_value(t, v0_kmh, L_m, grade_percent, mass_tons) for t in terms]
-
-    # <<< POLY-BIAS: 보정 예측 >>>
-    def _predict_bias_from_json(self, v0_kmh: float, L_m: float, grade_percent: float, mass_tons: float) -> float:
-        m = self._bias_model
-        if not m:
-            return 0.0
-        terms = m["terms"]
-        coeffs = m["coeffs"]
-        feats = self._poly_features_row(terms, v0_kmh, L_m, grade_percent, mass_tons)
-        return float(np.dot(np.array(coeffs, dtype=float), np.array(feats, dtype=float)))
-
-    # <<< POLY-BIAS: 학습(릿지) >>>
-    def _fit_bias_coeffs_from_data(self):
-        m = self._bias_model
-        data = m.get("data", [])
-        if len(data) < 5:  # 표본 너무 적으면 학습 skip
-            return
-
-        terms = m["terms"]
-        lam = float(m.get("ridge_lambda", 1e-6))
-
-        # 설계행렬 X, 타깃 y 구성
-        X_rows = []
-        y = []
-        for rec in data:
-            v0 = float(rec["v0"])
-            L  = float(rec["L"])
-            g  = float(rec["grade"])
-            mass = float(rec["mass"])
-            err  = float(rec["err"])
-            X_rows.append(self._poly_features_row(terms, v0, L, g, mass))
-            y.append(err)
-        X = np.array(X_rows, dtype=float)  # shape [N, P]
-        y = np.array(y, dtype=float)       # shape [N]
-
-        # 릿지: (X^T X + λI)^{-1} X^T y
-        P = X.shape[1]
-        XtX = X.T @ X
-        Xty = X.T @ y
-        A = XtX + lam * np.eye(P)
-        try:
-            coeffs = np.linalg.solve(A, Xty)
-        except np.linalg.LinAlgError:
-            # fallback: lstsq
-            coeffs, *_ = np.linalg.lstsq(A, Xty, rcond=None)
-
-        m["coeffs"] = [float(c) for c in coeffs]
-
-    def _append_observation_and_update(self, v0_kmh: float, L_m: float, grade_percent: float, mass_tons: float, stop_error_m: float):
-        m = self._bias_model
-        # 데이터 append
-        m.setdefault("data", [])
-        m.setdefault("max_points", 2000)
-        rec = {
-            "v0": float(v0_kmh),
-            "L": float(L_m),
-            "grade": float(grade_percent),
-            "mass": float(mass_tons),
-            "err": float(stop_error_m)
-        }
-        m["data"].append(rec)
-        # 상한 초과시 FIFO 제거
-        if len(m["data"]) > int(m["max_points"]):
-            m["data"] = m["data"][-int(m["max_points"]):]
-        # 계수 재학습
-        self._fit_bias_coeffs_from_data()
-        # 안전 저장
-        self._save_bias_model(self._bias_model_path, m)
-        if DEBUG:
-            print(f"[POLY-BIAS] Updated model with N={len(m['data'])} points. First coeff={m['coeffs'][0]:.6f}")
 
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
 
         BASE_1C_T = self.veh.mass_t # JSON 기반
-        PAX_1C_T = 10.5
+        PAX_1C_T = 10.5            
         REF_LOAD = 0.70
 
         mass_tons = self.veh.mass_kg / 1000.0
@@ -378,7 +217,7 @@ class StoppingSim:
 
         mass_corr = (-2.5e-4) * delta + (1.5e-8) * (delta ** 3)
 
-        # 클램프 극단적으로 조정
+# 클램프 극단적으로 조정
         if mass_corr > 0.08:
             mass_corr = 0.08
         elif mass_corr < -0.05:
@@ -396,26 +235,27 @@ class StoppingSim:
         
         #hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
 
-        base_margin = margin + grade_corr + mu_corr + mass_corr
+        return margin + grade_corr + mu_corr + mass_corr
 
-        # <<< POLY-BIAS: (v0,L,grade,mass) 다항 보정 추가 >>>
-        v0_kmh = self.scn.v0 * 3.6
-        L_m = self.scn.L
-        grade_percent = self.scn.grade_percent
-        mass_total_tons = self.veh.mass_kg / 1000.0
-        bias_poly = self._predict_bias_from_json(v0_kmh, L_m, grade_percent, mass_total_tons)
-
-        return base_margin + bias_poly
 
     # ----------------- 동적 마진 함수 -----------------
     def _dynamic_margin(self, v0: float, rem_now: float) -> float:
         """
         baseline(-0.71) + 선형 보정(grade/mu/mass) + 제동 히스토리 보정.
+        (기존 잔여거리 기반 미세보정은 제거 — 필요 시 아래 주석 해제)
         """
         mu = self.scn.mu
         grade_permil = self.scn.grade_percent * 10.0
+        mass_tons = self.veh.mass_kg / 1000.0
 
         margin = self.compute_margin(mu, grade_permil,self._tasc_peak_notch, self._tasc_peak_duration)
+
+        # 필요 시 잔여거리 보정 재도입
+        # if rem_now > 120:
+        # margin -= 0.08
+        # elif rem_now < 50:
+        # margin += 0.06
+
         return margin
 
     # ----------------- Physics helpers -----------------
@@ -831,20 +671,6 @@ class StoppingSim:
 
             st.score = score
             self.running = False
-
-            # <<< POLY-BIAS: 런 종료 시 관측 추가 + 모델 업데이트/저장 >>>
-            try:
-                v0_kmh = self.scn.v0 * 3.6
-                L_m = self.scn.L
-                grade_percent = self.scn.grade_percent
-                mass_total_tons = self.veh.mass_kg / 1000.0
-                self._append_observation_and_update(
-                    v0_kmh, L_m, grade_percent, mass_total_tons, float(st.stop_error_m)
-                )
-            except Exception as e:
-                if DEBUG:
-                    print(f"[POLY-BIAS] update failed: {e}")
-
             if DEBUG:
                 print(f"Simulation finished: stop_error={st.stop_error_m:.3f} m, score={score}")
 
@@ -1026,14 +852,14 @@ async def ws_endpoint(ws: WebSocket):
                         load_rate = float(payload.get("loadRate", 0.0)) / 100.0
                         length = int(payload.get("length", 8))
 
-                        # JSON에서 읽은 차량 기본 질량 (1량)
+    # JSON에서 읽은 차량 기본 질량 (1량)
                         base_1c_t = vehicle.mass_t # 예: 39.9
                         pax_1c_t = 10.5 # 승객 만석 시 1량당 질량 (톤). json에 넣을 수도 있음.
 
-                        # 총 질량 (tons)
+    # 총 질량 (tons)
                         total_tons = length * (base_1c_t + pax_1c_t * load_rate)
 
-                        # vehicle 객체 갱신
+    # vehicle 객체 갱신
                         vehicle.update_mass(length)
                         vehicle.mass_kg = total_tons * 1000.0
                         sim.train_length = length
@@ -1095,3 +921,4 @@ async def ws_endpoint(ws: WebSocket):
             await ws.close()
         except RuntimeError:
             pass
+
