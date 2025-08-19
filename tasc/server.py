@@ -3,6 +3,7 @@ import json
 import asyncio
 import time
 import os
+import sys
 
 from dataclasses import dataclass
 from collections import deque
@@ -12,9 +13,17 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-# numpy는 필수 (디버깅용 버전 출력)
-import numpy as np
-print("NumPy loaded:", np.__version__)
+# =========================
+# NumPy: 방어적 로드
+# =========================
+HAS_NUMPY = True
+try:
+    import numpy as np  # type: ignore
+    print("NumPy loaded:", np.__version__)
+except Exception as e:
+    HAS_NUMPY = False
+    np = None  # type: ignore
+    print("[WARN] NumPy unavailable:", e, file=sys.stderr)
 
 # ------------------------------------------------------------
 # Config
@@ -30,6 +39,37 @@ index_path = os.path.join("static", "index.html")
 if not os.path.isfile(index_path):
     with open(index_path, "w", encoding="utf-8") as f:
         f.write("<!doctype html><meta charset='utf-8'><title>TASC</title><h1>TASC Ready</h1>")
+
+# ------------------------------------------------------------
+# 안전 유틸
+# ------------------------------------------------------------
+def _atomic_write_json(path: str, obj: dict):
+    """JSON을 tmp에 쓴 뒤 교체(원자적 갱신). 쓰기 실패해도 원본 보전."""
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+def _ensure_json(path: str, default_obj: dict) -> dict:
+    """존재하지 않거나 손상되면 기본값으로 생성."""
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        _atomic_write_json(path, default_obj)
+        return default_obj
+    except Exception:
+        _atomic_write_json(path, default_obj)
+        return default_obj
+
+def _safe_float(x, default=0.0):
+    try:
+        v = float(x)
+        if math.isfinite(v):
+            return v
+        return default
+    except Exception:
+        return default
 
 # ------------------------------------------------------------
 # Data classes
@@ -60,29 +100,52 @@ class Vehicle:
 
     def update_mass(self, length: int):
         """편성 량 수에 맞춰 총 질량(kg)을 업데이트"""
+        length = max(1, int(length))
         self.mass_kg = self.mass_t * 1000 * length
 
     @classmethod
     def from_json(cls, filepath):
-        with open(filepath, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        mass_t = data.get("mass_t", 200.0)
+        default = {
+            "name": "EMU-233-JR-East",
+            "mass_t": 200.0,
+            "a_max": 1.0,
+            "j_max": 0.8,
+            # EB(끝) ~ N(0) 순서 기준 가속도(음수=제동), 길이 9
+            "notch_accels": [-1.5, -1.10, -0.95, -0.80, -0.65, -0.50, -0.35, -0.20, 0.0],
+            "notches": 9,
+            "tau_cmd_ms": 150,
+            "tau_brk_ms": 250,
+            "davis_A0": 1200.0,
+            "davis_B1": 30.0,
+            "davis_C2": 8.0,
+        }
+        data = _ensure_json(filepath, default)
+
+        notch_accels = data.get("notch_accels") or default["notch_accels"]
+        if not isinstance(notch_accels, list) or len(notch_accels) < 2:
+            notch_accels = default["notch_accels"]
+
+        # notches는 항상 리스트 길이에 맞춤(인덱스 불일치 방지)
+        notches = int(data.get("notches", len(notch_accels)))
+        notches = max(2, min(len(notch_accels), notches))
+
+        mass_t = _safe_float(data.get("mass_t", default["mass_t"]), default["mass_t"])
+        tau_cmd = _safe_float(data.get("tau_cmd_ms", default["tau_cmd_ms"]), 150.0) / 1000.0
+        tau_brk = _safe_float(data.get("tau_brk_ms", default["tau_brk_ms"]), 250.0) / 1000.0
+
         return cls(
-            name=data.get("name", "EMU-233-JR-East"),
+            name=str(data.get("name", default["name"])),
             mass_t=mass_t,
-            a_max=data.get("a_max", 1.0),
-            j_max=data.get("j_max", 0.8),
-            notches=data.get("notches", 8),
-            notch_accels=data.get(
-                "notch_accels",
-                [-1.5, -1.10, -0.95, -0.80, -0.65, -0.50, -0.35, -0.20, 0.0],
-            ),
-            tau_cmd=data.get("tau_cmd_ms", 150) / 1000.0,
-            tau_brk=data.get("tau_brk_ms", 250) / 1000.0,
+            a_max=_safe_float(data.get("a_max", default["a_max"]), default["a_max"]),
+            j_max=_safe_float(data.get("j_max", default["j_max"]), default["j_max"]),
+            notches=notches,
+            notch_accels=notch_accels,
+            tau_cmd=tau_cmd,
+            tau_brk=tau_brk,
             mass_kg=mass_t * 1000,
-            A0=data.get("davis_A0", 1200.0),
-            B1=data.get("davis_B1", 30.0),
-            C2=data.get("davis_C2", 8.0),
+            A0=_safe_float(data.get("davis_A0", default["davis_A0"]), default["davis_A0"]),
+            B1=_safe_float(data.get("davis_B1", default["davis_B1"]), default["davis_B1"]),
+            C2=_safe_float(data.get("davis_C2", default["davis_C2"]), default["davis_C2"]),
             C_rr=0.005,
             rho_air=1.225,
             Cd=1.8,
@@ -100,16 +163,22 @@ class Scenario:
 
     @classmethod
     def from_json(cls, filepath):
-        with open(filepath, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        v0_kmph = data.get("v0", 25.0)
+        default = {
+            "L": 500.0,
+            "v0": 25.0,            # km/h
+            "grade_percent": 0.0,  # %
+            "mu": 1.0,
+            "dt": 0.03,
+        }
+        data = _ensure_json(filepath, default)
+        v0_kmph = _safe_float(data.get("v0", default["v0"]), default["v0"])
         v0_ms = v0_kmph / 3.6
         return cls(
-            L=data.get("L", 500.0),
+            L=_safe_float(data.get("L", default["L"]), default["L"]),
             v0=v0_ms,
-            grade_percent=data.get("grade_percent", 0.0),
-            mu=data.get("mu", 1.0),
-            dt=data.get("dt", 0.03),
+            grade_percent=_safe_float(data.get("grade_percent", default["grade_percent"]), default["grade_percent"]),
+            mu=_safe_float(data.get("mu", default["mu"]), default["mu"]),
+            dt=max(0.005, _safe_float(data.get("dt", default["dt"]), default["dt"])),
         )
 
 
@@ -126,21 +195,21 @@ class State:
     score: Optional[int] = None
     running: bool = False
 
-
 # ------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------
 
 def build_vref(L: float, a_ref: float):
+    a_ref = max(1e-6, float(a_ref))
     def vref(s: float):
         rem = max(0.0, L - s)
-        return math.sqrt(max(0.0, 2.0 * a_ref * rem))
+        v2 = 2.0 * a_ref * rem
+        return math.sqrt(v2) if v2 > 0.0 else 0.0
     return vref
 
 def _mu_to_rr_factor(mu: float) -> float:
     mu_clamped = max(0.0, min(1.0, float(mu)))
     return 0.7 + 0.3 * mu_clamped
-
 
 # ------------------------------------------------------------
 # Simulator
@@ -152,7 +221,7 @@ class StoppingSim:
         self.scn = scn
         self.state = State(t=0.0, s=0.0, v=scn.v0, a=0.0, lever_notch=0, finished=False)
         self.running = False
-        self.vref = build_vref(scn.L, 0.75 * veh.a_max)
+        self.vref = build_vref(scn.L, 0.75 * max(0.1, veh.a_max))
         self._cmd_queue = deque()
 
         # EB 사용 여부
@@ -174,7 +243,7 @@ class StoppingSim:
         self.tasc_enabled = False
         self.manual_override = False
         self.tasc_deadband_m = 0.3
-        self.tasc_hold_min_s = 0.20
+        self.tasc_hold_min_s = 0.001
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
@@ -248,7 +317,7 @@ class StoppingSim:
                 for k, v in tmpl.items():
                     if k not in data:
                         data[k] = v
-                if len(data["terms"]) != len(data["coeffs"]):
+                if len(data.get("terms", [])) != len(data.get("coeffs", [])):
                     data["coeffs"] = tmpl["coeffs"]
                 if not isinstance(data.get("data", []), list):
                     data["data"] = []
@@ -268,10 +337,7 @@ class StoppingSim:
 
     def _save_bias_model(self, path: str, data: dict):
         try:
-            tmp_path = path + ".tmp"
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            os.replace(tmp_path, path)
+            _atomic_write_json(path, data)
         except Exception as e:
             if DEBUG:
                 print(f"[POLY-BIAS] save failed: {e}")
@@ -298,16 +364,19 @@ class StoppingSim:
         terms = m["terms"]
         coeffs = m["coeffs"]
         feats = self._poly_features_row(terms, v0_kmh, L_m, grade_percent, mass_tons)
-        return float(sum(float(c)*float(f) for c, f in zip(coeffs, feats)))
+        try:
+            return float(sum(float(c)*float(f) for c, f in zip(coeffs, feats)))
+        except Exception:
+            return 0.0
 
-    # ---------- POLY-BIAS: 학습 (Fail-safe, 오차≠0이면 강제 학습 지원) ----------
+    # ---------- POLY-BIAS: 학습 (오차≠0이면 무조건 시도, NumPy 없으면 패스) ----------
     def _fit_bias_coeffs_from_data(self, force: bool = False):
-        """
-        fail-safe 학습기:
-          - 표본이 1개라도 있고 force=True면 학습 시도
-          - Ridge(λ) → 실패 시 lstsq → 실패 시 pinv → 모두 실패면 기존 계수 유지
-          - 입력 정규화/타깃 클립/계수 클램프 적용
-        """
+        """NumPy가 없거나 실패하면 기존 계수 유지."""
+        if not HAS_NUMPY:
+            if DEBUG:
+                print("[POLY-BIAS] NumPy not available → skip fit")
+            return
+
         m = self._bias_model
         data = m.get("data", [])
         if not data:
@@ -322,7 +391,6 @@ class StoppingSim:
         terms = m["terms"]
         lam = float(m.get("ridge_lambda", 1e-6))
 
-        # 설계행렬 X, 타깃 y
         X_rows, y = [], []
         for rec in data:
             v0 = float(rec["v0"]); L = float(rec["L"])
@@ -331,41 +399,51 @@ class StoppingSim:
             X_rows.append(self._poly_features_row(terms, v0, L, g, mass))
             y.append(err)
 
-        X = np.array(X_rows, dtype=float)  # [N,P]
-        y = np.array(y, dtype=float)       # [N]
+        try:
+            X = np.array(X_rows, dtype=float)  # [N,P]
+            y = np.array(y, dtype=float)       # [N]
+        except Exception:
+            return
 
         # 타깃 이상치 클립 (±10m)
-        y = np.clip(y, -10.0, 10.0)
+        try:
+            y = np.clip(y, -10.0, 10.0)
+        except Exception:
+            pass
 
         P = X.shape[1]
         # 열 정규화
-        col_norm = np.linalg.norm(X, axis=0)
-        col_norm[col_norm == 0.0] = 1.0
-        Xn = X / col_norm
-
-        XtX = Xn.T @ Xn
-        Xty = Xn.T @ y
-        A = XtX + lam * np.eye(P)
-
-        coeffs = None
         try:
-            coeffs = np.linalg.solve(A, Xty)
-        except np.linalg.LinAlgError:
+            col_norm = np.linalg.norm(X, axis=0)
+            col_norm[col_norm == 0.0] = 1.0
+            Xn = X / col_norm
+
+            XtX = Xn.T @ Xn
+            Xty = Xn.T @ y
+            A = XtX + lam * np.eye(P)
+
+            coeffs = None
             try:
-                coeffs, *_ = np.linalg.lstsq(A, Xty, rcond=None)
-            except Exception:
+                coeffs = np.linalg.solve(A, Xty)
+            except np.linalg.LinAlgError:
                 try:
-                    coeffs = np.linalg.pinv(A) @ Xty
+                    coeffs, *_ = np.linalg.lstsq(A, Xty, rcond=None)
                 except Exception:
-                    if DEBUG:
-                        print("[POLY-BIAS] all solvers failed; keep old coeffs")
-                    return
+                    try:
+                        coeffs = np.linalg.pinv(A) @ Xty
+                    except Exception:
+                        if DEBUG:
+                            print("[POLY-BIAS] all solvers failed; keep old coeffs")
+                        return
 
-        # 정규화 해제 및 계수 클램프
-        coeffs = coeffs / col_norm
-        coeffs = np.clip(coeffs, -5.0, 5.0)
+            # 정규화 해제 및 계수 클램프
+            coeffs = coeffs / col_norm
+            coeffs = np.clip(coeffs, -5.0, 5.0)
 
-        m["coeffs"] = [float(c) for c in coeffs]
+            m["coeffs"] = [float(c) for c in coeffs]
+        except Exception as e:
+            if DEBUG:
+                print(f"[POLY-BIAS] fit failed: {e}")
 
     def _append_observation_and_update(
         self,
@@ -397,7 +475,7 @@ class StoppingSim:
             if DEBUG:
                 print(f"[POLY-BIAS] fit exception ignored: {e}")
 
-        # 저장
+        # 저장 (실패 무시)
         self._save_bias_model(self._bias_model_path, m)
 
         if DEBUG:
@@ -412,17 +490,14 @@ class StoppingSim:
         PAX_1C_T = 10.5
         REF_LOAD = 0.70
 
-        mass_tons = self.veh.mass_kg / 1000.0
+        mass_tons = max(1.0, self.veh.mass_kg / 1000.0)
         Lcars = getattr(self, "train_length", 10)
 
         baseline_tons = Lcars * (BASE_1C_T + PAX_1C_T * REF_LOAD)
         delta = mass_tons - baseline_tons
 
         mass_corr = (-2.5e-4) * delta + (1.5e-8) * (delta ** 3)
-        if mass_corr > 0.08:
-            mass_corr = 0.08
-        elif mass_corr < -0.05:
-            mass_corr = -0.05
+        mass_corr = max(-0.05, min(0.08, mass_corr))
 
         margin = -0.675
         scale = min(1.0, self.scn.L / 100.0)
@@ -439,7 +514,7 @@ class StoppingSim:
         v0_kmh = self.scn.v0 * 3.6
         L_m = self.scn.L
         grade_percent = self.scn.grade_percent
-        mass_total_tons = self.veh.mass_kg / 1000.0
+        mass_total_tons = mass_tons
         bias_poly = self._predict_bias_from_json(v0_kmh, L_m, grade_percent, mass_total_tons)
 
         return base_margin + bias_poly
@@ -451,8 +526,13 @@ class StoppingSim:
         return margin
 
     def _effective_brake_accel(self, notch: int, v: float) -> float:
+        if notch < 0:
+            notch = 0
+        if self.veh.notch_accels is None or len(self.veh.notch_accels) == 0:
+            return 0.0
         if notch >= len(self.veh.notch_accels):
             return 0.0
+
         base = float(self.veh.notch_accels[notch])  # 음수
 
         blend_cutoff_speed = 40.0 / 3.6
@@ -503,7 +583,7 @@ class StoppingSim:
         B1 = self.veh.B1 * (0.7 + 0.3 * self.scn.mu)
         C2 = self.veh.C2
         F = A0 + B1 * v + C2 * v * v
-        return -F / self.veh.mass_kg if v != 0 else 0.0
+        return -F / max(1.0, self.veh.mass_kg) if v != 0 else 0.0
 
     def _update_brake_dyn(self, a_cmd: float, v: float, is_eb: bool, dt: float):
         going_stronger = (a_cmd < self.brk_accel)
@@ -580,7 +660,7 @@ class StoppingSim:
         a = 0.0
         s = 0.0
         tau = max(0.15, self.veh.tau_brk)
-        rem_now = self.scn.L - self.state.s
+        rem_now = max(0.0, self.scn.L - self.state.s) if self.state else 0.0
         limit = float(rem_now + 5.0)
         self._in_predict = True
         try:
@@ -598,7 +678,7 @@ class StoppingSim:
             self._in_predict = False
         if include_margin:
             s += self._dynamic_margin(v0, rem_now)
-        return s
+        return max(0.0, s)
 
     def _stopping_distance(self, notch: int, v: float, include_margin: bool = True) -> float:
         if notch <= 0:
@@ -636,8 +716,12 @@ class StoppingSim:
         st = self.state
         dt = self.scn.dt
 
+        # 큐 명령 적용
         while self._cmd_queue and self._cmd_queue[0]["t"] <= st.t:
-            self._apply_command(self._cmd_queue.popleft())
+            try:
+                self._apply_command(self._cmd_queue.popleft())
+            except Exception:
+                pass
 
         self.notch_history.append(st.lever_notch)
         self.time_history.append(st.t)
@@ -696,7 +780,7 @@ class StoppingSim:
         a_davis = self._davis_accel(st.v)
         a_target = self.brk_accel + a_grade + a_davis
 
-        max_da = self.veh.j_max * dt
+        max_da = max(0.0, self.veh.j_max) * dt
         da = a_target - st.a
         if da > max_da: da = max_da
         elif da < -max_da: da = -max_da
@@ -826,7 +910,7 @@ class StoppingSim:
     def compute_jerk_score(self):
         dt = self.scn.dt
         window_time = 1.0
-        n = int(window_time / dt)
+        n = max(1, int(window_time / dt))
         recent_jerks = self.jerk_history[-n:] if len(self.jerk_history) >= n else self.jerk_history
         if not recent_jerks:
             return 0.0, 0
@@ -845,37 +929,43 @@ class StoppingSim:
     def snapshot(self):
         st = self.state
         m = getattr(self, "_bias_model", None) or {}
+        def _clean(v):
+            try:
+                v = float(v)
+                return 0.0 if not math.isfinite(v) else v
+            except Exception:
+                return 0.0
         return {
             "t": round(st.t, 3),
-            "s": st.s,
-            "v": st.v,
-            "a": st.a,
-            "lever_notch": st.lever_notch,
-            "remaining_m": self.scn.L - st.s,
-            "L": self.scn.L,
-            "v_ref": self.vref(st.s),
-            "finished": st.finished,
-            "stop_error_m": st.stop_error_m,
-            "residual_speed_kmh": st.v * 3.6,
-            "running": self.running,
-            "grade_percent": self.scn.grade_percent,
-            "grade": self.scn.grade_percent,
-            "score": getattr(st, "score", 0),
+            "s": _clean(st.s),
+            "v": _clean(st.v),
+            "a": _clean(st.a),
+            "lever_notch": int(st.lever_notch),
+            "remaining_m": _clean(self.scn.L - st.s),
+            "L": _clean(self.scn.L),
+            "v_ref": _clean(self.vref(st.s)),
+            "finished": bool(st.finished),
+            "stop_error_m": _clean(st.stop_error_m if st.stop_error_m is not None else 0.0),
+            "residual_speed_kmh": _clean(st.v * 3.6),
+            "running": bool(self.running),
+            "grade_percent": _clean(self.scn.grade_percent),
+            "grade": _clean(self.scn.grade_percent),
+            "score": int(getattr(st, "score", 0) or 0),
             "issues": getattr(st, "issues", {}),
-            "tasc_enabled": getattr(self, "tasc_enabled", False),
+            "tasc_enabled": bool(getattr(self, "tasc_enabled", False)),
             # 디버그/모니터링
             "mu": float(self.scn.mu),
             "rr_factor": float(0.7 + 0.3 * self.scn.mu),
-            "davis_A0": self.veh.A0,
-            "davis_B1": self.veh.B1,
-            "davis_C2": self.veh.C2,
-            "peak_notch": self._tasc_peak_notch,
-            "peak_dur_s": self._tasc_peak_duration,
-            "pb_data_n": len(m.get("data", [])),
-            "pb_coeff0": (m.get("coeffs", [0.0])[0] if m.get("coeffs") else 0.0),
-            "pb_bias_pred": self._predict_bias_from_json(self.scn.v0*3.6, self.scn.L, self.scn.grade_percent, self.veh.mass_kg/1000.0),
+            "davis_A0": _clean(self.veh.A0),
+            "davis_B1": _clean(self.veh.B1),
+            "davis_C2": _clean(self.veh.C2),
+            "peak_notch": int(self._tasc_peak_notch),
+            "peak_dur_s": _clean(self._tasc_peak_duration),
+            "pb_data_n": int(len(m.get("data", []))),
+            "pb_coeff0": _clean((m.get("coeffs", [0.0])[0] if m.get("coeffs") else 0.0)),
+            "pb_bias_pred": _clean(self._predict_bias_from_json(self.scn.v0*3.6, self.scn.L, self.scn.grade_percent, self.veh.mass_kg/1000.0)),
+            "learning_enabled": bool(HAS_NUMPY),
         }
-
 
 # ------------------------------------------------------------
 # FastAPI app
@@ -884,11 +974,9 @@ class StoppingSim:
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-
 @app.get("/")
 async def root():
     return HTMLResponse(open("static/index.html", "r", encoding="utf-8").read())
-
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
@@ -898,9 +986,13 @@ async def ws_endpoint(ws: WebSocket):
     vehicle_json_path = os.path.join(BASE_DIR, "vehicle.json")
     scenario_json_path = os.path.join(BASE_DIR, "scenario.json")
 
+    # 파일이 없거나 손상되어도 안전하게 로드/생성
     vehicle = Vehicle.from_json(vehicle_json_path)
+
     # 프론트가 EB→...→N으로 올 때 서버는 N→...→EB로 쓰기 위해 반전
     vehicle.notch_accels = list(reversed(vehicle.notch_accels))
+    # 반전 후 인덱스 오류 방지: notches를 길이에 맞춤
+    vehicle.notches = len(vehicle.notch_accels)
 
     scenario = Scenario.from_json(scenario_json_path)
 
@@ -909,32 +1001,32 @@ async def ws_endpoint(ws: WebSocket):
 
     last_sim_time = time.perf_counter()
     last_send = 0.0
-    send_interval = 1.0 / 30.0
+    send_interval = 1.0 / 30.0  # 30Hz
 
     try:
         while True:
             now = time.perf_counter()
             elapsed = now - last_sim_time
 
+            # ---- 입력 처리(논블로킹) ----
             try:
-                # 입력 처리
                 msg = await asyncio.wait_for(ws.receive_text(), timeout=0.01)
                 data = json.loads(msg)
                 if data.get("type") == "cmd":
-                    payload = data["payload"]
+                    payload = data.get("payload", {})
                     name = payload.get("name")
 
                     if name == "setInitial":
                         speed = payload.get("speed")
                         dist = payload.get("dist")
-                        grade = payload.get("grade", 0.0) / 10.0  # 프론트 입력(‰)→% 변환 가정
-                        mu = float(payload.get("mu", 1.0))
+                        grade = _safe_float(payload.get("grade", 0.0), 0.0) / 10.0  # ‰ → %
+                        mu = _safe_float(payload.get("mu", 1.0), 1.0)
                         if speed is not None and dist is not None:
-                            sim.scn.v0 = float(speed) / 3.6
-                            sim.scn.L = float(dist)
-                            sim.scn.grade_percent = float(grade)
-                            sim.scn.mu = mu
-                            sim.rr_factor = _mu_to_rr_factor(mu)
+                            sim.scn.v0 = _safe_float(speed, 0.0) / 3.6
+                            sim.scn.L = max(0.0, _safe_float(dist, 0.0))
+                            sim.scn.grade_percent = grade
+                            sim.scn.mu = max(0.0, min(1.0, mu))
+                            sim.rr_factor = _mu_to_rr_factor(sim.scn.mu)
                             if DEBUG:
                                 print(f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}")
                             sim.reset()
@@ -944,7 +1036,7 @@ async def ws_endpoint(ws: WebSocket):
                         sim.start()
 
                     elif name in ("stepNotch", "applyNotch"):
-                        delta = int(payload.get("delta", 0))
+                        delta = int(payload.get("delta", 0) or 0)
                         sim.manual_override = True
                         sim.tasc_enabled = False
                         sim.queue_command("stepNotch", delta)
@@ -960,20 +1052,21 @@ async def ws_endpoint(ws: WebSocket):
                         sim.queue_command("emergencyBrake", 0)
 
                     elif name == "setTrainLength":
-                        length = int(payload.get("length", 8))
+                        length = int(payload.get("length", 8) or 8)
                         vehicle.update_mass(length)
+                        sim.train_length = length
                         if DEBUG:
                             print(f"Train length set to {length} cars.")
                         sim.reset()
 
                     elif name == "setLoadRate":
-                        load_rate = float(payload.get("loadRate", 0.0)) / 100.0
-                        length = int(payload.get("length", 8))
+                        load_rate = _safe_float(payload.get("loadRate", 0.0), 0.0) / 100.0
+                        length = int(payload.get("length", 8) or 8)
                         base_1c_t = vehicle.mass_t
                         pax_1c_t = 10.5
-                        total_tons = length * (base_1c_t + pax_1c_t * load_rate)
+                        total_tons = length * (base_1c_t + pax_1c_t * max(0.0, min(1.0, load_rate)))
                         vehicle.update_mass(length)
-                        vehicle.mass_kg = total_tons * 1000.0
+                        vehicle.mass_kg = max(1.0, total_tons * 1000.0)
                         sim.train_length = length
                         sim.reset()
                         if DEBUG:
@@ -994,7 +1087,8 @@ async def ws_endpoint(ws: WebSocket):
                             print(f"TASC set to {enabled}")
 
                     elif name == "setMu":
-                        value = float(payload.get("value", 1.0))
+                        value = _safe_float(payload.get("value", 1.0), 1.0)
+                        value = max(0.0, min(1.0, value))
                         sim.scn.mu = value
                         sim.rr_factor = _mu_to_rr_factor(value)
                         if DEBUG:
@@ -1012,22 +1106,46 @@ async def ws_endpoint(ws: WebSocket):
                 if DEBUG:
                     print(f"Error during receive: {e}")
 
-            # 고정 시뮬 시간
+            # ---- 고정 시뮬 시간 ----
             dt = sim.scn.dt
-            while elapsed >= dt:
+            # 너무 밀리지 않도록 한 번에 처리할 최대 스텝 제한
+            max_steps = 5
+            steps = 0
+            while elapsed >= dt and steps < max_steps:
                 if sim.running:
-                    sim.step()
+                    try:
+                        sim.step()
+                    except Exception as e:
+                        if DEBUG:
+                            print(f"[step] exception: {e}")
+                        sim.running = False
                 last_sim_time += dt
                 elapsed -= dt
+                steps += 1
 
-            # 송신 제한 (30Hz)
+            # ---- 송신 제한 (30Hz) ----
             if (now - last_send) >= send_interval:
-                await ws.send_text(json.dumps({"type": "state", "payload": sim.snapshot()}))
+                try:
+                    await ws.send_text(json.dumps({"type": "state", "payload": sim.snapshot()}, ensure_ascii=False))
+                except WebSocketDisconnect:
+                    break
+                except Exception as e:
+                    if DEBUG:
+                        print(f"send failed: {e}")
                 last_send = now
 
             await asyncio.sleep(0)
     finally:
         try:
             await ws.close()
-        except RuntimeError:
+        except Exception:
             pass
+
+# ------------------------------------------------------------
+# 로컬 실행용 엔트리포인트
+# ------------------------------------------------------------
+if __name__ == "__main__":
+    # uvicorn main:app --reload 로 띄워도 됩니다.
+    import uvicorn
+    port = int(os.environ.get("PORT", "8000"))
+    uvicorn.run("main:app", host="127.0.0.1", port=port, reload=False, log_level="info")
