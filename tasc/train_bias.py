@@ -30,7 +30,9 @@ def _sample():
     return v0_kmh, L, grade, mu
 
 def _one_episode(sim: StoppingSim, v0_kmh: float, L: float, grade_pct: float, mu: float):
-    # 초기화
+    # --------------------------
+    # 초기 조건 설정 (UI의 setInitial 과 동일)
+    # --------------------------
     sim.scn.v0 = v0_kmh / 3.6
     sim.scn.L = L
     sim.scn.grade_percent = grade_pct
@@ -38,35 +40,53 @@ def _one_episode(sim: StoppingSim, v0_kmh: float, L: float, grade_pct: float, mu
     sim.rr_factor = _mu_to_rr_factor(mu)
 
     sim.reset()
+
+    # --------------------------
+    # 실제 플레이와 동일하게 TASC 제어 활성화
+    # --------------------------
+    sim.tasc_enabled = True
+    sim.manual_override = False
+    sim.tasc_armed = True
+    sim.tasc_active = False
+
     sim.running = True
 
-    # 끝까지 진행
-    # 안전: 무한루프 방지(최대 60초 시뮬)
+    # --------------------------
+    # 끝까지 진행 (무한루프 방지)
+    # --------------------------
     start_t = time.time()
     while sim.running:
         sim.step()
-        if time.time() - start_t > 30:
-            # 너무 오래 걸리면 강제 종료
+        if time.time() - start_t > 30:  # 30초 이상이면 강제 종료
             sim.running = False
             break
 
     st = sim.state
     err = float(st.stop_error_m or 0.0)
 
-    # 5cm 이내면 0으로 간주(오버피팅 방지)
+    # --------------------------
+    # 오차 후처리
+    # --------------------------
+    # 5cm 이내면 0으로 간주 (과보정 방지)
     if abs(err) < DEADBAND_M:
         err = 0.0
 
-    # 부호 반전 + 가중(수렴 가속)
-    # _append_observation_and_update 에 직접 넣지 않고 여기서 보정하여 주입
+    # 오차 너무 큰 경우 클리핑 (예: ±3m)
+    if abs(err) > 3.0:
+        err = 3.0 * (1 if err > 0 else -1)
+
+    # 부호 반전 + 가중치 (수렴 가속)
     rec_err = -err * GAIN
 
-    # 내부 JSON에 직접 주입하기 위해 공개 메서드를 사용
-    v0 = v0_kmh
+    # --------------------------
+    # 관측값 저장 및 모델 갱신
+    # --------------------------
     sim._append_observation_and_update(
-        v0_kmh=v0, L_m=L, grade_percent=grade_pct,
+        v0_kmh=v0_kmh,
+        L_m=L,
+        grade_percent=grade_pct,
         mass_tons=sim.veh.mass_kg/1000.0,
-        stop_error_m=rec_err,  # 이미 부호/가중 조정된 값
+        stop_error_m=rec_err,  # 부호/가중치 반영된 값
         force_fit=True
     )
 
