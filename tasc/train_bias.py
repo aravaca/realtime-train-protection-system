@@ -10,15 +10,15 @@ from server import Vehicle, Scenario, StoppingSim, _mu_to_rr_factor
 
 # --------- 튜닝 파라미터 ---------
 RUNS = 100000            # 총 학습 회수 (원하면 5만~10만도 OK)
-BATCH_FIT = 10          # 매 N회마다 강제 추가 피팅
-GAIN = 2.0              # 오차 가중(수렴 가속)
+BATCH_FIT = 5          # 매 N회마다 강제 추가 피팅
+GAIN = 10            # 오차 가중(수렴 가속)
 DEADBAND_M = 0.05       # 5 cm: 이 범위 이하면 0으로 간주
-RECENT_WINDOW = 200     # 최근 데이터만 남겨 민감도 ↑
+RECENT_WINDOW = 100     # 최근 데이터만 남겨 민감도 ↑
 SEED = 42               # 재현성
 
 # 샘플링 범위 (필요하면 조정)
-SPEED_KMH = (40, 120)   # 초기 속도
-DIST_M = (100, 900)    # 정지 목표 거리
+SPEED_KMH = (40, 90)   # 초기 속도
+DIST_M = (300, 900)    # 정지 목표 거리
 GRADE_PCT = (-1, 1)     # 경사(%)
 MU = (0.3, 1.0)         # 마찰계수
 
