@@ -165,8 +165,7 @@ class StoppingSim:
         self.tasc_enabled = False
         self.manual_override = False
         self.tasc_deadband_m = 0.3
-#0.20
-        self.tasc_hold_min_s = 0.02
+        self.tasc_hold_min_s = 0
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
