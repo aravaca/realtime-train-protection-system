@@ -12,16 +12,17 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-
+# numpy는 필수 (디버깅용 버전 출력)
 import numpy as np
+print("NumPy loaded:", np.__version__)
 
 # ------------------------------------------------------------
 # Config
 # ------------------------------------------------------------
-DEBUG = False # 디버그 로그를 보고 싶으면 True
+DEBUG = False  # 디버그 로그를 보고 싶으면 True
 
 # ------------------------------------------------------------
-# 안전: static 폴더/파일 자동 생성
+# 안전: static 폴더/파일 자동 생성 (없으면 FastAPI가 죽을 수 있음)
 # ------------------------------------------------------------
 if not os.path.isdir("static"):
     os.makedirs("static", exist_ok=True)
@@ -141,8 +142,6 @@ def _mu_to_rr_factor(mu: float) -> float:
     return 0.7 + 0.3 * mu_clamped
 
 
-
-
 # ------------------------------------------------------------
 # Simulator
 # ------------------------------------------------------------
@@ -165,7 +164,6 @@ class StoppingSim:
 
         # 초기 제동(B1/B2) 판정
         self.first_brake_start = None
-               # 판정 시간 2초
         self.first_brake_done = False
 
         # 저크 계산
@@ -176,11 +174,11 @@ class StoppingSim:
         self.tasc_enabled = False
         self.manual_override = False
         self.tasc_deadband_m = 0.3
-        self.tasc_hold_min_s = 0.01
+        self.tasc_hold_min_s = 0.20
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
-        self._tasc_peak_duration = 0.0 # peak notch 유지 누적 시간(s)
+        self._tasc_peak_duration = 0.0
         self.tasc_armed = False
         self.tasc_active = False
 
@@ -215,30 +213,30 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
-        # <<< POLY-BIAS: JSON 다항 보정 모델 로딩 >>>
+        # ---- 다항 보정 모델 로딩/초기화 ----
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self._bias_model_path = os.path.join(base_dir, "bias_model.json")
         self._bias_model = self._load_poly_bias_model(self._bias_model_path)
 
-    # <<< POLY-BIAS: 다항 모델 로딩/생성 >>>
+    # ---------- POLY-BIAS: JSON 모델 ----------
     def _default_bias_model(self):
-        # degree=2, terms: 1, 1차 4개, 제곱 4개, 쌍곱 6개 = 총 15항
+        # 2차 다항 15항
         terms = [
             "1",
             "v0","L","grade","mass",
             "v0^2","L^2","grade^2","mass^2",
             "v0*L","v0*grade","v0*mass","L*grade","L*mass","grade*mass"
         ]
-        coeffs = [0.0]*len(terms)  # 초기엔 영향 0
-        # 학습 설정 추가
+        coeffs = [0.0]*len(terms)
         return {
             "degree": 2,
             "terms": terms,
             "coeffs": coeffs,
             "features": ["v0","L","grade","mass"],
-            "ridge_lambda": 1e-6,   # 과적합/수치안정용
-            "max_points": 2000,     # 데이터 누적 상한
-            "data": []              # 관측 데이터 [{v0,L,grade,mass,err}, ...]
+            "ridge_lambda": 1e-6,
+            "max_points": 2000,
+            "min_samples": 5,
+            "data": []
         }
 
     def _load_poly_bias_model(self, path: str):
@@ -246,15 +244,12 @@ class StoppingSim:
             if os.path.exists(path):
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                # 필수 키 채워넣기
-                template = self._default_bias_model()
-                for k, v in template.items():
+                tmpl = self._default_bias_model()
+                for k, v in tmpl.items():
                     if k not in data:
                         data[k] = v
-                # terms/coeffs 길이 맞추기
                 if len(data["terms"]) != len(data["coeffs"]):
-                    data["coeffs"] = template["coeffs"]
-                # data 형식 보정
+                    data["coeffs"] = tmpl["coeffs"]
                 if not isinstance(data.get("data", []), list):
                     data["data"] = []
                 return data
@@ -266,7 +261,7 @@ class StoppingSim:
                 return data
         except Exception as e:
             if DEBUG:
-                print(f"[POLY-BIAS] Failed to load model: {e}")
+                print(f"[POLY-BIAS] load failed: {e}")
             data = self._default_bias_model()
             self._save_bias_model(path, data)
             return data
@@ -276,12 +271,12 @@ class StoppingSim:
             tmp_path = path + ".tmp"
             with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            os.replace(tmp_path, path)  # 원자적 교체
+            os.replace(tmp_path, path)
         except Exception as e:
             if DEBUG:
-                print(f"[POLY-BIAS] Save failed: {e}")
+                print(f"[POLY-BIAS] save failed: {e}")
 
-    # <<< POLY-BIAS: 항 평가기(순수 파이썬) >>>
+    # ---------- POLY-BIAS: 항/특성, 예측 ----------
     def _poly_term_value(self, term: str, v0: float, L: float, grade: float, mass: float) -> float:
         if term == "1":
             return 1.0
@@ -290,7 +285,7 @@ class StoppingSim:
             x = {"v0":v0, "L":L, "grade":grade, "mass":mass}.get(base, 0.0)
             return x * x
         if "*" in term:
-            a,b = term.split("*",1)
+            a, b = term.split("*", 1)
             vals = {"v0":v0, "L":L, "grade":grade, "mass":mass}
             return vals.get(a, 0.0) * vals.get(b, 0.0)
         return {"v0":v0, "L":L, "grade":grade, "mass":mass}.get(term, 0.0)
@@ -298,84 +293,138 @@ class StoppingSim:
     def _poly_features_row(self, terms: List[str], v0_kmh: float, L_m: float, grade_percent: float, mass_tons: float) -> List[float]:
         return [self._poly_term_value(t, v0_kmh, L_m, grade_percent, mass_tons) for t in terms]
 
-    # <<< POLY-BIAS: 예측(순수 파이썬) >>>
     def _predict_bias_from_json(self, v0_kmh: float, L_m: float, grade_percent: float, mass_tons: float) -> float:
         m = self._bias_model or self._default_bias_model()
         terms = m["terms"]
         coeffs = m["coeffs"]
         feats = self._poly_features_row(terms, v0_kmh, L_m, grade_percent, mass_tons)
-        return sum(float(c)*float(f) for c, f in zip(coeffs, feats))
+        return float(sum(float(c)*float(f) for c, f in zip(coeffs, feats)))
 
-    # <<< POLY-BIAS: 학습(릿지, numpy 없으면 skip) >>>
-    def _fit_bias_coeffs_from_data(self):
-        if np is None:
-            # numpy 없으면 학습 스킵(데이터는 누적됨)
-            return
+    # ---------- POLY-BIAS: 학습 (Fail-safe, 오차≠0이면 강제 학습 지원) ----------
+    def _fit_bias_coeffs_from_data(self, force: bool = False):
+        """
+        fail-safe 학습기:
+          - 표본이 1개라도 있고 force=True면 학습 시도
+          - Ridge(λ) → 실패 시 lstsq → 실패 시 pinv → 모두 실패면 기존 계수 유지
+          - 입력 정규화/타깃 클립/계수 클램프 적용
+        """
         m = self._bias_model
         data = m.get("data", [])
-        if len(data) < 5:
+        if not data:
             return
+
+        min_samples = 1 if force else int(m.get("min_samples", 5))
+        if len(data) < max(1, min_samples):
+            if DEBUG:
+                print(f"[POLY-BIAS] skip fit: N={len(data)} < min={min_samples} (force={force})")
+            return
+
         terms = m["terms"]
         lam = float(m.get("ridge_lambda", 1e-6))
+
+        # 설계행렬 X, 타깃 y
         X_rows, y = [], []
         for rec in data:
-            v0 = float(rec["v0"]); L  = float(rec["L"])
-            g  = float(rec["grade"]); mass = float(rec["mass"])
-            err  = float(rec["err"])
-            X_rows.append(self._poly_features_row(terms, v0, L, g, mass)); y.append(err)
+            v0 = float(rec["v0"]); L = float(rec["L"])
+            g = float(rec["grade"]); mass = float(rec["mass"])
+            err = float(rec["err"])
+            X_rows.append(self._poly_features_row(terms, v0, L, g, mass))
+            y.append(err)
+
         X = np.array(X_rows, dtype=float)  # [N,P]
         y = np.array(y, dtype=float)       # [N]
+
+        # 타깃 이상치 클립 (±10m)
+        y = np.clip(y, -10.0, 10.0)
+
         P = X.shape[1]
-        XtX = X.T @ X
-        Xty = X.T @ y
+        # 열 정규화
+        col_norm = np.linalg.norm(X, axis=0)
+        col_norm[col_norm == 0.0] = 1.0
+        Xn = X / col_norm
+
+        XtX = Xn.T @ Xn
+        Xty = Xn.T @ y
         A = XtX + lam * np.eye(P)
+
+        coeffs = None
         try:
             coeffs = np.linalg.solve(A, Xty)
         except np.linalg.LinAlgError:
-            coeffs, *_ = np.linalg.lstsq(A, Xty, rcond=None)
+            try:
+                coeffs, *_ = np.linalg.lstsq(A, Xty, rcond=None)
+            except Exception:
+                try:
+                    coeffs = np.linalg.pinv(A) @ Xty
+                except Exception:
+                    if DEBUG:
+                        print("[POLY-BIAS] all solvers failed; keep old coeffs")
+                    return
+
+        # 정규화 해제 및 계수 클램프
+        coeffs = coeffs / col_norm
+        coeffs = np.clip(coeffs, -5.0, 5.0)
+
         m["coeffs"] = [float(c) for c in coeffs]
 
-    def _append_observation_and_update(self, v0_kmh: float, L_m: float, grade_percent: float, mass_tons: float, stop_error_m: float):
+    def _append_observation_and_update(
+        self,
+        v0_kmh: float,
+        L_m: float,
+        grade_percent: float,
+        mass_tons: float,
+        stop_error_m: float,
+        force_fit: bool = False
+    ):
         m = self._bias_model
         m.setdefault("data", [])
         m.setdefault("max_points", 2000)
+
+        # 관측 추가
         rec = {"v0": float(v0_kmh), "L": float(L_m), "grade": float(grade_percent),
                "mass": float(mass_tons), "err": float(stop_error_m)}
         m["data"].append(rec)
-        # 상한 초과시 최근 max_points만 유지
-        if len(m["data"]) > int(m["max_points"]):
-            m["data"] = m["data"][-int(m["max_points"]):]
-        # 계수 재학습(가능한 경우)
-        self._fit_bias_coeffs_from_data()
-        # 안전 저장
+
+        # 상한 유지 (최근 max_points)
+        maxp = int(m.get("max_points", 2000))
+        if len(m["data"]) > maxp:
+            m["data"] = m["data"][-maxp:]
+
+        # 학습 시도 (force_fit=True면 표본 1개여도 수행)
+        try:
+            self._fit_bias_coeffs_from_data(force=force_fit)
+        except Exception as e:
+            if DEBUG:
+                print(f"[POLY-BIAS] fit exception ignored: {e}")
+
+        # 저장
         self._save_bias_model(self._bias_model_path, m)
+
         if DEBUG:
             n = len(m["data"])
-            c0 = m["coeffs"][0] if m["coeffs"] else 0.0
-            print(f"[POLY-BIAS] Updated: N={n}, c0={c0:.6f}")
+            c0 = m["coeffs"][0] if m.get("coeffs") else 0.0
+            pred = self._predict_bias_from_json(v0_kmh, L_m, grade_percent, mass_tons)
+            print(f"[POLY-BIAS] N={n}, coeff0={c0:.6f}, last_err={stop_error_m:.3f} m, pred_bias_now={pred:.3f} m")
 
+    # ---------- Margin/Physics ----------
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
-
-        BASE_1C_T = self.veh.mass_t # JSON 기반
+        BASE_1C_T = self.veh.mass_t
         PAX_1C_T = 10.5
         REF_LOAD = 0.70
 
         mass_tons = self.veh.mass_kg / 1000.0
-        L = getattr(self, "train_length", 10)
+        Lcars = getattr(self, "train_length", 10)
 
-        baseline_tons = L * (BASE_1C_T + PAX_1C_T * REF_LOAD)
+        baseline_tons = Lcars * (BASE_1C_T + PAX_1C_T * REF_LOAD)
         delta = mass_tons - baseline_tons
 
         mass_corr = (-2.5e-4) * delta + (1.5e-8) * (delta ** 3)
-
-        # 클램프 극단적으로 조정
         if mass_corr > 0.08:
             mass_corr = 0.08
         elif mass_corr < -0.05:
             mass_corr = -0.05
-        #중량 이전 opt 값=-0.05 -0.05 -0.05
+
         margin = -0.675
-        # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
         scale = min(1.0, self.scn.L / 100.0)
         if grade_permil >= 0:
             grade_corr = -0.002 * grade_permil * (1 + abs(grade_permil) / 10.0) * scale
@@ -386,7 +435,7 @@ class StoppingSim:
 
         base_margin = margin + grade_corr + mu_corr + mass_corr
 
-        # <<< POLY-BIAS: (v0,L,grade,mass) 다항 보정 추가 >>>
+        # 다항 보정 더하기
         v0_kmh = self.scn.v0 * 3.6
         L_m = self.scn.L
         grade_percent = self.scn.grade_percent
@@ -395,25 +444,23 @@ class StoppingSim:
 
         return base_margin + bias_poly
 
-    # ----------------- 동적 마진 함수 -----------------
     def _dynamic_margin(self, v0: float, rem_now: float) -> float:
         mu = self.scn.mu
         grade_permil = self.scn.grade_percent * 10.0
         margin = self.compute_margin(mu, grade_permil, self._tasc_peak_notch, self._tasc_peak_duration)
         return margin
 
-    # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
         if notch >= len(self.veh.notch_accels):
             return 0.0
-        base = float(self.veh.notch_accels[notch]) # 음수
+        base = float(self.veh.notch_accels[notch])  # 음수
 
         blend_cutoff_speed = 40.0 / 3.6
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
         speed_kmh = v * 3.6
-        air_boost = 0.72 if speed_kmh <= 3.0 else 1.0 # 저속 기본 약화
+        air_boost = 0.72 if speed_kmh <= 3.0 else 1.0
 
-        # --- B1 미세조정(P+I) ---
+        # B1 미세조정 (실시간)
         if notch == 1 and (not self._in_predict) and self.state is not None and (not self.state.finished):
             rem_now = self.scn.L - self.state.s
             s_b1_nominal = self._estimate_stop_distance(1, v, include_margin=False)
@@ -426,9 +473,9 @@ class StoppingSim:
             adjust = 1.0 - k_p * error_m
             target_boost = max(0.25, min(1.35, adjust))
             target_boost *= (1.0 + self._b1_i)
-            if rem_now < 0.3 and notch == 1:
+            if rem_now < 0.3:
                 target_boost = 0.3
-            if rem_now < 1.0 and notch == 1:
+            if rem_now < 1.0:
                 target_boost = max(0.50, min(0.60, target_boost))
             alpha = min(0.65, dt_sim / 0.022)
             self._b1_air_boost_state += alpha * (target_boost - self._b1_air_boost_state)
@@ -442,6 +489,7 @@ class StoppingSim:
         k_adh = k_eb if is_eb else k_srv
         a_cap = -k_adh * float(self.scn.mu) * 9.81
         a_eff = max(blended_accel, a_cap)
+
         if a_eff <= a_cap + 1e-6:
             a_eff = a_cap * (0.90 if v > 8.0 else 0.85)
 
@@ -486,12 +534,16 @@ class StoppingSim:
         self.state = State(t=0.0, s=0.0, v=self.scn.v0, a=0.0, lever_notch=0, finished=False)
         self.running = False
         self._cmd_queue.clear()
+
         self.first_brake_start = None
         self.first_brake_done = False
+
         self.notch_history.clear()
         self.time_history.clear()
+
         self.prev_a = 0.0
         self.jerk_history = []
+
         self.manual_override = False
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
@@ -499,14 +551,18 @@ class StoppingSim:
         self._tasc_peak_duration = 0.0
         self.tasc_active = False
         self.tasc_armed = bool(self.tasc_enabled)
+
         self._tasc_pred_cache.update({"t": -1.0, "v": -1.0, "notch": -1,
                                       "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')})
         self._tasc_last_pred_t = -1.0
+
         self._need_b5_last_t = -1.0
         self._need_b5_last = False
+
         self.brk_accel = 0.0
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
+
         if DEBUG:
             print("Simulation reset")
 
@@ -569,7 +625,7 @@ class StoppingSim:
         st = self.state
         if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
             return self._need_b5_last
-        s_b4 = self._stopping_distance(2, v)
+        s_b4 = self._stopping_distance(2, v)  # Notch index 주의(환경에 맞게)
         need = s_b4 > (remaining + self.tasc_deadband_m)
         self._need_b5_last = need
         self._need_b5_last_t = st.t
@@ -661,6 +717,7 @@ class StoppingSim:
             if abs(self._b1_i) < 1e-3:
                 self._b1_i = 0.0
 
+        # 종료 판정
         rem = self.scn.L - st.s
         if not st.finished and (rem <= -5.0 or st.v <= 0.0):
             st.finished = True
@@ -710,25 +767,27 @@ class StoppingSim:
             st.issues["step_brake_incomplete"] = not self.is_stair_pattern(self.notch_history)
             st.issues["stop_error_m"] = st.stop_error_m
 
-            jerk = abs(self.scn.dt)  # placeholder to avoid zero-div (저크 상세 미사용)
+            # 저크 기록 (간소)
             self.prev_a = st.a
-            self.jerk_history.append(jerk)
-
+            self.jerk_history.append(self.scn.dt)
             avg_jerk, jerk_score = self.compute_jerk_score()
             score += int(jerk_score)
 
             st.score = score
             self.running = False
 
-            # <<< POLY-BIAS: 관측 추가 + 모델 업데이트/저장 >>>
+            # === 런 종료 후: 관측 추가 + 즉시 학습/저장 (오차가 0이 아니면 무조건) ===
             try:
                 v0_kmh = self.scn.v0 * 3.6
                 L_m = self.scn.L
                 grade_percent = self.scn.grade_percent
                 mass_total_tons = self.veh.mass_kg / 1000.0
-                self._append_observation_and_update(
-                    v0_kmh, L_m, grade_percent, mass_total_tons, float(st.stop_error_m)
-                )
+                err = float(st.stop_error_m or 0.0)
+                if err != 0.0:
+                    self._append_observation_and_update(
+                        v0_kmh, L_m, grade_percent, mass_total_tons, err,
+                        force_fit=True  # 무조건 학습
+                    )
             except Exception as e:
                 if DEBUG:
                     print(f"[POLY-BIAS] update failed: {e}")
@@ -785,6 +844,7 @@ class StoppingSim:
 
     def snapshot(self):
         st = self.state
+        m = getattr(self, "_bias_model", None) or {}
         return {
             "t": round(st.t, 3),
             "s": st.s,
@@ -803,6 +863,7 @@ class StoppingSim:
             "score": getattr(st, "score", 0),
             "issues": getattr(st, "issues", {}),
             "tasc_enabled": getattr(self, "tasc_enabled", False),
+            # 디버그/모니터링
             "mu": float(self.scn.mu),
             "rr_factor": float(0.7 + 0.3 * self.scn.mu),
             "davis_A0": self.veh.A0,
@@ -810,6 +871,9 @@ class StoppingSim:
             "davis_C2": self.veh.C2,
             "peak_notch": self._tasc_peak_notch,
             "peak_dur_s": self._tasc_peak_duration,
+            "pb_data_n": len(m.get("data", [])),
+            "pb_coeff0": (m.get("coeffs", [0.0])[0] if m.get("coeffs") else 0.0),
+            "pb_bias_pred": self._predict_bias_from_json(self.scn.v0*3.6, self.scn.L, self.scn.grade_percent, self.veh.mass_kg/1000.0),
         }
 
 
@@ -853,6 +917,7 @@ async def ws_endpoint(ws: WebSocket):
             elapsed = now - last_sim_time
 
             try:
+                # 입력 처리
                 msg = await asyncio.wait_for(ws.receive_text(), timeout=0.01)
                 data = json.loads(msg)
                 if data.get("type") == "cmd":
@@ -862,7 +927,7 @@ async def ws_endpoint(ws: WebSocket):
                     if name == "setInitial":
                         speed = payload.get("speed")
                         dist = payload.get("dist")
-                        grade = payload.get("grade", 0.0) / 10.0
+                        grade = payload.get("grade", 0.0) / 10.0  # 프론트 입력(‰)→% 변환 가정
                         mu = float(payload.get("mu", 1.0))
                         if speed is not None and dist is not None:
                             sim.scn.v0 = float(speed) / 3.6
@@ -871,7 +936,7 @@ async def ws_endpoint(ws: WebSocket):
                             sim.scn.mu = mu
                             sim.rr_factor = _mu_to_rr_factor(mu)
                             if DEBUG:
-                                print(f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}, rr_factor={sim.rr_factor:.3f}")
+                                print(f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}")
                             sim.reset()
                             sim.running = True
 
@@ -933,7 +998,7 @@ async def ws_endpoint(ws: WebSocket):
                         sim.scn.mu = value
                         sim.rr_factor = _mu_to_rr_factor(value)
                         if DEBUG:
-                            print(f"마찰계수(mu)={value} / rr_factor={sim.rr_factor:.3f} 로 설정")
+                            print(f"마찰계수(mu)={value} / rr_factor={sim.rr_factor:.3f}")
                         sim.reset()
 
                     elif name == "reset":
@@ -947,6 +1012,7 @@ async def ws_endpoint(ws: WebSocket):
                 if DEBUG:
                     print(f"Error during receive: {e}")
 
+            # 고정 시뮬 시간
             dt = sim.scn.dt
             while elapsed >= dt:
                 if sim.running:
@@ -954,6 +1020,7 @@ async def ws_endpoint(ws: WebSocket):
                 last_sim_time += dt
                 elapsed -= dt
 
+            # 송신 제한 (30Hz)
             if (now - last_send) >= send_interval:
                 await ws.send_text(json.dumps({"type": "state", "payload": sim.snapshot()}))
                 last_send = now
