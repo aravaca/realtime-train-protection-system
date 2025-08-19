@@ -243,7 +243,7 @@ class StoppingSim:
         self.tasc_enabled = False
         self.manual_override = False
         self.tasc_deadband_m = 0.3
-        self.tasc_hold_min_s = 0.001
+        self.tasc_hold_min_s = 0.1
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
@@ -541,24 +541,41 @@ class StoppingSim:
         air_boost = 0.72 if speed_kmh <= 3.0 else 1.0
 
         # B1 미세조정 (실시간)
+        # B1 미세조정 (실시간) — I 제거, 약한 P만 유지 + 엔드게임 승차감 가드 유지
         if notch == 1 and (not self._in_predict) and self.state is not None and (not self.state.finished):
             rem_now = self.scn.L - self.state.s
+    # 현재 B1로 끝까지 가면 어디쯤 설지 추정
             s_b1_nominal = self._estimate_stop_distance(1, v, include_margin=False)
             error_m = rem_now - s_b1_nominal
+    # 과도한 튐 방지용 에러 클리핑
+            if error_m > 5.0: 
+                error_m = 5.0
+            elif error_m < -5.0:
+                error_m = -5.0
+
             dt_sim = max(1e-3, self.scn.dt)
-            k_p = 0.20
-            ki, leak = 0.35, 0.985
-            self._b1_i = (self._b1_i * leak) + (ki * error_m * dt_sim)
-            self._b1_i = max(-0.25, min(0.60, self._b1_i))
+
+    # --- PI 중 I 제거: 누적항 완전 비활성화 ---
+            self._b1_i = 0.0
+
+    # --- 약한 P만 사용 (너무 약하면 0.04~0.08에서 튜닝) ---
+            k_p = 0.06
             adjust = 1.0 - k_p * error_m
-            target_boost = max(0.25, min(1.35, adjust))
-            target_boost *= (1.0 + self._b1_i)
+
+    # 기본 상하한 (제동력 과도/과소 방지)
+            target_boost = max(0.70, min(1.10, adjust))
+
+    # ⬇️ 네가 요청한 승차감 가드 유지 (마지막 1 m/0.3 m)
             if rem_now < 0.3:
                 target_boost = 0.3
             if rem_now < 1.0:
                 target_boost = max(0.50, min(0.60, target_boost))
-            alpha = min(0.65, dt_sim / 0.022)
+
+    # 반응 속도 제한(저크 저감): 기존보다 부드럽게
+            alpha = min(0.40, dt_sim / 0.030)
             self._b1_air_boost_state += alpha * (target_boost - self._b1_air_boost_state)
+
+    # 최종 반영
             air_boost *= self._b1_air_boost_state
 
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
