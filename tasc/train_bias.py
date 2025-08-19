@@ -12,7 +12,7 @@ from server import Vehicle, Scenario, StoppingSim, _mu_to_rr_factor
 RUNS = 100          # 총 학습 회수 (원하면 5만~10만도 OK)
 BATCH_FIT = 5          # 매 N회마다 강제 추가 피팅
 GAIN = 10            # 오차 가중(수렴 가속)
-DEADBAND_M = 0.05       # 5 cm: 이 범위 이하면 0으로 간주
+DEADBAND_M = 0.005       # 5 cm: 이 범위 이하면 0으로 간주
 RECENT_WINDOW = 100     # 최근 데이터만 남겨 민감도 ↑
 SEED = 42               # 재현성
 
@@ -147,7 +147,7 @@ def main():
             print(f"[train] {i}/{RUNS}  EMA|err|={ema_mae:.3f} m  elapsed={elapsed:.1f}s")
 
         # 조기 종료(옵션): 평균 오차가 2cm 이하로 내려오면 그만
-        if ema_mae is not None and ema_mae < 0.02:
+        if ema_mae is not None and i > 50 and ema_mae < 0.02:
             print(f"[train] early stop at {i} runs (EMA|err|={ema_mae:.3f} m)")
             break
 
