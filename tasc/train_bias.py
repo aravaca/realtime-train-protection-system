@@ -1,29 +1,45 @@
-# train_bias.py
+# train_bias.py  —  precision mode (target ±0.1 m)
 import os
 import random
 import time
 
 from server import Vehicle, Scenario, StoppingSim, _mu_to_rr_factor
 
-# --------- 튜닝 파라미터 ---------
-RUNS = 300              # 총 학습 회수 (처음엔 200~500 권장)
-BATCH_FIT = 3        # 매 N회마다 추가 피팅 반복
-GAIN = 8       # 동일 관측 반복 주입 횟수(1이면 반복 없음, 5면 총 5회)
-DEADBAND_M = 0.02      # 5 cm: 이내는 0으로 간주(잡음 억제)
-RECENT_WINDOW = 80    # 최근 샘플만 유지(민감도 ↑)
+# ======= 튜닝 파라미터 (±0.1m 목표) =======
+RUNS = 400              # 총 학습 회수(초기 테스트 300~600 권장)
+BATCH_FIT = 3           # 매 N회마다 추가 피팅 반복
+GAIN = 8                # 동일 관측 반복 주입 횟수(5~10 사이 튜닝)
+DEADBAND_M = 0.02       # 2 cm 이내는 0으로 간주(노이즈 억제)
+RECENT_WINDOW = 100     # 최근 샘플만 유지(민감도 ↑)
 SEED = 42               # 재현성
 
-# 샘플링 범위 (실운용에 맞춰 조정)
-SPEED_KMH = (60, 80)    # 초기 속도
-DIST_M    = (200, 400)  # 정지 목표 거리
-GRADE_PCT = (-0.3, 0.3) # 경사(%). UI -10‰~+10‰ ↔ -1%~+1%
-MU        = (0.8, 1.0)  # 마찰계수(극저μ는 별도 세션 권장)
+# ======= 샘플링 범위 (정밀 모드: 실사용 구간으로 좁힘) =======
+# 1단계(워밍업): 아래 범위 사용
+SPEED_KMH_WARM = (60, 80)
+DIST_M_WARM    = (450, 650)
+GRADE_PCT_WARM = (-0.3, 0.3)   # -3‰ ~ +3‰
+MU_WARM        = (0.90, 1.00)
 
-def _sample():
-    v0_kmh = random.uniform(*SPEED_KMH)
-    L = random.uniform(*DIST_M)
-    grade = random.uniform(*GRADE_PCT)
-    mu = random.uniform(*MU)
+# 2단계(집중 미세조정): 중심값 ±소폭만
+CENTER_V0 = 70.0   # km/h  ← 네 사용 패턴에 맞게 바꿔도 됨
+CENTER_L  = 550.0  # m
+V0_DELTA  = 4.0    # km/h
+L_DELTA   = 30.0   # m
+GRADE_PCT_FINE = (-0.2, 0.2)
+MU_FINE        = (0.92, 1.00)
+
+def _sample_warm():
+    v0_kmh = random.uniform(*SPEED_KMH_WARM)
+    L = random.uniform(*DIST_M_WARM)
+    grade = random.uniform(*GRADE_PCT_WARM)
+    mu = random.uniform(*MU_WARM)
+    return v0_kmh, L, grade, mu
+
+def _sample_fine():
+    v0_kmh = CENTER_V0 + random.uniform(-V0_DELTA, V0_DELTA)
+    L      = CENTER_L  + random.uniform(-L_DELTA,  L_DELTA)
+    grade  = random.uniform(*GRADE_PCT_FINE)
+    mu     = random.uniform(*MU_FINE)
     return v0_kmh, L, grade, mu
 
 def _one_episode(sim: StoppingSim, v0_kmh: float, L: float, grade_pct: float, mu: float):
@@ -45,7 +61,7 @@ def _one_episode(sim: StoppingSim, v0_kmh: float, L: float, grade_pct: float, mu
     sim.running = True
 
     # ---------- 완료 기반 루프 (스텝 상한) ----------
-    MAX_STEPS = 5000  # 필요시 3000~6000 사이에서 조정
+    MAX_STEPS = 6000   # 필요 시 4000~7000 사이 조정
     steps = 0
     while sim.running and not sim.state.finished and steps < MAX_STEPS:
         sim.step()
@@ -56,15 +72,15 @@ def _one_episode(sim: StoppingSim, v0_kmh: float, L: float, grade_pct: float, mu
     err = float(raw_err)
 
     # ---------- 오차 후처리 ----------
-    # 5cm 이내는 0으로 간주
+    # 2 cm 이내는 0으로(노이즈 무시)
     if abs(err) < DEADBAND_M:
         err = 0.0
-    # 이상치 클리핑: ±1.0 m (막판 튐이 학습을 뒤틀지 않도록)
-    if abs(err) > 0.5:
-        err = 0.5 if err > 0 else -0.5
+    # 이상치 학습 오염 방지: ±0.2 m로 클리핑(목표 0.1m를 노리면 0.2m 권장)
+    if abs(err) > 0.2:
+        err = 0.2 if err > 0 else -0.2
 
     # ---------- 관측 저장/학습 ----------
-    # ⚠️ 부호는 건드리지 마세요. 서버가 저장 시 -stop_error_m로 뒤집습니다.
+    # ⚠️ 부호는 건드리지 않는다(서버에서 저장 시 -stop_error_m 로 반전됨).
     sim._append_observation_and_update(
         v0_kmh=v0_kmh,
         L_m=L,
@@ -73,7 +89,7 @@ def _one_episode(sim: StoppingSim, v0_kmh: float, L: float, grade_pct: float, mu
         stop_error_m=err,
         force_fit=True
     )
-    # GAIN만큼 동일 관측을 추가 주입(수렴 가속, 부호 안전)
+    # 동일 관측 반복 주입으로 수렴 가속(부호 안전)
     for _ in range(max(0, GAIN - 1)):
         sim._append_observation_and_update(
             v0_kmh=v0_kmh,
@@ -84,7 +100,7 @@ def _one_episode(sim: StoppingSim, v0_kmh: float, L: float, grade_pct: float, mu
             force_fit=False
         )
 
-    return raw_err, err  # 원시/후처리 반환
+    return raw_err, err  # 원시/후처리 오차
 
 def _trim_recent(sim: StoppingSim, n: int):
     m = sim._bias_model
@@ -113,16 +129,21 @@ def main():
 
     ema_mae = None
     for i in range(1, RUNS + 1):
-        v0_kmh, L, grade_pct, mu = _sample()
+        # ------- 커리큘럼 샘플링 -------
+        if i <= RUNS // 3:   # 1/3 구간: 워밍업(넓게)
+            v0_kmh, L, grade_pct, mu = _sample_warm()
+        else:                 # 나머지: 중심값 근처 미세조정
+            v0_kmh, L, grade_pct, mu = _sample_fine()
+
         raw_err, filt_err = _one_episode(sim, v0_kmh, L, grade_pct, mu)
 
-        # 최근 윈도우 유지(민감도↑)
+        # 최근 윈도우 유지(민감도 ↑)
         if (i % 5) == 0:
             _trim_recent(sim, RECENT_WINDOW)
 
-        # 추가 피팅 반복으로 수렴 가속
+        # 추가 피팅 반복(수렴 가속)
         if (i % BATCH_FIT) == 0:
-            for _ in range(3):
+            for _ in range(5):   # 3→5로 강화
                 sim._fit_bias_coeffs_from_data(force=True)
             sim._save_bias_model(sim._bias_model_path, sim._bias_model)
 
@@ -134,7 +155,7 @@ def main():
             elapsed = time.time() - t0
             print(f"[train] {i:4d}/{RUNS}  raw_err={raw_err:+.3f} m  |err|={abs(filt_err):.3f} m  EMA|err|={ema_mae:.3f} m  elapsed={elapsed:.1f}s")
 
-        # 조기 종료(최소 80회 이상 돌고, EMA 0.2m 이하)
+        # 조기 종료: 최소 200회 실행 후 EMA 0.10m 달성
         if i >= 200 and ema_mae is not None and ema_mae < 0.10:
             print(f"[train] early stop at {i} runs (EMA|err|={ema_mae:.3f} m)")
             break
