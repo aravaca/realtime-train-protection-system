@@ -20,7 +20,7 @@ SEED = 42               # 재현성
 SPEED_KMH = (40, 90)   # 초기 속도
 DIST_M = (300, 900)    # 정지 목표 거리
 GRADE_PCT = (-1, 1)     # 경사(%)
-MU = (0.3, 1.0)         # 마찰계수
+MU = (0.8, 1.0)         # 마찰계수
 
 def _sample():
     v0_kmh = random.uniform(*SPEED_KMH)
@@ -30,9 +30,7 @@ def _sample():
     return v0_kmh, L, grade, mu
 
 def _one_episode(sim: StoppingSim, v0_kmh: float, L: float, grade_pct: float, mu: float):
-    # --------------------------
-    # 초기 조건 설정 (UI의 setInitial 과 동일)
-    # --------------------------
+    # 초기 조건
     sim.scn.v0 = v0_kmh / 3.6
     sim.scn.L = L
     sim.scn.grade_percent = grade_pct
@@ -41,9 +39,7 @@ def _one_episode(sim: StoppingSim, v0_kmh: float, L: float, grade_pct: float, mu
 
     sim.reset()
 
-    # --------------------------
-    # 실제 플레이와 동일하게 TASC 제어 활성화
-    # --------------------------
+    # TASC 실제처럼 활성화
     sim.tasc_enabled = True
     sim.manual_override = False
     sim.tasc_armed = True
@@ -51,44 +47,39 @@ def _one_episode(sim: StoppingSim, v0_kmh: float, L: float, grade_pct: float, mu
 
     sim.running = True
 
-    # --------------------------
-    # 끝까지 진행 (무한루프 방지)
-    # --------------------------
-    start_t = time.time()
-    while sim.running:
+    # 완료 기반 루프 (스텝 상한)
+    MAX_STEPS = 4000
+    steps = 0
+    while sim.running and not sim.state.finished and steps < MAX_STEPS:
         sim.step()
-        if time.time() - start_t > 1:  # 30초 이상이면 강제 종료
-            sim.running = False
-            break
+        steps += 1
 
     st = sim.state
-    err = float(st.stop_error_m or 0.0)
+    # 원시 err 확보
+    raw_err = st.stop_error_m if st.stop_error_m is not None else 0.0
+    err = float(raw_err)
 
-    # --------------------------
-    # 오차 후처리
-    # --------------------------
-    # 5cm 이내면 0으로 간주 (과보정 방지)
+    # deadband (5 cm 권장) & 클리핑 (예: 3 m)
     if abs(err) < DEADBAND_M:
         err = 0.0
-
-    # 오차 너무 큰 경우 클리핑 (예: ±3m)
     if abs(err) > 3.0:
         err = 3.0 * (1 if err > 0 else -1)
 
-    # 부호 반전 + 가중치 (수렴 가속)
-    rec_err = -err * GAIN
-
-    # --------------------------
-    # 관측값 저장 및 모델 갱신
-    # --------------------------
+    # == 여기서 부호/가중치 적용하지 말 것! ==
     sim._append_observation_and_update(
         v0_kmh=v0_kmh,
         L_m=L,
         grade_percent=grade_pct,
         mass_tons=sim.veh.mass_kg/1000.0,
-        stop_error_m=rec_err,  # 부호/가중치 반영된 값
+        stop_error_m=err,          # ← raw err
         force_fit=True
     )
+    # GAIN 효과가 필요하면 동일 관측 반복 주입(선택)
+    for _ in range(max(0, GAIN-1)):
+        sim._append_observation_and_update(
+            v0_kmh=v0_kmh, L_m=L, grade_percent=grade_pct,
+            mass_tons=sim.veh.mass_kg/1000.0, stop_error_m=err, force_fit=False
+        )
 
     return err
 
