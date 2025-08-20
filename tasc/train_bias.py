@@ -24,8 +24,8 @@ RAMP_END = 140             # 램프-인 종료 에피소드
 FORCED_RIDGE_LAMBDA = 1e-2
 
 # ======= 샘플링 범위 =======
-SPEED_KMH_WARM = (60, 80)
-DIST_M_WARM    = (300, 400)
+SPEED_KMH_WARM = (60, 70)
+DIST_M_WARM    = (200, 350)
 GRADE_PCT_WARM = (-0.3, 0.3)
 MU_WARM        = (0.90, 1.00)
 
