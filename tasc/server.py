@@ -218,7 +218,7 @@ class StoppingSim:
         # ---------- TASC ----------
         self.tasc_enabled = False
         self.manual_override = False
-        self.tasc_deadband_m = 0.3
+        self.tasc_deadband_m = 0.05
         self.tasc_hold_min_s = 0.01
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
@@ -457,41 +457,17 @@ class StoppingSim:
         blend_cutoff_speed = 40.0 / 3.6
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
         speed_kmh = v * 3.6
-        air_boost = 0.72 if speed_kmh <= 3.0 else 1.0 # 저속 기본 약화
+        air_boost = 0.72 if speed_kmh <= 3.0 else 1.0  # 저속 기본 약화
 
-        # --- B1 미세조정: 롱 B1 유지하면서 0cm 근접 ---
+# --- B1: 마지막 구간 약화만 (PI/예측 없음) ---
         if notch == 1 and (not self._in_predict) and self.state is not None and (not self.state.finished):
-            rem_now = self.scn.L - self.state.s
+            rem_now = max(0.0, self.scn.L - self.state.s)  # ← 추가: 현재 잔여거리 안전 계산
+            if rem_now < 0.25:                 # 0.30 → 0.25
+                air_boost = min(air_boost, 0.35)  # 0.30 → 0.35 (과한 약화 방지)
+            elif rem_now < 0.8:                # 1.0 → 0.8 (완화구간 축소)
+                air_boost = max(0.52, min(0.58, air_boost))  # 0.50~0.60 → 0.52~0.58
 
-            # B1 정지거리 '편향 없는' 예측: 마진 제외
-            s_b1_nominal = self._estimate_stop_distance(1, v, include_margin=False)
-
-            # error(+): 언더런(남은거리가 더 김) → 제동 약화(air_boost ↓)
-            error_m = rem_now - s_b1_nominal
-
-            # 간결한 P+I
-            dt_sim = max(1e-3, self.scn.dt)
-            k_p = 0.20
-            ki, leak = 0.35, 0.985
-            self._b1_i = (self._b1_i * leak) + (ki * error_m * dt_sim)
-            self._b1_i = max(-0.25, min(0.60, self._b1_i))
-
-            adjust = 1.0 - k_p * error_m
-            target_boost = max(0.25, min(1.35, adjust))
-            target_boost *= (1.0 + self._b1_i)
-
-            # 마지막 구간 완화 (B1에서만 동작)
-            if rem_now < 0.3 and notch == 1:
-                target_boost = 0.3
-            if rem_now < 1.0 and notch == 1:
-                target_boost = max(0.50, min(0.60, target_boost))
-
-            # 스무딩(LPF)
-            alpha = min(0.65, dt_sim / 0.022)
-            self._b1_air_boost_state += alpha * (target_boost - self._b1_air_boost_state)
-            air_boost *= self._b1_air_boost_state
-
-        # 최종 블렌딩
+# 최종 블렌딩
         blended_accel = base * (regen_frac + (1 - regen_frac) * air_boost)
 
         # 접착 한계 및 간단 WSP
@@ -742,7 +718,7 @@ class StoppingSim:
 
                     if self._tasc_phase == "relax" and not changed:
                         # 더 약한 제동으로도 충분하면 한 단계 완해
-                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m + 0.1):
+                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m + 0.02):
                             if dwell_ok:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
