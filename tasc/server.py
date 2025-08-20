@@ -235,7 +235,28 @@ class StoppingSim:
         
         #hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
 
-        return margin + grade_corr + mu_corr + mass_corr
+        # ===== v0/L 기반 추가 마진: 오버런(+)·언더런(-) 자동 보정 =====
+        v0_kmh = max(0.0, float(self.scn.v0) * 3.6)
+        L0     = float(self.scn.L)
+
+        # (70,300)과 (90,400)을 정확 경계로 가정: L_exact = 5*v - 50
+        L_exact = 5.0 * v0_kmh - 50.0
+
+        # L - L_exact: (+)면 언더런 경향, (-)면 오버런 경향
+        deltaL = L0 - L_exact  # [m]
+
+        # 마진 보정: overrun( deltaL<0 ) -> +, underrun( deltaL>0 ) -> -
+        # 100 m 차이에 ≈ 0.10 m 마진 변화가 되게 K=0.001 권장
+        K = 1.0e-3
+        margin_vL = -K * deltaL
+
+        # 안전 클립 (필요시 조정: ±0.15 m)
+        if margin_vL > 0.15:
+            margin_vL = 0.15
+        elif margin_vL < -0.15:
+            margin_vL = -0.15
+
+        return margin + grade_corr + mu_corr + mass_corr + margin_vL
 
 
     # ----------------- 동적 마진 함수 -----------------
