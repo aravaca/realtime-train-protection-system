@@ -1,4 +1,3 @@
-
 import math
 import json
 import asyncio
@@ -162,8 +161,8 @@ class StoppingSim:
         # ---------- TASC ----------
         self.tasc_enabled = False
         self.manual_override = False
-        self.tasc_deadband_m = 0.3
-        self.tasc_hold_min_s = 0.01
+        self.tasc_deadband_m = 0.10             # <<< MOD: 10 cm 수준으로 축소
+        self.tasc_hold_min_s = 0.15             # <<< MOD: 추종성 향상
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
@@ -202,6 +201,28 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
+        # <<< MOD: 속도–거리 2D 보정 앵커 및 보간 스케일
+        self._calib_points = [
+            # (km/h, m, 보정[m])  — 실측 오차의 '음수'를 넣는다 (오버런 +Xcm → -Xcm)
+            (50.0, 120.0, -0.90),
+            (50.0, 150.0, -0.35),
+            (50.0, 200.0, -0.35),
+            (70.0, 200.0, -0.50),
+            (70.0, 300.0,  0.00),  # 기준점 유지
+            (90.0, 300.0, -0.63),
+            (90.0, 400.0,  0.50),  # 언더런 → 양수(덜 보수적)
+        ]
+        self._calib_scale_v = 20.0
+        self._calib_scale_L = 150.0
+        self._calib_k = 2.0  # 제곱 가중
+
+        # <<< MOD: 언더런/오버런에 따른 실시간 마진 보정 (부호 규칙 준수)
+        self._rt_margin = 0.0
+        self._rt_margin_alpha = 0.3   # 반응성
+        self._rt_margin_leak = 0.98   # 점진 소거
+        self._rt_deadband = 0.05      # 5cm 이내 무시
+        self._rt_max = 0.40           # 실시간 보정 최대 40cm
+
 
     def compute_margin(self, mu: float, grade_permil: float, peak_notch: int, peak_dur_s: float) -> float:
 
@@ -217,12 +238,12 @@ class StoppingSim:
 
         mass_corr = (-2.5e-4) * delta + (1.5e-8) * (delta ** 3)
 
-# 클램프 극단적으로 조정
+        # 클램프
         if mass_corr > 0.08:
             mass_corr = 0.08
         elif mass_corr < -0.05:
             mass_corr = -0.05
-        #중량 이전 opt 값=-0.05 -0.05 -0.05
+
         margin = -0.675
         # 거리 스케일: 0m → 0.3, 100m 이상 → 1.0
         scale = min(1.0, self.scn.L / 100.0)
@@ -233,37 +254,42 @@ class StoppingSim:
 
         mu_corr = (mu - 1.0) * (0.03 / (0.3 - 1.0))
         
-        #hist_corr = -0.1 * max(0, peak_notch - 2) - 0.05 * max(0.0, peak_dur_s)
-
         return margin + grade_corr + mu_corr + mass_corr
 
+
+    # ----------------- 속도–거리 2D 보정면 -----------------
+    def _vd_surface_bias(self, v0_kmh: float, L: float) -> float:
+        num, den = 0.0, 0.0
+        for vk, Lk, corr in self._calib_points:
+            dv = (v0_kmh - vk) / self._calib_scale_v
+            dL = (L - Lk) / self._calib_scale_L
+            d = math.hypot(dv, dL) + 1e-6
+            w = 1.0 / (d ** self._calib_k)
+            num += w * corr
+            den += w
+        return num / den if den > 0 else 0.0
 
     # ----------------- 동적 마진 함수 -----------------
     def _dynamic_margin(self, v0: float, rem_now: float) -> float:
         """
-        baseline(-0.71) + 선형 보정(grade/mu/mass) + 제동 히스토리 보정.
-        (기존 잔여거리 기반 미세보정은 제거 — 필요 시 아래 주석 해제)
+        baseline(-0.675) + 선형 보정(grade/mu/mass) + 속도–거리 보간 + 실시간 방향 보정
+        (언더런이면 마진 감소, 오버런이면 마진 증가)
         """
         mu = self.scn.mu
         grade_permil = self.scn.grade_percent * 10.0
-        mass_tons = self.veh.mass_kg / 1000.0
 
-        margin = self.compute_margin(mu, grade_permil,self._tasc_peak_notch, self._tasc_peak_duration)
+        base = self.compute_margin(mu, grade_permil, self._tasc_peak_notch, self._tasc_peak_duration)
+        bias = self._vd_surface_bias(v0 * 3.6, self.scn.L)
 
-        # 필요 시 잔여거리 보정 재도입
-        # if rem_now > 120:
-        # margin -= 0.08
-        # elif rem_now < 50:
-        # margin += 0.06
-
-        return margin
+        # 실시간 보정 항: step()에서 업데이트되는 self._rt_margin 사용
+        return base + bias + self._rt_margin
 
     # ----------------- Physics helpers -----------------
     def _effective_brake_accel(self, notch: int, v: float) -> float:
         """
         노치별 장비 목표감속 + 속도 기반 전기/공기 블렌딩
         + B1 롱브레이크 미세조정(P+I) — _in_predict로 재귀 차단
-        + 마지막 1.5m/1.0m에서 B1일 때만 에어부스트 완화(0.50~0.60)
+        + 마지막 구간 조건부 완화
         """
         if notch >= len(self.veh.notch_accels):
             return 0.0
@@ -273,7 +299,7 @@ class StoppingSim:
         blend_cutoff_speed = 40.0 / 3.6
         regen_frac = max(0.0, min(1.0, v / blend_cutoff_speed))
         speed_kmh = v * 3.6
-        air_boost = 0.72 if speed_kmh <= 3.0 else 1.0 # 저속 기본 약화
+        air_boost = 1.0
 
         # --- B1 미세조정: 롱 B1 유지하면서 0cm 근접 ---
         if notch == 1 and (not self._in_predict) and self.state is not None and (not self.state.finished):
@@ -282,7 +308,7 @@ class StoppingSim:
             # B1 정지거리 '편향 없는' 예측: 마진 제외
             s_b1_nominal = self._estimate_stop_distance(1, v, include_margin=False)
 
-            # error(+): 언더런(남은거리가 더 김) → 제동 약화(air_boost ↓)
+            # error(+): 언더런(남은거리가 더 김) → 제동 약화(마진 ↓가 필요), 여기서는 B1 강화/약화로 다룸
             error_m = rem_now - s_b1_nominal
 
             # 간결한 P+I
@@ -296,8 +322,8 @@ class StoppingSim:
             target_boost = max(0.25, min(1.35, adjust))
             target_boost *= (1.0 + self._b1_i)
 
-            # 마지막 구간 완화 (B1에서만 동작)
-            if rem_now < 0.3 and notch == 1:
+            # <<< MOD: 마지막 구간 조건부 완화 — 오버런 경향일 때만 완화
+            if rem_now < 0.3 and notch == 1 and error_m < 0.0:
                 target_boost = 0.3
             if rem_now < 1.0 and notch == 1:
                 target_boost = max(0.50, min(0.60, target_boost))
@@ -407,6 +433,9 @@ class StoppingSim:
         self._b1_air_boost_state = 1.0
         self._b1_i = 0.0
 
+        # 실시간 마진 보정 초기화
+        self._rt_margin = 0.0
+
         if DEBUG:
             print("Simulation reset")
 
@@ -483,15 +512,22 @@ class StoppingSim:
 
     def _need_B5_now(self, v: float, remaining: float) -> bool:
         """
-        'B5가 필요하냐?'를 상수 시간으로 판정.
-        여기서는 'B4로 못 멈추면'으로 판정: s(B4) > 남은거리(+데드밴드)
-        Notch index: 0:N, 1:B1, 2:B2, 3:B3, 4:B4, 5:B5 ...
+        'TASC 개입이 필요하냐?' 판정.
+        속도에 따라 기준 노치를 전환:
+          - ≤ 75 km/h: B2 기준
+          - >  75 km/h: B4 기준
         """
         st = self.state
         if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
             return self._need_b5_last
-        s_b4 = self._stopping_distance(2, v) # TODO: 환경에 맞게 인덱스 조정 필요시 변경
-        need = s_b4 > (remaining + self.tasc_deadband_m)
+
+        speed_kmh = v * 3.6
+        if speed_kmh <= 75.0:
+            s_ref = self._stopping_distance(2, v)  # B2
+        else:
+            s_ref = self._stopping_distance(4, v)  # B4
+
+        need = s_ref > (remaining + self.tasc_deadband_m)
         self._need_b5_last = need
         self._need_b5_last_t = st.t
         return need
@@ -517,6 +553,26 @@ class StoppingSim:
             else:
                 self.first_brake_start = None
 
+        # ---------- 실시간 마진 보정 업데이트 (언더런/오버런 방향성 반영) ----------
+        # 현재 노치에서 '마진 제외' 정지거리와 잔여거리 비교해 경향성 추정
+        rem_now = self.scn.L - st.s
+        if not st.finished:
+            s_nom = self._estimate_stop_distance(max(1, st.lever_notch), st.v, include_margin=False)
+            # tendency = s_nom - rem_now
+            #   > 0 : 오버런 경향 (더 멀리 감) → 마진을 '증가' (양의 보정)  → 컨트롤은 더 세게
+            #   < 0 : 언더런 경향 (더 일찍 멈춤) → 마진을 '감소' (음의 보정) → 컨트롤은 더 약하게
+            tendency = s_nom - rem_now
+            target_rt = 0.0
+            if tendency > self._rt_deadband:
+                # 오버런 경향 → 마진 증가 (+)
+                target_rt = min(self._rt_max, tendency)
+            elif tendency < -self._rt_deadband:
+                # 언더런 경향 → 마진 감소 (–)
+                target_rt = -min(self._rt_max, -tendency)
+            # 스무딩 + 누설
+            self._rt_margin = (self._rt_margin * self._rt_margin_leak) + \
+                              self._rt_margin_alpha * (target_rt - self._rt_margin)
+
         # ---------- TASC 자동 제동 ----------
         if self.tasc_enabled and not self.manual_override and not st.finished:
             dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
@@ -525,12 +581,11 @@ class StoppingSim:
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2 # EB-1까지
 
-            # (A) B5 필요 시점 감지 → 그때 TASC 활성화(초제동 시퀀스 시작)
-            if self.tasc_armed and not self.tasc_active:
-                if self._need_B5_now(st.v, rem_now):
-                    self.tasc_active = True
-                    self.tasc_armed = False
-                    self._tasc_last_change_t = st.t
+            # <<< MOD: '항상 작동' — enable되면 바로 active
+            if not self.tasc_active:
+                self.tasc_active = True
+                self.tasc_armed = False
+                self._tasc_last_change_t = st.t
 
             if self.tasc_active:
                 # (B) 초제동 유지: 활성화 이후에만 B1/B2를 2초간 강제
@@ -671,6 +726,21 @@ class StoppingSim:
 
             st.score = score
             self.running = False
+
+            # <<< MOD(옵션): 자동 보정 데이터 축적 — 실측 오차를 앵커로 누적
+            #      (원치 않으면 아래 블록 삭제)
+            try:
+                v0_kmh = self.scn.v0 * 3.6
+                L = self.scn.L
+                err = st.stop_error_m or 0.0
+                # 실측 오차 +X → 보정은 -X (오버런이면 음수, 언더런이면 양수)
+                self._calib_points.append((v0_kmh, L, -err))
+                # 과도한 누적 방지: 최대 200개 유지
+                if len(self._calib_points) > 200:
+                    self._calib_points = self._calib_points[-200:]
+            except Exception:
+                pass
+
             if DEBUG:
                 print(f"Simulation finished: stop_error={st.stop_error_m:.3f} m, score={score}")
 
@@ -753,6 +823,8 @@ class StoppingSim:
             # 히스토리 디버그
             "peak_notch": self._tasc_peak_notch,
             "peak_dur_s": self._tasc_peak_duration,
+            # 실시간 마진 보정 확인용
+            "rt_margin_m": self._rt_margin,
         }
 
 
@@ -852,14 +924,14 @@ async def ws_endpoint(ws: WebSocket):
                         load_rate = float(payload.get("loadRate", 0.0)) / 100.0
                         length = int(payload.get("length", 8))
 
-    # JSON에서 읽은 차량 기본 질량 (1량)
-                        base_1c_t = vehicle.mass_t # 예: 39.9
-                        pax_1c_t = 10.5 # 승객 만석 시 1량당 질량 (톤). json에 넣을 수도 있음.
+                        # JSON에서 읽은 차량 기본 질량 (1량)
+                        base_1c_t = vehicle.mass_t
+                        pax_1c_t = 10.5 # 승객 만석 시 1량당 질량 (톤)
 
-    # 총 질량 (tons)
+                        # 총 질량 (tons)
                         total_tons = length * (base_1c_t + pax_1c_t * load_rate)
 
-    # vehicle 객체 갱신
+                        # vehicle 객체 갱신
                         vehicle.update_mass(length)
                         vehicle.mass_kg = total_tons * 1000.0
                         sim.train_length = length
@@ -877,9 +949,9 @@ async def ws_endpoint(ws: WebSocket):
                             sim._tasc_phase = "build"
                             sim._tasc_peak_notch = 1
                             sim._tasc_peak_duration = 0.0
-                            # 즉시 작동 금지: B5 필요 시점까지 '대기'
-                            sim.tasc_armed = True
-                            sim.tasc_active = False
+                            # <<< MOD: 즉시 활성화
+                            sim.tasc_armed = False
+                            sim.tasc_active = True
                         if DEBUG:
                             print(f"TASC set to {enabled}")
 
@@ -921,4 +993,3 @@ async def ws_endpoint(ws: WebSocket):
             await ws.close()
         except RuntimeError:
             pass
-
