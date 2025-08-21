@@ -162,7 +162,7 @@ class StoppingSim:
         self.tasc_enabled = False
         self.manual_override = False
         self.tasc_deadband_m = 0.10             # <<< MOD: 10 cm 수준으로 축소
-        self.tasc_hold_min_s = 0.15             # <<< MOD: 추종성 향상
+        self.tasc_hold_min_s = 0.03         # <<< MOD: 추종성 향상
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
