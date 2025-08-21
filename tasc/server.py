@@ -521,11 +521,15 @@ class StoppingSim:
         if (st.t - self._need_b5_last_t) < self._need_b5_interval and self._need_b5_last_t >= 0.0:
             return self._need_b5_last
 
-        speed_kmh = v * 3.6
-        if speed_kmh <= 75.0:
+        v0_kmh = self.scn.v0 * 3.6  
+        if v0_kmh <= 55.0:
+            s_ref = self._stopping_distance(1, v)
+        elif v0_kmh > 55.0 and v0_kmh <= 75.0:
             s_ref = self._stopping_distance(2, v)  # B2
+        elif v0_kmh > 75.0 and v0_kmh <= 90.0:
+            s_ref = self._stopping_distance(3, v)  # B3
         else:
-            s_ref = self._stopping_distance(4, v)  # B4
+            s_ref = self._stopping_distance(4, v) #b4
 
         need = s_ref > (remaining + self.tasc_deadband_m)
         self._need_b5_last = need
@@ -582,10 +586,12 @@ class StoppingSim:
             max_normal_notch = self.veh.notches - 2 # EB-1까지
 
             # <<< MOD: '항상 작동' — enable되면 바로 active
-            if not self.tasc_active:
-                self.tasc_active = True
-                self.tasc_armed = False
-                self._tasc_last_change_t = st.t
+            # AFTER (조건부-작동 로직 복원)
+            if self.tasc_armed and not self.tasc_active:
+                if self._need_B5_now(st.v, rem_now):   # ≤75km/h→B2, >75km/h→B4 기준 사용 중
+                    self.tasc_active = True
+                    self.tasc_armed = False
+                    self._tasc_last_change_t = st.t
 
             if self.tasc_active:
                 # (B) 초제동 유지: 활성화 이후에만 B1/B2를 2초간 강제
@@ -950,8 +956,8 @@ async def ws_endpoint(ws: WebSocket):
                             sim._tasc_peak_notch = 1
                             sim._tasc_peak_duration = 0.0
                             # <<< MOD: 즉시 활성화
-                            sim.tasc_armed = False
-                            sim.tasc_active = True
+                            sim.tasc_armed = True
+                            sim.tasc_active = False
                         if DEBUG:
                             print(f"TASC set to {enabled}")
 
