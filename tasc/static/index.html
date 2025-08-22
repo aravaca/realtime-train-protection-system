@@ -279,12 +279,18 @@ ws.send(JSON.stringify({
 }));
 }
 /* 입력 보정 */
+
+
+
 const inputSpeed=document.getElementById("inputSpeed"), inputDist=document.getElementById("inputDist"), inputGrade=document.getElementById("inputGrade");
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 function enforceInt(el,min,max){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^\d-]/g,'');}); el.addEventListener('change',()=>{let v=parseInt(el.value,10); if(isNaN(v)){el.value='';return;} el.value=String(clamp(v,min,max));});}
 function enforceFloat(el,min,max,d=1){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^0-9.\-]/g,'');}); el.addEventListener('change',()=>{let v=parseFloat(el.value); if(isNaN(v)){el.value='';return;} v=clamp(v,min,max); el.value=v.toFixed(d);});}
 enforceInt(inputSpeed,10,130); enforceInt(inputDist,10,900);
-enforceInt(inputLoadRate,0,120); enforceFloat(inputGrade,-10,10,1);
+const inputLoadRate = document.getElementById("inputLoadRate");   // ← 추가
+
+enforceInt(inputLoadRate,0,120);               // ← 이제 에러 없음
+document.getElementById("inputLoadRate").addEventListener("change",sendLoadRate); enforceFloat(inputGrade,-10,10,1);
 
 document.getElementById("inputLoadRate").addEventListener("change",sendLoadRate);
 
