@@ -253,7 +253,7 @@ setInterval(generateSnowflake,200);
 /* ===== 차량 JSON 로드 (캐시 무시) ===== */
 let vehicle=null; let brakeDecels={};
 const cacheBust=()=>`?v=${Date.now()}`;
-fetch('./carName.json'+cacheBust(),{cache:'no-store'})
+fetch('./e233_0000.json'+cacheBust(),{cache:'no-store'})
   .then(r=>r.json()).then(data=>{
     vehicle=data; document.getElementById('carName').textContent=vehicle.name;
     if(vehicle.notch_accels && vehicle.notches){
