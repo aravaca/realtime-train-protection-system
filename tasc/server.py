@@ -738,15 +738,19 @@ class StoppingSim:
         st = self.state
         # === PATCH: TASC 예측값 계산해서 HUD로 전달 ===
         try:
-    # 현재 노치 기준 예측 (s_cur, s_up, s_dn)
-            s_cur, s_up, s_dn = self._tasc_predict(self.state.lever_notch, self.state.v)
-    # 전 노치 배열 예측(성능 안정: EB와 N 제외, 또는 필요한 만큼만)
-            s_all = []
-            for n in range(self.veh.notches):
-                if n <= 0:  # N은 무한대 취급
-                    s_all.append(None)
-                else:
-                    s_all.append(self._stopping_distance(n, self.state.v))
+            s_cur, s_up, s_dn = self._tasc_predict(st.lever_notch, st.v)
+
+        # 전 노치 전체 계산던지는 대신, 현재/상하 3개만 채움
+            n_cur = st.lever_notch
+            n_max = self.veh.notches
+
+            s_all = [None] * n_max
+            if 0 < n_cur < n_max:
+                s_all[n_cur] = s_cur
+            if 0 < n_cur + 1 < n_max:
+                s_all[n_cur + 1] = s_up
+            if 0 < n_cur - 1 < n_max:
+                s_all[n_cur - 1] = s_dn
             tasc_pred = {"s_cur": s_cur, "s_up": s_up, "s_dn": s_dn, "s_all": s_all}
         except Exception:
             tasc_pred = {"s_cur": None, "s_up": None, "s_dn": None, "s_all": []}
