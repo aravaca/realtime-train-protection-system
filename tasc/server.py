@@ -165,7 +165,7 @@ class StoppingSim:
         self.tasc_enabled = False
         self.manual_override = False
         self.tasc_deadband_m = 0.1
-        self.tasc_hold_min_s = 0.25
+        self.tasc_hold_min_s = 0.05
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build" # "build" → "relax"
         self._tasc_peak_notch = 1
@@ -796,7 +796,24 @@ async def ws_endpoint(ws: WebSocket):
                         if DEBUG:
                             print(f"차량 전체 중량을 {mass_tons:.2f} 톤으로 업데이트 했습니다.")
                         sim.reset()
+                    elif name == "setLoadRate":
+                        load_rate = float(payload.get("loadRate", 0.0)) / 100.0  # 예: 85 → 0.85
+                        length = int(payload.get("length", 8))
 
+    # 1량 기본 질량(톤): vehicle.json의 mass_t가 '1량 기준'이라고 가정
+                        base_1c_t = vehicle.mass_t
+                        pax_1c_t  = 10.5  # 만석 시 1량당 승객 질량(톤). 필요하면 vehicle.json로 빼도 됨.
+
+                        total_tons = length * (base_1c_t + pax_1c_t * load_rate)
+
+    # 총질량 반영
+                        vehicle.update_mass(length)             # mass_kg = base_1c_t * 1000 * length
+                        vehicle.mass_kg = total_tons * 1000.0   # 여기에 탑승률 반영값으로 덮어씀
+
+                        if DEBUG:
+                            print(f"[LoadRate] length={length}, load={load_rate*100:.1f}%, total={total_tons:.1f} t")
+
+                        sim.reset()
                     elif name == "setTASC":
                         enabled = bool(payload.get("enabled", False))
                         sim.tasc_enabled = enabled
