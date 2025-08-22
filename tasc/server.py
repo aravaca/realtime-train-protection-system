@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 # ------------------------------------------------------------
 # Config
 # ------------------------------------------------------------
-DEBUG = False # 디버그 로그를 보고 싶으면 True
+DEBUG = False  # 디버그 로그를 보고 싶으면 True
 
 # ------------------------------------------------------------
 # Data classes
@@ -167,11 +167,11 @@ class StoppingSim:
         self.tasc_deadband_m = 0.1
         self.tasc_hold_min_s = 0.05
         self._tasc_last_change_t = 0.0
-        self._tasc_phase = "build" # "build" → "relax"
+        self._tasc_phase = "build"  # "build" → "relax"
         self._tasc_peak_notch = 1
         # 대기/활성 상태
-        self.tasc_armed = False # TASC ON 시점부터 B5 필요 시점까지 대기
-        self.tasc_active = False # 초제동~빌드/릴렉스 실제 활성
+        self.tasc_armed = False  # TASC ON 시점부터 B5 필요 시점까지 대기
+        self.tasc_active = False  # 초제동~빌드/릴렉스 실제 활성
 
         # 날씨가 코스팅에 미치는 효과
         self.rr_factor = _mu_to_rr_factor(self.scn.mu)
@@ -181,14 +181,14 @@ class StoppingSim:
             "t": -1.0, "v": -1.0, "notch": -1,
             "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')
         }
-        self._tasc_pred_interval = 0.05 # 50ms
+        self._tasc_pred_interval = 0.05  # 50ms
         self._tasc_last_pred_t = -1.0
-        self._tasc_speed_eps = 0.3 # m/s
+        self._tasc_speed_eps = 0.3  # m/s
 
         # ---- B5 필요 여부 판정 캐시/스로틀 ----
         self._need_b5_last_t = -1.0
         self._need_b5_last = False
-        self._need_b5_interval = 0.05 # 50ms마다 한 번만 계산
+        self._need_b5_interval = 0.05  # 50ms마다 한 번만 계산
 
         # ★ MOD: 브레이크 동역학 상태 변수/시정수
         self.brk_accel = 0.0
@@ -207,16 +207,16 @@ class StoppingSim:
         """
         if notch >= len(self.veh.notch_accels):
             return 0.0
-        base = float(self.veh.notch_accels[notch]) # 음수(0은 N)
+        base = float(self.veh.notch_accels[notch])  # 음수(0은 N)
 
         # 접착 한계
         k_srv = 0.85
         k_eb = 0.98
         is_eb = (notch == (self.veh.notches - 1))
         k_adh = k_eb if is_eb else k_srv
-        a_cap = -k_adh * float(self.scn.mu) * 9.81 # 음수
+        a_cap = -k_adh * float(self.scn.mu) * 9.81  # 음수
 
-        a_eff = max(base, a_cap) # 절대값 작은 쪽 선택(안전)
+        a_eff = max(base, a_cap)  # 절대값 작은 쪽 선택(안전)
 
         # 간단 WSP: 한계에 닿았으면 살짝 풀기 (저속일수록 보수적)
         if a_eff <= a_cap + 1e-6:
@@ -234,7 +234,7 @@ class StoppingSim:
         A0 = self.veh.A0 * self.rr_factor
         B1 = self.veh.B1 * self.rr_factor
         C2 = self.veh.C2
-        F = A0 + B1 * v + C2 * v * v # N
+        F = A0 + B1 * v + C2 * v * v  # N
         return -F / self.veh.mass_kg if v != 0 else 0.0
 
     # ★ MOD: 현실적인 제동 밸브 동역학 (적용/완해 비대칭 시정수)
@@ -304,8 +304,10 @@ class StoppingSim:
         self.tasc_armed = bool(self.tasc_enabled)
 
         # 예측 캐시 초기화
-        self._tasc_pred_cache.update({"t": -1.0, "v": -1.0, "notch": -1,
-                                      "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')})
+        self._tasc_pred_cache.update({
+            "t": -1.0, "v": -1.0, "notch": -1,
+            "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')
+        })
         self._tasc_last_pred_t = -1.0
 
         # B5 필요 여부 캐시 초기화
@@ -332,35 +334,78 @@ class StoppingSim:
 
     def _estimate_stop_distance(self, notch: int, v0: float) -> float:
         """
-        현재 속도 v0에서 '해당 노치 고정'으로 가정하고 실제 동역학과 동일한 모델로
-        간단 수치적분으로 정지거리 추정. (TASC 예측에 사용)
-        - jerk/명령지연은 생략, 제동 응답 tau_brk는 1차 지연으로 반영
-        - 성능 최적화: 더 큰 dt, 조기 종료
+        해당 노치 고정으로 가정한 정지거리 예측.
+        ✅ 브레이크 밸브 동역학(적용/완해 시정수) + ✅ 저크 제한(막판 강제 축소)을
+        실주행(step)과 동일 규칙으로 반영해 TASC 예측-현실 간 격차를 없앤다.
         """
-        dt = 0.03 # 더 큰 스텝(≈33Hz)
+        if notch <= 0:
+            return float('inf')
+
+        # 예측 전용 시뮬 변수
+        dt = 0.03  # 예측은 33Hz로 성능 확보 (원래 값 유지)
         v = max(0.0, v0)
         a = 0.0
         s = 0.0
-        tau = max(0.15, self.veh.tau_brk) # 응답 느림 반영
 
-        # 조기 종료용: 현재 정지점까지 남은 거리 + 버퍼
+        # ✅ 밸브 동역학(실주행과 동일)
+        brk_accel = 0.0  # 예측용 브레이크 가속도 상태
+        tau_apply = self.tau_apply
+        tau_release = self.tau_release
+        tau_apply_eb = self.tau_apply_eb
+        tau_release_lowv = self.tau_release_lowv
+
+        # 현재 기준 남은거리(예측 오버런 방지용 한계)
         rem_now = self.scn.L - self.state.s
         limit = float(rem_now + 5.0)
 
-        for _ in range(1200): # 최대 ≈36s
-            a_brk = self._effective_brake_accel(notch, v)
+        for _ in range(1200):  # 최대 ≈36s
+            # (1) 명령 제동가속도
+            a_cmd = self._effective_brake_accel(notch, v)
+
+            # (2) ✅ 밸브 동역학 1차 지연 (적용/완해 비대칭)
+            going_stronger = (a_cmd < brk_accel)
+            if going_stronger:
+                tau = tau_apply_eb if (notch == self.veh.notches - 1) else tau_apply
+            else:
+                tau = tau_release_lowv if v < 3.0 else tau_release
+            brk_accel += (a_cmd - brk_accel) * (dt / max(1e-6, tau))
+
+            # (3) 외력
             a_grade = self._grade_accel()
             a_davis = self._davis_accel(v)
-            a_target = a_brk + a_grade + a_davis
-            # 1차 지연 응답
-            a += (a_target - a) * (dt / tau)
-            # 적분
+
+            # (4) 목표 가속도
+            a_target = brk_accel + a_grade + a_davis
+
+            # (5) ✅ 차량 응답 1차 지연 (원코드와 동일)
+            a += (a_target - a) * (dt / max(1e-6, self.veh.tau_brk))
+
+            # (6) ✅ 저크 제한 (막판 강제 축소 규칙 포함: step()과 동일 철학)
+            max_da = self.veh.j_max * dt
+            v_kmh = v * 3.6
+            rem_pred = max(0.0, rem_now - s)  # 예측 내 잔여거리
+            if (v_kmh < 10.0) or (rem_pred < 2.0):
+                max_da *= 0.5
+            if (v_kmh < 6.0) or (rem_pred < 1.0):
+                max_da *= 0.5  # 누적 0.25배
+
+            da = a_target - a
+            if da > max_da:
+                da = max_da
+            elif da < -max_da:
+                da = -max_da
+            a += da
+
+            # (7) 적분
             v = max(0.0, v + a * dt)
             s += v * dt + 0.5 * a * dt * dt
-            if v <= 0.01:
-                break # 정지
-            if s > limit:
-                break # 충분히 큼 → 더 계산하지 않음
+
+            # (8) 종료 조건
+            if v <= 0.01:  # 사실상 정지
+                break
+            if s > limit:  # 과도 예측 방지
+                break
+
         return s
 
     def _stopping_distance(self, notch: int, v: float) -> float:
@@ -380,17 +425,20 @@ class StoppingSim:
         if cur_notch != self._tasc_pred_cache["notch"]:
             need = True
         if not need:
-            return (self._tasc_pred_cache["s_cur"],
-                    self._tasc_pred_cache["s_up"],
-                    self._tasc_pred_cache["s_dn"])
+            return (
+                self._tasc_pred_cache["s_cur"],
+                self._tasc_pred_cache["s_up"],
+                self._tasc_pred_cache["s_dn"],
+            )
 
         max_normal_notch = self.veh.notches - 2
-        s_cur = self._stopping_distance(cur_notch, v) if cur_notch > 0 else float('inf')
+        s_cur = self._stopping_distance(cur_notch, v) if cur_notch > 0 else float("inf")
         s_up = self._stopping_distance(cur_notch + 1, v) if cur_notch + 1 <= max_normal_notch else 0.0
-        s_dn = self._stopping_distance(cur_notch - 1, v) if cur_notch - 1 >= 1 else float('inf')
+        s_dn = self._stopping_distance(cur_notch - 1, v) if cur_notch - 1 >= 1 else float("inf")
 
-        self._tasc_pred_cache.update({"t": st.t, "v": v, "notch": cur_notch,
-                                      "s_cur": s_cur, "s_up": s_up, "s_dn": s_dn})
+        self._tasc_pred_cache.update(
+            {"t": st.t, "v": v, "notch": cur_notch, "s_cur": s_cur, "s_up": s_up, "s_dn": s_dn}
+        )
         self._tasc_last_pred_t = st.t
         return s_cur, s_up, s_dn
 
@@ -437,7 +485,7 @@ class StoppingSim:
         self.notch_history.append(st.lever_notch)
         self.time_history.append(st.t)
         if not self.first_brake_done:
-            if st.lever_notch in (1, 2): # B1 또는 B2
+            if st.lever_notch in (1, 2):  # B1 또는 B2
                 if self.first_brake_start is None:
                     self.first_brake_start = st.t
                 elif (st.t - self.first_brake_start) >= 1.0:  # ★ MOD: 초제동 1초
@@ -451,14 +499,14 @@ class StoppingSim:
             rem_now = self.scn.L - st.s
             speed_kmh = st.v * 3.6
             cur = st.lever_notch
-            max_normal_notch = self.veh.notches - 2 # EB-1까지
+            max_normal_notch = self.veh.notches - 2  # EB-1까지
 
             # (A) B? 필요 시점 감지 → 그때 TASC 활성화(초제동 시퀀스 시작)
             if self.tasc_armed and not self.tasc_active:
                 if self._need_B5_now(st.v, rem_now):
                     self.tasc_active = True
                     self.tasc_armed = False
-                    self._tasc_last_change_t = st.t # 활성화 시각
+                    self._tasc_last_change_t = st.t  # 활성화 시각
 
             if self.tasc_active:
                 # (B) 초제동 유지: 활성화 이후에만 B1/B2를 1초간 강제(위에서 1초로 변경)
@@ -497,7 +545,7 @@ class StoppingSim:
         # ★ MOD: 제동 명령 → 밸브 동역학 반영 → 실제 제동가속도
         a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v)
         is_eb = (st.lever_notch == self.veh.notches - 1)
-        self._update_brake_dyn(a_cmd_brake, st.v, is_eb, dt)   # 밸브 응답/완해 지연
+        self._update_brake_dyn(a_cmd_brake, st.v, is_eb, dt)  # 밸브 응답/완해 지연
         a_brake = self.brk_accel
 
         # 경사 가속도 (정식)
@@ -758,7 +806,9 @@ async def ws_endpoint(ws: WebSocket):
                             sim.scn.mu = mu
                             sim.rr_factor = _mu_to_rr_factor(mu)
                             if DEBUG:
-                                print(f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}, rr_factor={sim.rr_factor:.3f}")
+                                print(
+                                    f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}, rr_factor={sim.rr_factor:.3f}"
+                                )
                             sim.reset()
 
                     elif name == "start":
@@ -796,17 +846,18 @@ async def ws_endpoint(ws: WebSocket):
                         if DEBUG:
                             print(f"차량 전체 중량을 {mass_tons:.2f} 톤으로 업데이트 했습니다.")
                         sim.reset()
+
                     elif name == "setLoadRate":
                         load_rate = float(payload.get("loadRate", 0.0)) / 100.0  # 예: 85 → 0.85
                         length = int(payload.get("length", 8))
 
-    # 1량 기본 질량(톤): vehicle.json의 mass_t가 '1량 기준'이라고 가정
+                        # 1량 기본 질량(톤): vehicle.json의 mass_t가 '1량 기준'이라고 가정
                         base_1c_t = vehicle.mass_t
-                        pax_1c_t  = 10.5  # 만석 시 1량당 승객 질량(톤). 필요하면 vehicle.json로 빼도 됨.
+                        pax_1c_t = 10.5  # 만석 시 1량당 승객 질량(톤). 필요하면 vehicle.json로 빼도 됨.
 
                         total_tons = length * (base_1c_t + pax_1c_t * load_rate)
 
-    # 총질량 반영
+                        # 총질량 반영
                         vehicle.update_mass(length)             # mass_kg = base_1c_t * 1000 * length
                         vehicle.mass_kg = total_tons * 1000.0   # 여기에 탑승률 반영값으로 덮어씀
 
@@ -814,6 +865,7 @@ async def ws_endpoint(ws: WebSocket):
                             print(f"[LoadRate] length={length}, load={load_rate*100:.1f}%, total={total_tons:.1f} t")
 
                         sim.reset()
+
                     elif name == "setTASC":
                         enabled = bool(payload.get("enabled", False))
                         sim.tasc_enabled = enabled
