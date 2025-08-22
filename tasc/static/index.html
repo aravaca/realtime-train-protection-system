@@ -527,9 +527,9 @@ function drawBrakeLadderMini(st) {
   ctx2.clearRect(0, 0, w, h);
 
   // ★ EB 위치는 notch_accels 길이로 결정 (있으면 무조건 이것만 신뢰)
-  const accArr  = (window.vehicle && Array.isArray(vehicle.notch_accels)) ? vehicle.notch_accels : null;
+  const accArr  = (vehicle && Array.isArray(vehicle.notch_accels)) ? vehicle.notch_accels : null;
   const notches = accArr ? accArr.length
-                         : (window.vehicle && Number.isInteger(vehicle.notches) ? vehicle.notches : 10);
+                         : (vehicle && Number.isInteger(vehicle.notches) ? vehicle.notches : 10);
 
   const ebIdx   = accArr ? Math.max(1, accArr.length - 1)   // 0:N, 1~EB-1:B1.., EB:마지막
                          : Math.max(1, notches - 1);
