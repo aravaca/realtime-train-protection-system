@@ -522,63 +522,62 @@ sizeLadderCanvas();
 function drawBrakeLadderMini(st) {
   const ctx2 = ladderCanvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const w = ladderCanvas.width;
-  const h = ladderCanvas.height;
+  const w = ladderCanvas.width, h = ladderCanvas.height;
   if (!w || !h) return;
-
   ctx2.clearRect(0, 0, w, h);
 
-  // 노치/EB 자동 추출
+  // 실제 단수 가져오기: notch_accels 우선, 없으면 vehicle.notches
   const accArr  = (window.vehicle && Array.isArray(vehicle.notch_accels)) ? vehicle.notch_accels : null;
-  const notches = (window.vehicle && typeof vehicle.notches === 'number')
-                    ? vehicle.notches
-                    : (accArr ? accArr.length : 10);
-  const ebIdx   = Math.max(1, notches - 1);   // 맨 위 EB 인덱스
-  const blocks  = Math.max(1, notches - 1);   // B1..EB 블록 수
+  const L       = accArr ? accArr.length
+               : (window.vehicle && typeof vehicle.notches === 'number' ? vehicle.notches : 10);
+  const ebIdx   = Math.max(1, L - 1);        // 최상단 EB 인덱스
+  const blocks  = ebIdx;                     // B1..EB 표시 블록 수
+  const cur     = Math.max(0, Math.min(ebIdx, st.lever_notch|0));  // 현재 노치 클램프
 
-  // 패널 배경(살짝)
+  // 패널
   ctx2.fillStyle = "rgba(100,100,100,0.10)";
   ctx2.fillRect(0, 0, w, h);
 
-  // 레이아웃(이전 디자인 비율 느낌 유지)
-  const pad    = 2 * dpr;
-  const gap    = Math.max(2 * dpr, Math.round(h * 0.02));
-  const bH     = (h - pad * 2 - gap * (blocks - 1)) / blocks;
-  const bW     = w - pad * 2;
-  const x      = pad;
+  // 레이아웃(이전 디자인 느낌 유지)
+  const pad  = 2 * dpr;
+  const gap  = Math.max(2 * dpr, Math.round(h * 0.02));
+  const bH   = (h - pad*2 - gap*(blocks-1)) / blocks;
+  const bW   = w - pad*2;
+  const x    = pad;
 
-  const cur = st.lever_notch || 0;   // 0=N, 1=B1, ..., ebIdx=EB
+  // 1) 서비스 노치만 노랑: B1..min(cur, EB-1)
+  const serviceTop = Math.min(cur, ebIdx - 1);
+  for (let k = 1; k <= ebIdx - 1; k++) {
+    const i = k - 1;
+    const y = h - pad - (i + 1) * bH - i * gap;
 
-  // 아래(B1) → 위(강노치 … EB)
-  for (let k = 1; k <= ebIdx; k++) {
-    const i   = k - 1;                                  // 아래에서부터 인덱스
-    const y   = h - pad - (i + 1) * bH - i * gap;
-
-    // off 바탕
+    // 바탕
     ctx2.fillStyle = "rgba(60,80,100,0.35)";
     ctx2.fillRect(x, y, bW, bH);
 
-    // on 색상/판정: 서비스=노랑, EB=빨강
-    let active = false;
-    let fill   = "#e1d346";
-    if (k === ebIdx) {
-      fill   = "#ff5757";               // EB
-      active = (cur === ebIdx);
-    } else {
-      active = (cur >= k && cur < ebIdx);
-    }
-    if (active) {
-      ctx2.fillStyle = fill;
+    // 노랑 활성
+    if (k <= serviceTop) {
+      ctx2.fillStyle = "#ffd34d";
       ctx2.fillRect(x, y, bW, bH);
     }
 
-    // 테두리
     ctx2.strokeStyle = "rgba(20,30,45,0.6)";
     ctx2.lineWidth   = 1 * dpr;
     ctx2.strokeRect(x, y, bW, bH);
   }
-}
 
+  // 2) EB(최상단)는 빨강: cur===EB일 때만
+  const yEB = h - pad - (ebIdx) * bH - (ebIdx - 1) * gap;
+  ctx2.fillStyle = "rgba(60,80,100,0.35)";
+  ctx2.fillRect(x, yEB, bW, bH);
+  if (cur === ebIdx) {
+    ctx2.fillStyle = "#ff5757";   // RED for EB only
+    ctx2.fillRect(x, yEB, bW, bH);
+  }
+  ctx2.strokeStyle = "rgba(20,30,45,0.6)";
+  ctx2.lineWidth   = 1 * dpr;
+  ctx2.strokeRect(x, yEB, bW, bH);
+}
 
 
 
