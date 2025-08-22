@@ -381,7 +381,11 @@ class StoppingSim:
                 a_soft = max(-0.30, min(-0.10, a_need))       # 완만 범위로 제한
                 w = 1.0 - (rem_pred / 1.0)                    # 0→1 선형 가중
                 a_target = (1.0 - w) * a_target + w * a_soft
-
+            
+     
+            if notch == 1:
+                a_target = min(a_target, 0.0)      
+    
             # (5) 차량 1차 지연
             a += (a_target - a) * (dt / max(1e-6, self.veh.tau_brk))
 
