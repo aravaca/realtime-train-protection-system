@@ -767,6 +767,9 @@ async def ws_endpoint(ws: WebSocket):
     # 프론트가 EB→...→N으로 올 때 서버는 N→...→EB로 쓰기 위해 반전
     vehicle.notch_accels = list(reversed(vehicle.notch_accels))
 
+    vehicle.notches = len(vehicle.notch_accels)
+
+
     scenario = Scenario.from_json(scenario_json_path)
 
     sim = StoppingSim(vehicle, scenario)
