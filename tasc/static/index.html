@@ -351,6 +351,8 @@ ws.onmessage=(ev)=>{
   const msg=JSON.parse(ev.data);
   if(msg.type==="state"){
     st=msg.payload;
+    // === PATCH: 서버에서 온 TASC 예측 저장 ===
+    window.__tasc_pred__ = st.tasc_pred || {};
     const remRaw=st.remaining_m, rem=typeof remRaw==="number"?remRaw:parseFloat(remRaw);
     remEl.textContent = rem>=0 ? rem.toFixed(2) : `-${Math.abs(rem).toFixed(2)}`;
     spdEl.textContent = (st.v*3.6).toFixed(1);
@@ -449,18 +451,37 @@ function drawHUD(st){
   ctx.lineWidth=2*dpr; 
   const maxNotch = vehicle?.notches ?? 10;   // 총 개수(0~maxIdx)
   const maxIdx   = maxNotch - 1;  // EB 인덱스
-  for(let n=0;n<maxNotch;n++){
-    const a=brakeDecels[n]??0; if(a<=0) continue;
-    const s=(v0*v0)/(2*a);
-    ctx.beginPath(); ctx.strokeStyle = n===lever ? "#ffae00" : "#3fa9ff";
-    for(let i=0;i<=100;i++){
-      const f=i/100, ds=s*f, v=Math.sqrt(Math.max(0,v0*v0-2*a*ds));
-      const x=X(ds), y=Y(v*3.6); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  // === PATCH: 서버 예측으로 곡선 그리기 ===
+const tpred = window.__tasc_pred__ || {};
+const sAll  = Array.isArray(tpred.s_all) ? tpred.s_all : [];
+
+// 예측값이 없으면 기존 brakeDecels 방식 fallback
+if (!sAll.length) {
+  // (기존 brakeDecels 곡선 코드 그대로 두기)
+} else {
+  for (let n = 0; n < sAll.length; n++) {
+    const s = sAll[n];
+    if (!isFinite(s) || s <= 0) continue;
+
+    ctx.beginPath();
+    for (let i = 0; i <= 100; i++) {
+      const f = i / 100;
+      const ds = s * f;
+      const v_rel = Math.max(0, 1 - f);
+      const v_plot = (st.v * 3.6) * v_rel;
+      const x = X(ds), y = Y(v_plot);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
+    const isCur = (n === st.lever_notch);
+    ctx.strokeStyle = isCur ? "#ffae00" : "#3fa9ff";
+    ctx.lineWidth = 2 * dpr;
     ctx.stroke();
-    ctx.fillStyle=n===lever?"#ffae00":"#3fa9ff"; ctx.font=`${12*dpr}px 'Orbitron', sans-serif`;
-    const tX=X(s); const label = (n===0) ? "N" : (n===maxIdx ? "EB" : `B${n}`);
-  ctx.fillText(label, tX+5*dpr, Y(0)+12*dpr);
+    ctx.fillStyle = isCur ? "#ffae00" : "#3fa9ff";
+    ctx.font = `${12*dpr}px 'Orbitron', sans-serif`;
+    const maxIdx = (vehicle?.notches ?? 10) - 1;
+    const label = (n===0) ? "N" : (n===maxIdx ? "EB" : `B${n}`);
+    ctx.fillText(label, X(s) + 5*dpr, Y(0) + 12*dpr);
+  }
 }
 
   const xRed=X(remaining); ctx.strokeStyle="#f00"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(xRed,Y(0)); ctx.lineTo(xRed,Y(vmax)); ctx.stroke();
