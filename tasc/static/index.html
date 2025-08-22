@@ -529,18 +529,11 @@ function drawBrakeLadderMini(st) {
 
   ctx2.clearRect(0, 0, w, h);
 
-  // 노치 정의
-  const maxNotch = (window.vehicle && typeof vehicle.notches === 'number') ? vehicle.notches : 10;
-  const maxIdx   = maxNotch - 1;         // EB 인덱스
-  const blocks   = Math.max(0, maxIdx);  // B1~EB 블록 수
-  if (blocks === 0) return;
-
-  // 레이아웃
-  const pad = 2 * dpr;
-  const gap = Math.max(2 * dpr, Math.round(h * 0.02));
-  const blockH = (h - pad * 2 - gap * (blocks - 1)) / blocks;
-  const blockW = w - pad * 2;
-  const x = pad;
+  const accArr   = (window.vehicle && Array.isArray(vehicle.notch_accels)) ? vehicle.notch_accels : null;
+  const notches  = (window.vehicle && typeof vehicle.notches === 'number') ? vehicle.notches
+                  : (accArr ? accArr.length : 10);   // fallback
+  const ebIdx    = Math.max(1, notches - 1);         // 맨 위 EB 인덱스
+  const blocks   = Math.max(1, notches - 1);         // B1..EB 총 블록 수
 
   // 패널 배경(살짝)
   ctx2.fillStyle = "rgba(100,100,100,0.10)";
