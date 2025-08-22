@@ -190,7 +190,7 @@ class StoppingSim:
         self._need_b5_last = False
         self._need_b5_interval = 0.05  # 50ms마다 한 번만 계산
 
-        # ★ MOD: 브레이크 동역학 상태 변수/시정수
+        # 브레이크 동역학 상태 변수/시정수
         self.brk_accel = 0.0
         self.tau_apply = 0.25
         self.tau_release = 0.8
@@ -237,8 +237,8 @@ class StoppingSim:
         F = A0 + B1 * v + C2 * v * v  # N
         return -F / self.veh.mass_kg if v != 0 else 0.0
 
-    # ★ MOD: 현실적인 제동 밸브 동역학 (적용/완해 비대칭 시정수)
     def _update_brake_dyn(self, a_cmd: float, v: float, is_eb: bool, dt: float):
+        """현실적인 제동 밸브 동역학 (적용/완해 비대칭 시정수)"""
         going_stronger = (a_cmd < self.brk_accel)
         if going_stronger:
             tau = self.tau_apply_eb if is_eb else self.tau_apply
@@ -314,7 +314,7 @@ class StoppingSim:
         self._need_b5_last_t = -1.0
         self._need_b5_last = False
 
-        # ★ MOD: 브레이크 동역학 상태 초기화
+        # 브레이크 동역학 상태 초기화
         self.brk_accel = 0.0
 
         if DEBUG:
@@ -335,34 +335,38 @@ class StoppingSim:
     def _estimate_stop_distance(self, notch: int, v0: float) -> float:
         """
         해당 노치 고정으로 가정한 정지거리 예측.
-        ✅ 브레이크 밸브 동역학(적용/완해 시정수) + ✅ 저크 제한(막판 강제 축소)을
-        실주행(step)과 동일 규칙으로 반영해 TASC 예측-현실 간 격차를 없앤다.
+        ✅ 밸브 동역학 + ✅ 차량 지연 + ✅ 저크 제한(막판 강화) 포함
+        → 실주행(step)과 동등 모델로 예측해 오차를 최소화.
         """
         if notch <= 0:
             return float('inf')
 
-        # 예측 전용 시뮬 변수
-        dt = 0.03  # 예측은 33Hz로 성능 확보 (원래 값 유지)
+        # ★ MOD(TASC-PRED): A) 초기 상태를 실제와 정합
+        dt = 0.02  # ★ MOD(TASC-PRED): B) 예측 해상도 약간 상향(기존 0.03 → 0.02)
         v = max(0.0, v0)
-        a = 0.0
+        a = float(self.state.a)            # 실제 현재 a로 시드
         s = 0.0
+        brk_accel = float(self.brk_accel)  # 실제 현재 밸브 응답 상태로 시드
 
-        # ✅ 밸브 동역학(실주행과 동일)
-        brk_accel = 0.0  # 예측용 브레이크 가속도 상태
-        tau_apply = self.tau_apply
-        tau_release = self.tau_release
-        tau_apply_eb = self.tau_apply_eb
+        tau_apply        = self.tau_apply
+        tau_release      = self.tau_release
+        tau_apply_eb     = self.tau_apply_eb
         tau_release_lowv = self.tau_release_lowv
 
-        # 현재 기준 남은거리(예측 오버런 방지용 한계)
+        # ★ MOD(TASC-PRED): E) limit 완화 (5 → 8 m)
         rem_now = self.scn.L - self.state.s
-        limit = float(rem_now + 5.0)
+        limit   = float(rem_now + 8.0)
 
-        for _ in range(1200):  # 최대 ≈36s
+        # ★ MOD(TASC-PRED): C) 제어/예측 표본화 지연을 마진으로 반영
+        # (보수적으로 pred_interval, hold_min 중 큰 값을 사용)
+        ctrl_delay = max(self._tasc_pred_interval, self.tasc_hold_min_s)
+        latency_margin = v * ctrl_delay  # v0 근사로 충분
+
+        for _ in range(2400):  # dt=0.02 기준 최대 ≈48s
             # (1) 명령 제동가속도
             a_cmd = self._effective_brake_accel(notch, v)
 
-            # (2) ✅ 밸브 동역학 1차 지연 (적용/완해 비대칭)
+            # (2) 밸브 동역학 1차 지연 (적용/완해 비대칭)
             going_stronger = (a_cmd < brk_accel)
             if going_stronger:
                 tau = tau_apply_eb if (notch == self.veh.notches - 1) else tau_apply
@@ -374,16 +378,16 @@ class StoppingSim:
             a_grade = self._grade_accel()
             a_davis = self._davis_accel(v)
 
-            # (4) 목표 가속도
+            # (4) 목표 a
             a_target = brk_accel + a_grade + a_davis
 
-            # (5) ✅ 차량 응답 1차 지연 (원코드와 동일)
+            # (5) 차량 1차 지연
             a += (a_target - a) * (dt / max(1e-6, self.veh.tau_brk))
 
-            # (6) ✅ 저크 제한 (막판 강제 축소 규칙 포함: step()과 동일 철학)
+            # (6) ★ MOD(TASC-PRED): 저크 제한(막판 강화) — step()과 동일한 규칙
             max_da = self.veh.j_max * dt
             v_kmh = v * 3.6
-            rem_pred = max(0.0, rem_now - s)  # 예측 내 잔여거리
+            rem_pred = max(0.0, rem_now - s)  # 예측 내부 잔여거리
             if (v_kmh < 10.0) or (rem_pred < 2.0):
                 max_da *= 0.5
             if (v_kmh < 6.0) or (rem_pred < 1.0):
@@ -401,12 +405,13 @@ class StoppingSim:
             s += v * dt + 0.5 * a * dt * dt
 
             # (8) 종료 조건
-            if v <= 0.01:  # 사실상 정지
+            if v <= 0.01:
                 break
-            if s > limit:  # 과도 예측 방지
+            if s > limit:
                 break
 
-        return s
+        # ★ MOD(TASC-PRED): C) 표본화/홀드 지연에 대한 보수 마진 추가
+        return s + latency_margin
 
     def _stopping_distance(self, notch: int, v: float) -> float:
         """보수적 예측: 위의 수치예측 사용"""
@@ -442,7 +447,7 @@ class StoppingSim:
         self._tasc_last_pred_t = st.t
         return s_cur, s_up, s_dn
 
-    # ★ MOD: v0(시작속도) 기반으로 기준 노치 선택
+    # v0(시작속도) 기반으로 기준 노치 선택
     def _need_B5_now(self, v: float, remaining: float) -> bool:
         """
         'B?가 필요하냐?' 판정.
@@ -488,7 +493,7 @@ class StoppingSim:
             if st.lever_notch in (1, 2):  # B1 또는 B2
                 if self.first_brake_start is None:
                     self.first_brake_start = st.t
-                elif (st.t - self.first_brake_start) >= 1.0:  # ★ MOD: 초제동 1초
+                elif (st.t - self.first_brake_start) >= 1.0:  # 초제동 1초
                     self.first_brake_done = True
             else:
                 self.first_brake_start = None
@@ -509,7 +514,7 @@ class StoppingSim:
                     self._tasc_last_change_t = st.t  # 활성화 시각
 
             if self.tasc_active:
-                # (B) 초제동 유지: 활성화 이후에만 B1/B2를 1초간 강제(위에서 1초로 변경)
+                # (B) 초제동 유지: 활성화 이후에만 B1/B2를 1초간 강제
                 if not self.first_brake_done:
                     desired = 2 if speed_kmh >= 70.0 else 1
                     if dwell_ok and cur != desired:
@@ -542,7 +547,7 @@ class StoppingSim:
                                 self._tasc_last_change_t = st.t
 
         # ====== 동역학 ======
-        # ★ MOD: 제동 명령 → 밸브 동역학 반영 → 실제 제동가속도
+        # 제동 명령 → 밸브 동역학 반영 → 실제 제동가속도
         a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v)
         is_eb = (st.lever_notch == self.veh.notches - 1)
         self._update_brake_dyn(a_cmd_brake, st.v, is_eb, dt)  # 밸브 응답/완해 지연
@@ -560,11 +565,10 @@ class StoppingSim:
         # 1차 지연 응답(원본 유지)
         st.a += (a_target - st.a) * (dt / max(1e-6, self.veh.tau_brk))
 
-        # ★ MOD: 저크 제한 (막판 크게 제한)
+        # 저크 제한 (막판 크게 제한)
         max_da = self.veh.j_max * dt
         v_kmh = st.v * 3.6
         rem_now = self.scn.L - st.s
-        # 정차 직전(저속/근거리)에서 강하게 제한
         if (v_kmh < 10.0) or (rem_now < 2.0):
             max_da *= 0.5
         if (v_kmh < 6.0) or (rem_now < 1.0):
