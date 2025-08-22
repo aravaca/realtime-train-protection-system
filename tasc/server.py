@@ -744,7 +744,7 @@ class StoppingSim:
             s_all = []
             for n in range(self.veh.notches):
                 if n <= 0:  # N은 무한대 취급
-                    s_all.append(float('inf'))
+                    s_all.append(None)
                 else:
                     s_all.append(self._stopping_distance(n, self.state.v))
             tasc_pred = {"s_cur": s_cur, "s_up": s_up, "s_dn": s_dn, "s_all": s_all}
