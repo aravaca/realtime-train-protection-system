@@ -461,9 +461,7 @@ class StoppingSim:
             return self._need_b5_last
 
         v0_kmh = self.scn.v0 * 3.6
-        if v0_kmh < 60.0:
-            n_ref = 1
-        elif v0_kmh < 75.0:
+        if v0_kmh < 75.0:
             n_ref = 2
         elif v0_kmh < 85.0:
             n_ref = 3
