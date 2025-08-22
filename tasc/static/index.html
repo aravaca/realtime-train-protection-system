@@ -456,12 +456,13 @@ function drawHUD(st){
 
 // === PATCH: 서버 예측으로 노치별 정지거리 곡선 ===
   ctx.lineWidth = 2 * dpr;
-  const maxNotch = vehicle?.notches ?? 10;
+  const maxNotch = (vehicle && vehicle.notches) ? vehicle.notches : 10;
+
   const maxIdx   = maxNotch - 1;
 
   const tpred = window.__tasc_pred__ || {};
-  const sAll  = Array.isArray(tpred.s_all) ? tpred.s_all : [];
-
+  
+const sAll = (tpred && Array.isArray(tpred.s_all)) ? tpred.s_all : [];
   if (!sAll.length) {
     // 서버 예측이 없으면 기존 brakeDecels 방식으로 fallback
     for (let n = 0; n < maxNotch; n++) {
@@ -482,8 +483,7 @@ function drawHUD(st){
     // 서버가 계산한 실제 물리 예측(s_all)로 표시
     for (let n = 0; n < sAll.length; n++) {
       const s = sAll[n];
-      if (!isFinite(s) || s <= 0) continue;
-
+      if (typeof s !== "number" || !isFinite(s) || s <= 0) continue;
       ctx.beginPath();
       for (let i=0;i<=100;i++){
         const f=i/100;
