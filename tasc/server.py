@@ -466,9 +466,9 @@ class StoppingSim:
         elif v0_kmh < 85.0:
             n_ref = 3
         elif v0_kmh < 95.0:
-            n_ref = 4
+            n_ref = 3
         else:
-            n_ref = 5
+            n_ref = 4
 
         s_ref = self._stopping_distance(n_ref, v)
         need = s_ref > (remaining + self.tasc_deadband_m)
@@ -561,6 +561,12 @@ class StoppingSim:
 
         # 목표 가속도
         a_target = a_brake + a_grade + a_davis
+        # 목표 가속도 계산
+        
+
+# --- Simple forward block only on B1 ---
+        if st.lever_notch == 1:
+            a_target = min(a_target, 0.0)
 
         # ★ MOD(SOFT-1M): 마지막 1 m 구간에서 목표 a를 부드럽게 형상화
         rem_now = self.scn.L - st.s
