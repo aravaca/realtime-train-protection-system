@@ -197,10 +197,7 @@ class StoppingSim:
         self.tau_apply_eb = 0.15
         self.tau_release_lowv = 0.8
 
-        # HUD 예측 캐시/스로틀
-        self._hud_pred_cache = {"t": -1.0, "notch": -1, "v_bucket": -1, "tasc_pred": None}
-        self._hud_pred_min_interval = 0.20   # 5Hz로만 HUD 예측 갱신
-        self._hud_v_bucket_kmh = 2.0         # 속도 2km/h 단위 버킷
+      
 
     # ----------------- Physics helpers -----------------
 
@@ -713,44 +710,6 @@ class StoppingSim:
 
     def snapshot(self):
         st = self.state
-
-        # === FAST PRED for HUD (캐시/스로틀) ===
-        v_kmh = st.v * 3.6
-        v_bucket = int(v_kmh / self._hud_v_bucket_kmh)  # 2 km/h 단위
-
-        use_cached = False
-        if (st.t - self._hud_pred_cache["t"]) < self._hud_pred_min_interval:
-            if (self._hud_pred_cache["notch"] == st.lever_notch and
-                    self._hud_pred_cache["v_bucket"] == v_bucket):
-                use_cached = True
-
-        if use_cached and self._hud_pred_cache["tasc_pred"] is not None:
-            tasc_pred = self._hud_pred_cache["tasc_pred"]
-        else:
-            # 가벼운 3점 예측만 계산 (현재/±1 노치)
-            try:
-                s_cur, s_up, s_dn = self._tasc_predict(st.lever_notch, st.v)
-                n_cur = st.lever_notch
-                n_max = self.veh.notches
-                s_all = [None] * n_max
-                if 0 < n_cur < n_max:
-                    s_all[n_cur] = s_cur
-                if 0 < n_cur + 1 < n_max:
-                    s_all[n_cur + 1] = s_up
-                if 0 < n_cur - 1 < n_max:
-                    s_all[n_cur - 1] = s_dn
-                tasc_pred = {"s_cur": s_cur, "s_up": s_up, "s_dn": s_dn, "s_all": s_all}
-            except Exception:
-                tasc_pred = {"s_cur": None, "s_up": None, "s_dn": None, "s_all": []}
-
-            # 캐시에 저장
-            self._hud_pred_cache.update({
-                "t": st.t,
-                "notch": st.lever_notch,
-                "v_bucket": v_bucket,
-                "tasc_pred": tasc_pred
-            })
-
         return {
             "t": round(st.t, 3),
             "s": st.s,
@@ -775,7 +734,7 @@ class StoppingSim:
             "davis_A0": self.veh.A0,
             "davis_B1": self.veh.B1,
             "davis_C2": self.veh.C2,
-            "tasc_pred": tasc_pred,
+           
         }
 
 
