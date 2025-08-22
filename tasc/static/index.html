@@ -267,7 +267,28 @@ const overlay=document.getElementById("overlay"), btnStart=document.getElementBy
 const weatherSelect=document.getElementById("weatherSelect"), snowflakes=document.querySelector(".snowflakes"), raindrops=document.querySelector(".raindrops");
 function resize(){ canvas.width=canvas.clientWidth*devicePixelRatio; canvas.height=canvas.clientHeight*devicePixelRatio; } addEventListener("resize",resize); resize();
 
-function sendCmd(name,delta){ if(ws.readyState===WebSocket.OPEN){ ws.send(JSON.stringify({type:"cmd",payload:{name,delta}})); } }
+function getEbIdx(){
+  const acc = (vehicle && Array.isArray(vehicle.notch_accels)) ? vehicle.notch_accels : null;
+  const n   = acc ? acc.length
+                  : (vehicle && Number.isInteger(vehicle.notches) ? vehicle.notches : 10);
+  return Math.max(1, n - 1); // 0:N, 1..EB-1:B..., EB:마지막
+}
+
+function sendCmd(name, delta){
+  if (ws.readyState !== WebSocket.OPEN) return;
+
+  // ★ 심플 가드: EB 이상으로 강화 금지
+  if ((name === "applyNotch" || name === "stepNotch") && delta > 0) {
+    const cur = (st && Number.isInteger(st.lever_notch)) ? st.lever_notch : 0;
+    if (cur >= getEbIdx()) return;   // 전송하지 않음
+  }
+
+  ws.send(JSON.stringify({type:"cmd", payload:{name, delta}}));
+}
+
+
+
+
 function updateTrainLength(){ const L=document.getElementById("trainLength").value; ws.send(JSON.stringify({type:"cmd",payload:{name:"setTrainLength",length:L}})); sendLoadRate(); }
 function sendLoadRate(){
   const loadRate=parseFloat(document.getElementById("inputLoadRate").value)||0;
