@@ -454,57 +454,29 @@ function drawHUD(st){
   ctx.textAlign="right"; ctx.textBaseline="middle";
   for(let k=0;k<=vmax;k+=10){ const y=Y(k); ctx.beginPath(); ctx.moveTo(left-4*dpr,y); ctx.lineTo(left,y); ctx.stroke(); ctx.fillText(`${k}`,left-6*dpr,y); }
 
-// === PATCH: 서버 예측으로 노치별 정지거리 곡선 ===
-  ctx.lineWidth = 2 * dpr;
-  const maxNotch = (vehicle && vehicle.notches) ? vehicle.notches : 10;
 
-  const maxIdx = maxNotch - 1;
 
-  const tpred = window.__tasc_pred__ || {};
-  
-const sAll = (tpred && Array.isArray(tpred.s_all)) ? tpred.s_all : [];
-  if (!sAll.length) {
-    // 서버 예측이 없으면 기존 brakeDecels 방식으로 fallback
-    for (let n = 0; n < maxNotch; n++) {
-      const a = brakeDecels[n] ?? 0; if (a <= 0) continue;
-      const s = (v0*v0) / (2*a);
-      ctx.beginPath(); ctx.strokeStyle = (n===lever) ? "#ffae00" : "#3fa9ff";
-      for (let i=0;i<=100;i++){
-        const f=i/100, ds=s*f, v=Math.sqrt(Math.max(0, v0*v0 - 2*a*ds));
-        const x=X(ds), y=Y(v*3.6);
-        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-      }
-      ctx.stroke();
-      ctx.fillStyle=(n===lever)?"#ffae00":"#3fa9ff";
-      ctx.font=`${12*dpr}px 'Orbitron', sans-serif`;
-      ctx.fillText((n===0)?"N":(n===maxIdx?"EB":`B${n}`), X(s)+5*dpr, Y(0)+12*dpr);
+ctx.lineWidth=2*dpr; 
+  const maxNotch = vehicle?.notches ?? 10;   // 총 개수(0~maxIdx)
+  const maxIdx   = maxNotch - 1;  // EB 인덱스
+  for(let n=0;n<maxNotch;n++){
+    const a=brakeDecels[n]??0; if(a<=0) continue;
+    const s=(v0*v0)/(2*a);
+    ctx.beginPath(); ctx.strokeStyle = n===lever ? "#ffae00" : "#3fa9ff";
+    for(let i=0;i<=100;i++){
+      const f=i/100, ds=s*f, v=Math.sqrt(Math.max(0,v0*v0-2*a*ds));
+      const x=X(ds), y=Y(v*3.6); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
     }
-  } else {
-    // 서버가 계산한 실제 물리 예측(s_all)로 표시
-    for (let n = 0; n < sAll.length; n++) {
-      const s = sAll[n];
-      if (typeof s !== "number" || !isFinite(s) || s <= 0) continue;
-      ctx.beginPath();
-      for (let i=0;i<=100;i++){
-        const f=i/100;
-        const ds = s * f; // 거리 진행
-        const v_rel = Math.max(0, 1 - f); // 화면용 선형 근사
-        const v_plot = (st.v * 3.6) * v_rel; // km/h 축
-        const x=X(ds), y=Y(v_plot);
-        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-      }
-      const isCur = (n === st.lever_notch);
-      ctx.strokeStyle = isCur ? "#ffae00" : "#3fa9ff";
-      ctx.stroke();
-
-      ctx.fillStyle = isCur ? "#ffae00" : "#3fa9ff";
-      ctx.font = `${12*dpr}px 'Orbitron', sans-serif`;
-      const label = (n===0) ? "N" : (n===maxIdx ? "EB" : `B${n}`);
-      ctx.fillText(label, X(s)+5*dpr, Y(0)+12*dpr);
-    }
+    ctx.stroke();
+    ctx.fillStyle=n===lever?"#ffae00":"#3fa9ff"; ctx.font=`${12*dpr}px 'Orbitron', sans-serif`;
+    const tX=X(s); const label = (n===0) ? "N" : (n===maxIdx ? "EB" : `B${n}`);
+    ctx.fillText(label, tX+5*dpr, Y(0)+12*dpr);
   }
 
-  const xRed=X(remaining); ctx.strokeStyle="#f00"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(xRed,Y(0)); ctx.lineTo(xRed,Y(vmax)); ctx.stroke();
+
+
+
+const xRed=X(remaining); ctx.strokeStyle="#f00"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(xRed,Y(0)); ctx.lineTo(xRed,Y(vmax)); ctx.stroke();
   ctx.fillStyle="#f00"; ctx.font=`${14*dpr}px 'Orbitron', sans-serif`; ctx.textAlign="center"; ctx.fillText("남은 거리", xRed, Y(vmax)-18*dpr);
 
   const ribbonW=16*dpr, ribbonH=h*.9, ribbonX=w-right-ribbonW-10*dpr+20, ribbonY=((h-ribbonH)/2)-32;
