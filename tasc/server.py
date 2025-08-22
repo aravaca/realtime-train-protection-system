@@ -248,7 +248,9 @@ class StoppingSim:
     # ----------------- Controls -----------------
 
     def _clamp_notch(self, n: int) -> int:
-        return max(0, min(self.veh.notches - 1, n))
+    # EB 인덱스 = 마지막 유효 인덱스 (배열 길이 신뢰)
+        max_index = min(self.veh.notches - 1, len(self.veh.notch_accels) - 1)
+        return max(0, min(max_index, n))
 
     def queue_command(self, name: str, val: int = 0):
         self._cmd_queue.append(
