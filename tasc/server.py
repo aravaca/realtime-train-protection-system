@@ -736,6 +736,20 @@ class StoppingSim:
 
     def snapshot(self):
         st = self.state
+        # === PATCH: TASC 예측값 계산해서 HUD로 전달 ===
+        try:
+    # 현재 노치 기준 예측 (s_cur, s_up, s_dn)
+            s_cur, s_up, s_dn = self._tasc_predict(self.state.lever_notch, self.state.v)
+    # 전 노치 배열 예측(성능 안정: EB와 N 제외, 또는 필요한 만큼만)
+            s_all = []
+            for n in range(self.veh.notches):
+                if n <= 0:  # N은 무한대 취급
+                    s_all.append(float('inf'))
+                else:
+                    s_all.append(self._stopping_distance(n, self.state.v))
+            tasc_pred = {"s_cur": s_cur, "s_up": s_up, "s_dn": s_dn, "s_all": s_all}
+        except Exception:
+            tasc_pred = {"s_cur": None, "s_up": None, "s_dn": None, "s_all": []}
         return {
             "t": round(st.t, 3),
             "s": st.s,
@@ -760,6 +774,7 @@ class StoppingSim:
             "davis_A0": self.veh.A0,
             "davis_B1": self.veh.B1,
             "davis_C2": self.veh.C2,
+            "tasc_pred": tasc_pred,
         }
 
 
