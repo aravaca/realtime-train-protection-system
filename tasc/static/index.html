@@ -252,25 +252,45 @@ setInterval(generateSnowflake,200);
 
 
 // === Haptics (모바일 전용) ===
+// === Haptics (모바일 전용, 강도 상향 & 가드 & 로깅) ===
 const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-function vibrate(pattern){
-  // 모바일 + 브라우저 지원 시에만
-  if (!isMobile || typeof navigator.vibrate !== "function") return;
-  // 너무 긴 패턴 방지 및 배터리 절약용 최소한 진동
-  navigator.vibrate(pattern);
+
+function canVibrate() {
+  return isMobile &&
+         typeof navigator.vibrate === "function" &&
+         document.visibilityState === "visible";
 }
 
-// 강화/완화에 서로 다른 질감 주기
-function hapticForNotch(delta){
-  // delta>0 : 강화(위) / delta<0 : 완화(아래)
-  if (delta > 0){
-    // 강화: ‘툭-툭’ 이중 진동(짧게)
-    vibrate([12, 40, 12]);
-  } else if (delta < 0){
-    // 완화: 한 번 짧게
-    vibrate(18);
+function vibrate(pattern) {
+  if (!canVibrate()) {
+    console.debug("[haptics] blocked: mobile?", isMobile, "api?",
+                  typeof navigator.vibrate, "visible?", document.visibilityState);
+    return false;
+  }
+  const ok = navigator.vibrate(pattern);
+  // 일부 브라우저는 boolean, 일부는 undefined를 반환
+  console.debug("[haptics] vibrate called:", pattern, "->", ok);
+  return ok !== false;
+}
+
+// 강화/완화 질감: 체감 되도록 길이 상향
+function hapticForNotch(delta) {
+  if (delta > 0) {
+    // 강화: 짧은 이중 탭 (체감형)
+    vibrate([60, 70, 60]);
+  } else if (delta < 0) {
+    // 완화: 단일 짧은 탭
+    vibrate(70);
   }
 }
+
+// (선택) EB 진입 시 더 강한 진동
+function hapticForEB() {
+  vibrate([90, 80, 90]);
+}
+
+// (권장) 콘솔에서 바로 시험 가능하도록
+window.testVibrate = () => vibrate(120);
 
 
 
