@@ -383,6 +383,7 @@ if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
       hapticForNotch(-1);
       sendCmd("applyNotch",-1);
  }
+}, { passive: true });
 }
 
 /* 키보드 */
