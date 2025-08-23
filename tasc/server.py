@@ -907,6 +907,10 @@ async def ws_endpoint(ws: WebSocket):
                                 sim.veh = vehicle
                                 sim.reset()
 
+                             
+                            except Exception as e:
+                                if DEBUG:
+                                    print(f"[Vehicle] load failed: {rel} -> {e}")
             
                     elif name == "reset":
                         sim.reset()
