@@ -768,9 +768,8 @@ async def ws_endpoint(ws: WebSocket):
     vehicle = Vehicle.from_json(vehicle_json_path)
     # 프론트가 EB→...→N으로 올 때 서버는 N→...→EB로 쓰기 위해 반전
     vehicle.notch_accels = list(reversed(vehicle.notch_accels))
-
+    # EB 유령 방지: 실제 배열 길이로 동기화
     vehicle.notches = len(vehicle.notch_accels)
-
 
     scenario = Scenario.from_json(scenario_json_path)
 
@@ -888,41 +887,44 @@ async def ws_endpoint(ws: WebSocket):
                         if DEBUG:
                             print(f"마찰계수(mu)={value} / rr_factor={sim.rr_factor:.3f} 로 설정")
                         sim.reset()
+
                     elif name == "setVehicleFile":
                         rel = payload.get("file", "")
                         if rel:
                             try:
-            # 상대경로 처리 (./e233_0000.json 같은 형식)
+                                # 상대경로 처리 (./e233_0000.json 같은 형식)
                                 path = os.path.join(BASE_DIR, rel.lstrip("./"))
                                 newv = Vehicle.from_json(path)
-            # 역순 적용 (프론트와 일치)
+
+                                # 역순 적용 (프론트와 일치)
                                 newv.notch_accels = list(reversed(newv.notch_accels))
-            # notches 동기화 (유령 B9 방지)
+
+                                # notches 동기화 (유령 B9 방지)
                                 newv.notches = len(newv.notch_accels)
 
-            # 현재 vehicle 객체 갱신
+                                # 현재 vehicle 객체 갱신
                                 vehicle.__dict__.update(newv.__dict__)
 
-            # 시뮬레이터에 반영
+                                # 시뮬레이터에 반영
                                 sim.veh = vehicle
                                 sim.reset()
 
-                             
+                                if DEBUG:
+                                    print(f"[Vehicle] switched to {rel} / notches={vehicle.notches}")
                             except Exception as e:
                                 if DEBUG:
                                     print(f"[Vehicle] load failed: {rel} -> {e}")
-            
+
                     elif name == "reset":
                         sim.reset()
 
-            
-                except asyncio.TimeoutError:
-                    pass
-                except WebSocketDisconnect:
-                    break
-                except Exception as e:
-                    if DEBUG:
-                        print(f"Error during receive: {e}")
+            except asyncio.TimeoutError:
+                pass
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                if DEBUG:
+                    print(f"Error during receive: {e}")
 
             # ---- 고정된 시뮬 시간 흐름 (현실 시간과 동기화) ----
             dt = sim.scn.dt
