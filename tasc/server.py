@@ -375,15 +375,19 @@ class StoppingSim:
             # (4) 목표 a
             a_target = brk_accel + a_grade + a_davis
 
-            # ★ MOD(SOFT-1M): 마지막 1 m 구간 부드러운 목표 a로 블렌딩
+            # ... a_target = brk_accel + a_grade + a_davis  직후 ...
+
+# ★ 소프트스톱 예측: w 클램프 + 오버런은 w=1
             rem_pred = max(0.0, rem_now - s)
             if rem_pred <= 1.0:
                 safe_rem = max(0.15, rem_pred)
-                a_need = -(v * v) / (2.0 * safe_rem)          # 이론 필요 감속(음수)
-                a_soft = max(-0.30, min(-0.10, a_need))       # 완만 범위로 제한
-                w = 1.0 - (rem_pred / 1.0)                    # 0→1 선형 가중
+                a_need = -(v * v) / (2.0 * safe_rem)
+                a_soft = max(-0.30, min(-0.10, a_need))
+                if rem_pred <= 0.0:
+                    w = 1.0
+                else:
+                    w = max(0.0, min(1.0, rem_pred * 1.0))  # 0~1 범위 내
                 a_target = (1.0 - w) * a_target + w * a_soft
-            
      
             if notch == 1 or rem_pred<=0.0:
                 a_target = min(a_target, 0.0)      
@@ -561,7 +565,22 @@ class StoppingSim:
 
 
         rem_now = self.scn.L - st.s
-        
+       
+
+
+        # ★ 소프트스톱: w 클램프 + 오버런은 w=1 고정
+
+        if rem_now <= 1.0:
+            safe_rem = max(0.15, rem_now)
+            a_need = -(st.v * st.v) / (2.0 * safe_rem)
+            a_soft = max(-0.30, min(-0.10, a_need))
+            w = 1.0 - rem_now  # rem을 1m로 정규화하지 않아도 됨 (여기선 0~1만 쓰게)
+            if rem_now <= 0.0:
+                w = 1.0
+            else:
+                w = max(0.0, min(1.0, w))   # ← 반드시 0~1 클램프
+            a_target = (1.0 - w) * a_target + w * a_soft
+
         
         if st.lever_notch >= 1 or rem_now <= 0.0:
             a_target = min(a_target, 0.0)
@@ -569,14 +588,7 @@ class StoppingSim:
         # --- 오버런 구간(+가속 금지) ---
         
 
-        # ★ MOD(SOFT-1M): 마지막 1 m 구간에서 목표 a를 부드럽게 형상화
-        rem_now = self.scn.L - st.s
-        if rem_now <= 1.0:
-            safe_rem = max(0.15, rem_now)
-            a_need = -(st.v * st.v) / (2.0 * safe_rem)
-            a_soft = max(-0.30, min(-0.10, a_need))
-            w = 1.0 - (rem_now / 1.0)
-            a_target = (1.0 - w) * a_target + w * a_soft
+        
 
         # 차량 1차 지연
         st.a += (a_target - st.a) * (dt / max(1e-6, self.veh.tau_brk))
