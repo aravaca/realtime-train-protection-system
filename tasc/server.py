@@ -557,7 +557,10 @@ class StoppingSim:
         # 목표 가속도
         a_target = a_brake + a_grade + a_davis
 
-        # --- Simple forward block only on B1 ---     rem_now = self.scn.L - st.s
+        # --- Simple forward block only on B1 ---    
+
+
+        rem_now = self.scn.L - st.s
         
         
         if st.lever_notch >= 1 or rem_now <= 0.0:
