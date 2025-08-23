@@ -250,6 +250,30 @@ function generateSnowflake(){
 }
 setInterval(generateSnowflake,200);
 
+
+// === Haptics (모바일 전용) ===
+const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+function vibrate(pattern){
+  // 모바일 + 브라우저 지원 시에만
+  if (!isMobile || typeof navigator.vibrate !== "function") return;
+  // 너무 긴 패턴 방지 및 배터리 절약용 최소한 진동
+  navigator.vibrate(pattern);
+}
+
+// 강화/완화에 서로 다른 질감 주기
+function hapticForNotch(delta){
+  // delta>0 : 강화(위) / delta<0 : 완화(아래)
+  if (delta > 0){
+    // 강화: ‘툭-툭’ 이중 진동(짧게)
+    vibrate([12, 40, 12]);
+  } else if (delta < 0){
+    // 완화: 한 번 짧게
+    vibrate(18);
+  }
+}
+
+
+
 /* ===== 차량 JSON 로드 (캐시 무시) ===== */
 let vehicle=null; let brakeDecels={};
 const cacheBust=()=>`?v=${Date.now()}`;
@@ -352,8 +376,13 @@ if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
     if(e.touches.length!==1) return;
     forceManualOverride();
     const r=game.getBoundingClientRect(), y=e.touches[0].clientY-r.top, half=r.height/2;
-    if(y<half) sendCmd("applyNotch",+1); else sendCmd("applyNotch",-1);
-  },{passive:true});
+    if(y<half){
+      hapticForNotch(+1);
+      sendCmd("applyNotch",+1);
+    } else {
+      hapticForNotch(-1);
+      sendCmd("applyNotch",-1);
+ }
 }
 
 /* 키보드 */
