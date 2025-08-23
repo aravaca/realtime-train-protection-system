@@ -888,17 +888,34 @@ async def ws_endpoint(ws: WebSocket):
                         if DEBUG:
                             print(f"마찰계수(mu)={value} / rr_factor={sim.rr_factor:.3f} 로 설정")
                         sim.reset()
+                    elif name == "setVehicleFile":
+                        rel = payload.get("file", "")
+                        if rel:
+                            try:
+            # 상대경로 처리 (./e233_0000.json 같은 형식)
+                               path = os.path.join(BASE_DIR, rel.lstrip("./"))
+                               newv = Vehicle.from_json(path)
+            # 역순 적용 (프론트와 일치)
+                               newv.notch_accels = list(reversed(newv.notch_accels))
+            # notches 동기화 (유령 B9 방지)
+                               newv.notches = len(newv.notch_accels)
 
-                    elif name == "reset":
-                        sim.reset()
+            # 현재 vehicle 객체 갱신
+                               vehicle.__dict__.update(newv.__dict__)
 
-            except asyncio.TimeoutError:
-                pass
-            except WebSocketDisconnect:
-                break
-            except Exception as e:
-                if DEBUG:
-                    print(f"Error during receive: {e}")
+            # 시뮬레이터에 반영
+                               sim.veh = vehicle
+                               sim.reset()
+
+            
+
+                           except asyncio.TimeoutError:
+                               pass
+                           except WebSocketDisconnect:
+                               break
+                           except Exception as e:
+                               if DEBUG:
+                                   print(f"Error during receive: {e}")
 
             # ---- 고정된 시뮬 시간 흐름 (현실 시간과 동기화) ----
             dt = sim.scn.dt
