@@ -277,7 +277,7 @@ function vibrate(pattern) {
 function hapticForNotch(delta) {
   if (delta > 0) {
     // 강화: 짧은 이중 탭 (체감형)
-    vibrate([60, 70, 60]);
+    vibrate(100);
   } else if (delta < 0) {
     // 완화: 단일 짧은 탭
     vibrate(70);
@@ -286,7 +286,7 @@ function hapticForNotch(delta) {
 
 // (선택) EB 진입 시 더 강한 진동
 function hapticForEB() {
-  vibrate([90, 80, 90]);
+  vibrate([300, 100, 300]);
 }
 
 // (권장) 콘솔에서 바로 시험 가능하도록
