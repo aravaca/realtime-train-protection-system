@@ -708,6 +708,8 @@ function setTrainLengthOptions(lengths){
   });
   updateTrainLength();
 }
+
+
 function loadVehicleFile(filePath){
   fetch(filePath+cacheBust(),{cache:'no-store'})
     .then(res=>res.json())
@@ -720,7 +722,18 @@ function loadVehicleFile(filePath){
       }
       sendLoadRate();
     }).catch(console.error);
+
+     if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type:"cmd", payload:{ name:"setVehicleFile", file:filePath } }));
+      }
+    })
+    .catch(console.error);
 }
+
+}
+
+
+
 function populateSeries(){
   const fam=trainFamilyEl.value, list=TRAIN_DB[fam]||[];
   trainSeriesEl.innerHTML="";
