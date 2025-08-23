@@ -614,7 +614,7 @@ function drawBrakeLadderMini(st) {
   const x    = pad;
 
   // 서비스 노치(노랑): B1..EB-1
-  const serviceTop = Math.min(cur, ebIdx - 1);
+  const serviceTop = (cur === ebIdx) ? 0 : Math.min(cur, ebIdx - 1);
   for (let k = 1; k <= ebIdx - 1; k++) {
     const i = k - 1;
     const y = h - pad - (i + 1) * bH - i * gap;
@@ -622,8 +622,8 @@ function drawBrakeLadderMini(st) {
     ctx2.fillStyle = "rgba(60,80,100,0.35)";
     ctx2.fillRect(x, y, bW, bH);
 
-    if (k <= serviceTop) {
-      ctx2.fillStyle = "#ffd34d";          // 노란색
+    if (cur !== ebIdx && k <= serviceTop) {
+      ctx2.fillStyle = "#ffd34d";
       ctx2.fillRect(x, y, bW, bH);
     }
 
