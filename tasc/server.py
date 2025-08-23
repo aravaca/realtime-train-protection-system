@@ -385,7 +385,7 @@ class StoppingSim:
                 a_target = (1.0 - w) * a_target + w * a_soft
             
      
-            if notch == 1:
+            if notch == 1 or rem_pred<=0.0:
                 a_target = min(a_target, 0.0)      
     
             # (5) 차량 1차 지연
@@ -557,9 +557,14 @@ class StoppingSim:
         # 목표 가속도
         a_target = a_brake + a_grade + a_davis
 
-        # --- Simple forward block only on B1 ---
-        if st.lever_notch == 1:
+        # --- Simple forward block only on B1 ---     rem_now = self.scn.L - st.s
+        
+        
+        if st.lever_notch >= 1 or rem_now <= 0.0:
             a_target = min(a_target, 0.0)
+
+        # --- 오버런 구간(+가속 금지) ---
+        
 
         # ★ MOD(SOFT-1M): 마지막 1 m 구간에서 목표 a를 부드럽게 형상화
         rem_now = self.scn.L - st.s
