@@ -82,7 +82,7 @@ class Scenario:
     v0: float = 25.0
     grade_percent: float = 0.0
     mu: float = 1.0
-    dt: float = 0.005
+    dt: float = 0.01
 
     @classmethod
     def from_json(cls, filepath):
@@ -339,7 +339,7 @@ class StoppingSim:
         if notch <= 0:
             return float('inf')
 
-        dt = 0.02  # 예측 해상도
+        dt = 0.03  # 예측 해상도
         v = max(0.0, v0)
         a = float(self.state.a)  # 실제 현재 a로 시드
         s = 0.0
@@ -798,177 +798,206 @@ async def ws_endpoint(ws: WebSocket):
     sim = StoppingSim(vehicle, scenario)
     sim.start()
 
-    last_sim_time = time.perf_counter()
-    # 송신 속도 제한(30Hz)
-    last_send = 0.0
-    send_interval = 1.0 / 30.0
+    # 전송 속도: 20Hz로 완화 (JSON 직렬화/네트워크 부하 절감)
+    send_interval = 1.0 / 20.0
 
-    try:
-        while True:
-            now = time.perf_counter()
-            elapsed = now - last_sim_time
+    # ---- 분리된 비동기 루프들 ----
+    async def recv_loop():
+        try:
+            while True:
+                # timeout 없이 대기 → 이벤트 루프 점유↓
+                msg = await ws.receive_text()
+                try:
+                    data = json.loads(msg)
+                except Exception:
+                    if DEBUG:
+                        print("Invalid JSON received.")
+                    continue
 
-            try:
-                # 입력 처리 (최대 100Hz 정도로 충분)
-                msg = await asyncio.wait_for(ws.receive_text(), timeout=0.01)
-                data = json.loads(msg)
-                if data.get("type") == "cmd":
-                    payload = data["payload"]
-                    name = payload.get("name")
+                if data.get("type") != "cmd":
+                    continue
 
-                    if name == "setInitial":
-                        speed = payload.get("speed")
-                        dist = payload.get("dist")
-                        grade = payload.get("grade", 0.0) / 10.0
-                        mu = float(payload.get("mu", 1.0))
-                        if speed is not None and dist is not None:
-                            sim.scn.v0 = float(speed) / 3.6
-                            sim.scn.L = float(dist)
-                            sim.scn.grade_percent = float(grade)
-                            sim.scn.mu = mu
-                            sim.rr_factor = _mu_to_rr_factor(mu)
-                            if DEBUG:
-                                print(
-                                    f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}, rr_factor={sim.rr_factor:.3f}"
-                                )
+                payload = data.get("payload", {})
+                name = payload.get("name")
+
+                if name == "setInitial":
+                    speed = payload.get("speed")
+                    dist = payload.get("dist")
+                    grade = payload.get("grade", 0.0) / 10.0
+                    mu = float(payload.get("mu", 1.0))
+                    if speed is not None and dist is not None:
+                        sim.scn.v0 = float(speed) / 3.6
+                        sim.scn.L = float(dist)
+                        sim.scn.grade_percent = float(grade)
+                        sim.scn.mu = mu
+                        sim.rr_factor = _mu_to_rr_factor(mu)
+                        if DEBUG:
+                            print(
+                                f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}, rr_factor={sim.rr_factor:.3f}"
+                            )
+                        sim.reset()
+
+                elif name == "start":
+                    sim.start()
+
+                elif name in ("stepNotch", "applyNotch"):
+                    delta = int(payload.get("delta", 0))
+                    # 수동 개입 → TASC 해제
+                    sim.manual_override = True
+                    sim.tasc_enabled = False
+                    sim.queue_command("stepNotch", delta)
+
+                elif name == "release":
+                    sim.manual_override = True
+                    sim.tasc_enabled = False
+                    sim.queue_command("release", 0)
+
+                elif name == "emergencyBrake":
+                    sim.manual_override = True
+                    sim.tasc_enabled = False
+                    sim.queue_command("emergencyBrake", 0)
+
+                elif name == "setTrainLength":
+                    length = int(payload.get("length", 8))
+                    vehicle.update_mass(length)
+                    if DEBUG:
+                        print(f"Train length set to {length} cars.")
+                    sim.reset()
+
+                elif name == "setMassTons":
+                    mass_tons = float(payload.get("mass_tons", 200.0))
+                    # 차량 1량 질량 갱신(정보 목적), 총질량은 mass_kg에 반영
+                    vehicle.mass_t = mass_tons / int(payload.get("length", 8))
+                    vehicle.mass_kg = mass_tons * 1000.0
+                    if DEBUG:
+                        print(f"차량 전체 중량을 {mass_tons:.2f} 톤으로 업데이트 했습니다.")
+                    sim.reset()
+
+                elif name == "setLoadRate":
+                    load_rate = float(payload.get("loadRate", 0.0)) / 100.0  # 예: 85 → 0.85
+                    length = int(payload.get("length", 8))
+
+                    # 1량 기본 질량(톤): vehicle.json의 mass_t가 '1량 기준'이라고 가정
+                    base_1c_t = vehicle.mass_t
+                    pax_1c_t = 10.5  # 만석 시 1량당 승객 질량(톤). 필요하면 vehicle.json로 빼도 됨.
+
+                    total_tons = length * (base_1c_t + pax_1c_t * load_rate)
+
+                    # 총질량 반영
+                    vehicle.update_mass(length)             # mass_kg = base_1c_t * 1000 * length
+                    vehicle.mass_kg = total_tons * 1000.0   # 여기에 탑승률 반영값으로 덮어씀
+
+                    if DEBUG:
+                        print(f"[LoadRate] length={length}, load={load_rate*100:.1f}%, total={total_tons:.1f} t")
+
+                    sim.reset()
+
+                elif name == "setTASC":
+                    enabled = bool(payload.get("enabled", False))
+                    sim.tasc_enabled = enabled
+                    if enabled:
+                        sim.manual_override = False
+                        sim._tasc_last_change_t = sim.state.t
+                        sim._tasc_phase = "build"
+                        sim._tasc_peak_notch = 1
+                        # 즉시 작동 금지: B? 필요 시점까지 '대기'
+                        sim.tasc_armed = True
+                        sim.tasc_active = False
+                    if DEBUG:
+                        print(f"TASC set to {enabled}")
+
+                elif name == "setMu":
+                    value = float(payload.get("value", 1.0))
+                    sim.scn.mu = value
+                    sim.rr_factor = _mu_to_rr_factor(value)
+                    if DEBUG:
+                        print(f"마찰계수(mu)={value} / rr_factor={sim.rr_factor:.3f} 로 설정")
+                    sim.reset()
+
+                elif name == "setVehicleFile":
+                    rel = payload.get("file", "")
+                    if rel:
+                        try:
+                            # 상대경로 처리 (./e233_0000.json 같은 형식)
+                            STATIC_DIR = os.path.join(BASE_DIR, "static")
+                            # 예: rel="./e233_0000.json" -> static/e233_0000.json
+                            path = os.path.join(STATIC_DIR, rel.lstrip("./"))
+
+                            # 파일이 없으면 바로 예외
+                            if not os.path.isfile(path):
+                                raise FileNotFoundError(path)
+                            newv = Vehicle.from_json(path)
+
+                            # 역순 적용 (프론트와 일치)
+                            newv.notch_accels = list(reversed(newv.notch_accels))
+
+                            # notches 동기화 (유령 B9 방지)
+                            newv.notches = len(newv.notch_accels)
+
+                            # 현재 vehicle 객체 갱신
+                            vehicle.__dict__.update(newv.__dict__)
+
+                            # 시뮬레이터에 반영
+                            sim.veh = vehicle
                             sim.reset()
 
-                    elif name == "start":
-                        sim.start()
+                            if DEBUG:
+                                print(f"[Vehicle] switched to {rel} / notches={vehicle.notches}")
+                        except Exception as e:
+                            if DEBUG:
+                                print(f"[Vehicle] load failed: {rel} -> {e}")
 
-                    elif name in ("stepNotch", "applyNotch"):
-                        delta = int(payload.get("delta", 0))
-                        # 수동 개입 → TASC 해제
-                        sim.manual_override = True
-                        sim.tasc_enabled = False
-                        sim.queue_command("stepNotch", delta)
+                elif name == "reset":
+                    sim.reset()
 
-                    elif name == "release":
-                        sim.manual_override = True
-                        sim.tasc_enabled = False
-                        sim.queue_command("release", 0)
+        except WebSocketDisconnect:
+            # 연결 종료 → 루프 종료
+            if DEBUG:
+                print("WebSocket disconnected (recv_loop).")
+        except asyncio.CancelledError:
+            # 상위에서 취소 시 정상 종료
+            pass
+        except Exception as e:
+            if DEBUG:
+                print(f"Error during receive: {e}")
 
-                    elif name == "emergencyBrake":
-                        sim.manual_override = True
-                        sim.tasc_enabled = False
-                        sim.queue_command("emergencyBrake", 0)
-
-                    elif name == "setTrainLength":
-                        length = int(payload.get("length", 8))
-                        vehicle.update_mass(length)
-                        if DEBUG:
-                            print(f"Train length set to {length} cars.")
-                        sim.reset()
-
-                    elif name == "setMassTons":
-                        mass_tons = float(payload.get("mass_tons", 200.0))
-                        # 차량 1량 질량 갱신(정보 목적), 총질량은 mass_kg에 반영
-                        vehicle.mass_t = mass_tons / int(payload.get("length", 8))
-                        vehicle.mass_kg = mass_tons * 1000.0
-                        if DEBUG:
-                            print(f"차량 전체 중량을 {mass_tons:.2f} 톤으로 업데이트 했습니다.")
-                        sim.reset()
-
-                    elif name == "setLoadRate":
-                        load_rate = float(payload.get("loadRate", 0.0)) / 100.0  # 예: 85 → 0.85
-                        length = int(payload.get("length", 8))
-
-                        # 1량 기본 질량(톤): vehicle.json의 mass_t가 '1량 기준'이라고 가정
-                        base_1c_t = vehicle.mass_t
-                        pax_1c_t = 10.5  # 만석 시 1량당 승객 질량(톤). 필요하면 vehicle.json로 빼도 됨.
-
-                        total_tons = length * (base_1c_t + pax_1c_t * load_rate)
-
-                        # 총질량 반영
-                        vehicle.update_mass(length)             # mass_kg = base_1c_t * 1000 * length
-                        vehicle.mass_kg = total_tons * 1000.0   # 여기에 탑승률 반영값으로 덮어씀
-
-                        if DEBUG:
-                            print(f"[LoadRate] length={length}, load={load_rate*100:.1f}%, total={total_tons:.1f} t")
-
-                        sim.reset()
-
-                    elif name == "setTASC":
-                        enabled = bool(payload.get("enabled", False))
-                        sim.tasc_enabled = enabled
-                        if enabled:
-                            sim.manual_override = False
-                            sim._tasc_last_change_t = sim.state.t
-                            sim._tasc_phase = "build"
-                            sim._tasc_peak_notch = 1
-                            # 즉시 작동 금지: B? 필요 시점까지 '대기'
-                            sim.tasc_armed = True
-                            sim.tasc_active = False
-                        if DEBUG:
-                            print(f"TASC set to {enabled}")
-
-                    elif name == "setMu":
-                        value = float(payload.get("value", 1.0))
-                        sim.scn.mu = value
-                        sim.rr_factor = _mu_to_rr_factor(value)
-                        if DEBUG:
-                            print(f"마찰계수(mu)={value} / rr_factor={sim.rr_factor:.3f} 로 설정")
-                        sim.reset()
-
-                    elif name == "setVehicleFile":
-                        rel = payload.get("file", "")
-                        if rel:
-                            try:
-                                # 상대경로 처리 (./e233_0000.json 같은 형식)
-                                STATIC_DIR = os.path.join(BASE_DIR, "static")
-            # 예: rel="./e233_0000.json" -> static/e233_0000.json
-                                path = os.path.join(STATIC_DIR, rel.lstrip("./"))
-
-            # 파일이 없으면 바로 예외
-                                if not os.path.isfile(path):
-                                    raise FileNotFoundError(path)
-                                newv = Vehicle.from_json(path)
-
-                                # 역순 적용 (프론트와 일치)
-                                newv.notch_accels = list(reversed(newv.notch_accels))
-
-                                # notches 동기화 (유령 B9 방지)
-                                newv.notches = len(newv.notch_accels)
-
-                                # 현재 vehicle 객체 갱신
-                                vehicle.__dict__.update(newv.__dict__)
-
-                                # 시뮬레이터에 반영
-                                sim.veh = vehicle
-                                sim.reset()
-
-                                if DEBUG:
-                                    print(f"[Vehicle] switched to {rel} / notches={vehicle.notches}")
-                            except Exception as e:
-                                if DEBUG:
-                                    print(f"[Vehicle] load failed: {rel} -> {e}")
-
-                    elif name == "reset":
-                        sim.reset()
-
-            except asyncio.TimeoutError:
-                pass
-            except WebSocketDisconnect:
-                break
-            except Exception as e:
-                if DEBUG:
-                    print(f"Error during receive: {e}")
-
-            # ---- 고정된 시뮬 시간 흐름 (현실 시간과 동기화) ----
-            dt = sim.scn.dt
-            while elapsed >= dt:
+    async def sim_loop():
+        try:
+            dt = sim.scn.dt  # 시뮬 dt 그대로 사용 (0.01로 올리려면 Scenario에서 조정)
+            while True:
                 if sim.running:
                     sim.step()
-                last_sim_time += dt
-                elapsed -= dt
+                # 고정 주기 sleep으로 CPU 점유 ↓
+                await asyncio.sleep(dt)
+        except asyncio.CancelledError:
+            pass
 
-            # ---- 송신 속도 제한 (30Hz) ----
-            if (now - last_send) >= send_interval:
+    async def send_loop():
+        try:
+            while True:
                 await ws.send_text(json.dumps({"type": "state", "payload": sim.snapshot()}))
-                last_send = now
+                await asyncio.sleep(send_interval)
+        except WebSocketDisconnect:
+            if DEBUG:
+                print("WebSocket disconnected (send_loop).")
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            if DEBUG:
+                print(f"Error during send: {e}")
 
-            await asyncio.sleep(0)
+    # 세 루프를 동시에 실행하다가 하나라도 종료되면 전체 종료
+    tasks = [
+        asyncio.create_task(recv_loop()),
+        asyncio.create_task(sim_loop()),
+        asyncio.create_task(send_loop()),
+    ]
+
+    try:
+        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
     finally:
+        for t in tasks:
+            t.cancel()
         try:
             await ws.close()
         except RuntimeError:
