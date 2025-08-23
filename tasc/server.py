@@ -380,9 +380,11 @@ class StoppingSim:
 # ★ 소프트스톱 예측: w 클램프 + 오버런은 w=1
             rem_pred = max(0.0, rem_now - s)
             if rem_pred <= 1.0:
-                safe_rem = max(0.15, rem_pred)
+#0.15
+                safe_rem = max(0.05, rem_pred)
                 a_need = -(v * v) / (2.0 * safe_rem)
-                a_soft = max(-0.30, min(-0.10, a_need))
+                a_soft = max(-0.40, min(-0.12, a_need))
+#0.3 0.10
                 if rem_pred <= 0.0:
                     w = 1.0
                 else:
@@ -571,9 +573,9 @@ class StoppingSim:
         # ★ 소프트스톱: w 클램프 + 오버런은 w=1 고정
 
         if rem_now <= 1.0:
-            safe_rem = max(0.15, rem_now)
+            safe_rem = max(0.05, rem_now)
             a_need = -(st.v * st.v) / (2.0 * safe_rem)
-            a_soft = max(-0.30, min(-0.10, a_need))
+            a_soft = max(-0.40, min(-0.12, a_need))
             w = 1.0 - rem_now  # rem을 1m로 정규화하지 않아도 됨 (여기선 0~1만 쓰게)
             if rem_now <= 0.0:
                 w = 1.0
