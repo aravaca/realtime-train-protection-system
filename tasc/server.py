@@ -799,7 +799,7 @@ async def ws_endpoint(ws: WebSocket):
     sim.start()
 
     # 전송 속도: 20Hz로 완화 (JSON 직렬화/네트워크 부하 절감)
-    send_interval = 1.0 / 20.0
+    send_interval = 1.0 / 30.0
 
     # ---- 분리된 비동기 루프들 ----
     async def recv_loop():
