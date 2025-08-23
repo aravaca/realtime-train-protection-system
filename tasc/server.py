@@ -893,7 +893,13 @@ async def ws_endpoint(ws: WebSocket):
                         if rel:
                             try:
                                 # 상대경로 처리 (./e233_0000.json 같은 형식)
-                                path = os.path.join(BASE_DIR, rel.lstrip("./"))
+                                STATIC_DIR = os.path.join(BASE_DIR, "static")
+            # 예: rel="./e233_0000.json" -> static/e233_0000.json
+                                path = os.path.join(STATIC_DIR, rel.lstrip("./"))
+
+            # 파일이 없으면 바로 예외
+                                if not os.path.isfile(path):
+                                    raise FileNotFoundError(path)
                                 newv = Vehicle.from_json(path)
 
                                 # 역순 적용 (프론트와 일치)
