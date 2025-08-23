@@ -711,27 +711,29 @@ function setTrainLengthOptions(lengths){
 
 
 function loadVehicleFile(filePath){
-  fetch(filePath+cacheBust(),{cache:'no-store'})
-    .then(res=>res.json())
-    .then(data=>{
-      vehicle=data;
-      document.getElementById('carName').textContent=vehicle.name;
-      brakeDecels={};
-      if(vehicle.notch_accels && vehicle.notches){
-        for(let i=0;i<vehicle.notches;i++){ brakeDecels[i]=Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0); }
-      }
-      sendLoadRate();
-    }).catch(console.error);
+  fetch(filePath + cacheBust(), { cache: 'no-store' })
+    .then(res => res.json())
+    .then(data => {
+      vehicle = data;
+      vehicle.notches = (vehicle.notch_accels || []).length;  // EB 동기화
+      document.getElementById('carName').textContent = vehicle.name;
 
-     if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type:"cmd", payload:{ name:"setVehicleFile", file:filePath } }));
+      brakeDecels = {};
+      if (vehicle.notch_accels && vehicle.notches) {
+        for (let i = 0; i < vehicle.notches; i++) {
+          brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches - 1 - i] ?? 0);
+        }
       }
+
+      // 서버 vehicle 교체
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: filePath } }));
+      }
+
+      sendLoadRate();
     })
     .catch(console.error);
 }
-
-
-
 
 function populateSeries(){
   const fam=trainFamilyEl.value, list=TRAIN_DB[fam]||[];
