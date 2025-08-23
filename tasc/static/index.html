@@ -277,10 +277,10 @@ function vibrate(pattern) {
 function hapticForNotch(delta) {
   if (delta > 0) {
     // 강화: 짧은 이중 탭 (체감형)
-    vibrate(100);
+    vibrate(500);
   } else if (delta < 0) {
     // 완화: 단일 짧은 탭
-    vibrate(70);
+    vibrate(500);
   }
 }
 
