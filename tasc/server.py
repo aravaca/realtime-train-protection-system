@@ -463,16 +463,19 @@ class StoppingSim:
 
             a_target = a_brake + a_grade + a_davis
 
+            # (신규) 속도 기반 소프트 스톱: v_kmh ∈ [0, 5]에서 부드럽게 감쇠
             rem_pred = max(0.0, rem_now - s)
-            if rem_pred <= 1.0:
-                safe_rem = max(0.05, rem_pred)
-                a_need = -(v * v) / (2.0 * safe_rem)
-                a_soft = max(-0.30, min(-0.08, a_need))
-                if rem_pred <= 0.0:
-                    w_soft = 1.0
-                else:
-                    w_soft = max(0.0, min(1.0, rem_pred * 1.0))
+            v_kmh = v * 3.6
+            if v_kmh <= 5.0:
+    # alpha: 5km/h에서 1, 0km/h에서 0
+                alpha = max(0.0, min(1.0, v_kmh / 5.0))
+    # a_soft: 5km/h에서는 약 -0.30 m/s^2, 0에서는 -0.08 m/s^2 쪽으로 점진 완화
+                a_soft = (-0.30) * alpha + (-0.08) * (1.0 - alpha)
+    # w_soft: 속도가 낮아질수록 소프트 타겟 비중 증가
+                w_soft = 1.0 - alpha
                 a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
+
+
             if notch == 1 or rem_pred <= 0.0:
                 a_target = min(a_target, 0.0)
 
@@ -624,16 +627,14 @@ class StoppingSim:
         a_target = a_brake + a_grade + a_davis
 
         rem_now = self.scn.L - st.s
-        if rem_now <= 1.0:
-            safe_rem = max(0.05, rem_now)
-            a_need = -(st.v * st.v) / (2.0 * safe_rem)
-            a_soft = max(-0.30, min(-0.08, a_need))
-            w = 1.0 - rem_now
-            if rem_now <= 0.0:
-                w = 1.0
-            else:
-                w = max(0.0, min(1.0, w))
-            a_target = (1.0 - w) * a_target + w * a_soft
+        # --- 속도 기반 소프트 스톱 ---
+        v_kmh = st.v * 3.6
+        if v_kmh <= 5.0:
+            alpha = max(0.0, min(1.0, v_kmh / 5.0))     # 5km/h→1, 0km/h→0
+            a_soft = (-0.30) * alpha + (-0.08) * (1.0 - alpha)
+            w_soft = 1.0 - alpha                         # 속도가 낮을수록 소프트 비중↑
+            a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
+
 
         if st.lever_notch >= 1 or rem_now <= 0.0:
             a_target = min(a_target, 0.0)
