@@ -478,6 +478,9 @@ class StoppingSim:
     # ----------------- Lifecycle -----------------
 
     def reset(self):
+        # ▼ 기존 상태의 timer_enabled를 보존(없으면 False)
+        prev_timer_enabled = getattr(self.state, "timer_enabled", False)
+
         self.state = State(
             t=0.0, s=0.0, v=self.scn.v0, a=0.0, lever_notch=0, finished=False
         )
@@ -520,7 +523,10 @@ class StoppingSim:
 
         self.rr_factor = 1.0
 
-        # ▼ 타이머 초기화
+        # ▼ 보존해 둔 타이머 플래그 복원
+        self.state.timer_enabled = prev_timer_enabled
+
+        # ▼ 타이머 초기화 (예산시간/남은시간 세팅)
         if self.state.timer_enabled:
             self.state.time_budget_s = self._compute_time_budget()
             self.state.time_remaining_s = self.state.time_budget_s
@@ -535,9 +541,11 @@ class StoppingSim:
         self.state.time_overrun_started = False
 
         if DEBUG:
-            print("Simulation reset")
+            print(f"Simulation reset | timer_enabled={self.state.timer_enabled} "
+                  f"| budget={self.state.time_budget_s:.2f}s | L={self.scn.L} v0={self.scn.v0*3.6:.1f}km/h")
 
     def start(self):
+        # reset()은 timer_enabled 보존 로직 포함
         self.reset()
         self.running = True
         if DEBUG:
@@ -1023,7 +1031,7 @@ async def ws_endpoint(ws: WebSocket):
     scenario = Scenario.from_json(scenario_json_path)
 
     sim = StoppingSim(vehicle, scenario)
-    sim.reset()
+    sim.reset()   # ✅ 시작 시 start() 대신 reset()
 
     # 전송 속도: 30Hz
     send_interval = 1.0 / 30.0
@@ -1052,10 +1060,10 @@ async def ws_endpoint(ws: WebSocket):
                     grade = payload.get("grade", 0.0) / 10.0
                     mu = float(payload.get("mu", 1.0))
                     if speed is not None and dist is not None:
-                        # ▼ 서버 측 이중 방어(클램프)
+                        # ▼ 서버 측 이중 방어(클램프) — 프론트와 동일
                         v_kmh_raw = float(speed)
                         L_raw = float(dist)
-                        v_kmh = max(40.0, min(130.0, v_kmh_raw))
+                        v_kmh = max(40.0,  min(130.0, v_kmh_raw))
                         L_m   = max(150.0, min(900.0,  L_raw))
 
                         sim.scn.v0 = v_kmh / 3.6
@@ -1073,7 +1081,7 @@ async def ws_endpoint(ws: WebSocket):
                         if DEBUG:
                             print(f"setInitial: v0={v_kmh:.1f}km/h ({v_kmh_raw}), "
                                   f"L={L_m:.0f}m ({L_raw}), grade={grade}%, mu={mu}")
-                        sim.reset()
+                        sim.reset()  # reset()이 timer_enabled 보존 + budget 재계산
 
                 elif name == "start":
                     sim.start()
