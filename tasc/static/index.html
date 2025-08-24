@@ -200,7 +200,7 @@ ws.addEventListener('open', () => {
       name: "setTimerCalib",
       points: [
         { v: 60, L: 200, t: 23 },
-        { v: 70, L: 200, t: 28 },
+        { v: 70, L: 300, t: 28 },
         { v: 90, L: 400, t: 30 }
       ],
       norm_v: 100,
@@ -314,14 +314,16 @@ enforceFloat(inputGrade,-10,10,1);
 
 /* ✅ 속도별 최소 거리 규칙 */
 function minDistForSpeed(v) {
-  if (v >= 110) return 700;
+  if (v >= 130) return 900;
+  if (v >= 120) return 900;
+  if (v >= 110) return 800;
   if (v >= 100) return 600;
   if (v >= 90)  return 500;
-  if (v >= 80)  return 450;
+  if (v >= 80)  return 400;
   if (v >= 70)  return 300;
   if (v >= 60)  return 250;
   if (v >= 50)  return 200;
-  return 300; // v >= 40
+  return 150; // v >= 40
 }
 function showHint(msg) {
   fb.innerHTML = `<div class="warn">${msg}</div>`;
