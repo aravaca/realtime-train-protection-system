@@ -449,7 +449,7 @@ ws.onmessage=(ev)=>{
   }
 }
 
-    spdEl.textContent = (st.v*3.6).toFixed(0);
+    spdEl.textContent = (st.v*3.6).toFixed(1);
     const maxIdx = (vehicle?.notches ?? 10) - 1; // EB 인덱스
 notchEl.textContent =
   st.lever_notch === 0 ? "N" :
