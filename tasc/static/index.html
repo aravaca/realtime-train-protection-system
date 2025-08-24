@@ -4,10 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>TASC Simulator</title>
-<!-- Google Fonts: Noto Sans JP Bold -->
+  <!-- Google Fonts: Noto Sans JP Bold -->
   <link href="https://fonts.cdnfonts.com/css/a-otf-shin-go-pro" rel="stylesheet">
 <style>
-
 @import url('https://fonts.cdnfonts.com/css/a-otf-shin-go-pro');
 
 html, body {
@@ -53,7 +52,7 @@ body{overflow-x:hidden;overflow-y:auto}
 /* 재시작 FAB – 최상단, 클릭 확실하게 */
 .fab{
   position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:12px 18px;font-weight:700;border-radius:999px;
-  background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;z-index:10001; /* ↑ 최상위 */
+  background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;z-index:10001;
   box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer;pointer-events:auto
 }
 .fab.hide{display:none}
@@ -69,15 +68,9 @@ body{overflow-x:hidden;overflow-y:auto}
   gap: 6px;
   font-family: 'Orbitron', sans-serif;
   z-index: 1001;
-  top: 40px; /* 기본값 = 데스크톱 */
+  top: 40px;
 }
-
-/* 모바일 전용 (화면폭 768px 이하) */
-@media (max-width: 768px) {
-  .tasc-toggle {
-    top: 165px;
-  }
-}
+@media (max-width: 768px) {.tasc-toggle {top: 165px;}}
 .tasc-toggle .tasc-label{font-size:12px;font-weight:600;color:#9fc5ff;user-select:none}
 .tasc-toggle input{display:none}
 .tasc-toggle .slider{position:relative;display:inline-block;width:46px;height:24px;background:rgba(255,255,255,.25);border-radius:24px;cursor:pointer;transition:background-color .3s;box-shadow:inset 0 0 4px rgba(0,0,0,.3)}
@@ -85,30 +78,10 @@ body{overflow-x:hidden;overflow-y:auto}
 .tasc-toggle input:checked + .slider{background:linear-gradient(135deg,#00c6ff,#0072ff)}
 .tasc-toggle input:checked + .slider::before{transform:translateX(22px)}
 
+.emoji { width: 1.4em; height: 1.4em; vertical-align: middle; transition: transform 0.2s;}
+.emoji:hover { transform: scale(1.3);}
 
-.emoji {
-  width: 1.4em;
-  height: 1.4em;
-  vertical-align: middle;
-  transition: transform 0.2s;
-}
-.emoji:hover {
-  transform: scale(1.3);
-}
-
-.title {
- 
-  font-size: 1.7em;
-  font-family: 'A-OTF Shin Go Pro', sans-serif;
-  font-style: normal;
-  font-weight: 700;
-  color: #0168B7; /* JR-West Blue */
-  display: flex;
-  align-items: center;
-  gap: 8px; /* 아이콘과 텍스트 간격 */
-}
-
-
+.title { font-size: 1.7em; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal; font-weight: 700; color: #0168B7; display: flex; align-items: center; gap: 8px;}
 </style>
 </head>
 <body>
@@ -117,24 +90,21 @@ body{overflow-x:hidden;overflow-y:auto}
     <div class="mobile-control-guide">
       📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>
       위쪽 터치 → 브레이크 강화 🔼 / 아래쪽 터치 → 완화 🔽<br>
-정차 후 아래 화면에서 피드백을 확인하세요.
+      정차 후 아래 화면에서 피드백을 확인하세요.
     </div>
 
     <div class="card" style="flex:1 1 260px; position: relative">
-      <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif;
-  font-style: normal;" class="stat">차량 로딩 중...</div>
+      <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal;" class="stat">차량 로딩 중...</div>
 
-      <div>남은시간 <span class="stat" id="timer">0.00</span> s</div>
+      <div>남은시간 <span class="stat" id="timer">0 s</span></div>
       <div>속도 <span class="stat" id="spd">—</span> km/h</div>
       <div>정차 <span class="stat" id="rem">—</span></div>
       <div>구배 <span class="stat" id="grade_percent">—</span> ‰</div>
       <div>제동 <span class="stat" id="notch">-</span></div>    
-      
+
       <div style="margin-top:8px">조작: <span class="kbd">Space</span> 시작 · <span class="kbd">W</span> 강화 · <span class="kbd">S</span> 완화 · <span class="kbd">N</span> 해방</div>
 
-<canvas id="brakeLadder"
-          style="position:absolute; right:10px; top:30px; width:28px; height:70%;"></canvas>
-
+      <canvas id="brakeLadder" style="position:absolute; right:10px; top:30px; width:28px; height:70%;"></canvas>
     </div>
 
     <div class="card" style="flex:2 1 520px"><canvas id="hud"></canvas></div>
@@ -145,17 +115,14 @@ body{overflow-x:hidden;overflow-y:auto}
 <!-- 오버레이 -->
 <div id="overlay">
   <div class="card">
-    
-
-  <h2 class="title">
-    <img src="./Screenshot_20250815_220422_Brave(1).png" alt="E233" class="emoji"> 
-    JR TASC Simulator
-  </h2>
-
+    <h2 class="title">
+      <img src="./Screenshot_20250815_220422_Brave(1).png" alt="E233" class="emoji"> 
+      JR TASC Simulator
+    </h2>
 
     <p class="subtitle">초기값 입력 후 <b>TASC(자동정차)</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요. TASC가 활성화된 상태에서도, 운전자는 수동 조작으로 운전에 개입할 수 있습니다.</p>
 
-<!-- TASC -->
+    <!-- TASC -->
     <div class="tasc-toggle">
       <input type="checkbox" id="tascToggle" />
       <label for="tascToggle" class="slider"></label>
@@ -165,24 +132,25 @@ body{overflow-x:hidden;overflow-y:auto}
     <!-- 전동차 / 시리즈 -->
     <label class="form-label">전동차
       <select id="trainFamily" class="form-input">
-  <option value="E233" selected>E233계</option>
-  <option value="E235">E235계</option>
-  <option value="JRW223">223계</option>
-  <option value="JRW225">225계</option>
-  <option value="JRH261">261계</option>
-  <option value="JRW285">285계</option>
-  <option value="JRW323">323계</option>
-</select>
+        <option value="E233" selected>E233계</option>
+        <option value="E235">E235계</option>
+        <option value="JRW223">223계</option>
+        <option value="JRW225">225계</option>
+        <option value="JRH261">261계</option>
+        <option value="JRW285">285계</option>
+        <option value="JRW323">323계</option>
+      </select>
     </label>
     <label class="form-label">시리즈
       <select id="trainSeries" class="form-input"></select>
     </label>
 
+    <!-- ✅ 속도/거리 입력 범위 갱신: 속도 40~130, 거리 150~900 -->
     <label class="form-label">초기 속도 (km/h)
-      <input id="inputSpeed" type="number" value="70" min="10" max="130" step="1" class="form-input">
+      <input id="inputSpeed" type="number" value="70" min="40" max="130" step="1" class="form-input">
     </label>
     <label class="form-label">거리 (m)
-      <input id="inputDist" type="number" value="300" min="10" max="900" step="1" class="form-input">
+      <input id="inputDist" type="number" value="300" min="150" max="900" step="1" class="form-input">
     </label>
     <label class="form-label">경사도 (‰)
       <input id="inputGrade" type="number" value="0.0" min="-10" max="10" step="0.1" class="form-input">
@@ -223,6 +191,28 @@ body{overflow-x:hidden;overflow-y:auto}
 <script>
 /* ===== WebSocket & TASC ===== */
 const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
+
+ws.addEventListener('open', () => {
+  // ✅ 보정표(IDW) 한 번만 세팅하면 이후 자동 제한시간 산출
+  ws.send(JSON.stringify({
+    type: "cmd",
+    payload: {
+      name: "setTimerCalib",
+      points: [
+        { v: 60, L: 200, t: 23 },
+        { v: 70, L: 200, t: 28 },
+        { v: 90, L: 400, t: 30 }
+      ],
+      norm_v: 100,
+      norm_L: 300,
+      idw_power: 2.0,
+      blend_threshold: 1.5
+    }
+  }));
+  // 타이머 활성화
+  ws.send(JSON.stringify({ type: "cmd", payload: { name: "toggleTimer", enabled: true } }));
+});
+
 const tascToggle = document.getElementById("tascToggle");
 tascToggle.addEventListener("change", () => {
   const enabled = tascToggle.checked;
@@ -252,49 +242,12 @@ function generateSnowflake(){
 }
 setInterval(generateSnowflake,200);
 
-
-// === Haptics (모바일 전용) ===
-// === Haptics (모바일 전용, 강도 상향 & 가드 & 로깅) ===
+/* ===== Haptics (모바일) ===== */
 const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-
-function canVibrate() {
-  return isMobile &&
-         typeof navigator.vibrate === "function" &&
-         document.visibilityState === "visible";
-}
-
-function vibrate(pattern) {
-  if (!canVibrate()) {
-    console.debug("[haptics] blocked: mobile?", isMobile, "api?",
-                  typeof navigator.vibrate, "visible?", document.visibilityState);
-    return false;
-  }
-  const ok = navigator.vibrate(pattern);
-  // 일부 브라우저는 boolean, 일부는 undefined를 반환
-  console.debug("[haptics] vibrate called:", pattern, "->", ok);
-  return ok !== false;
-}
-
-// 강화/완화 질감: 체감 되도록 길이 상향
-function hapticForNotch(delta) {
-  if (delta > 0) {
-    // 강화: 짧은 이중 탭 (체감형)
-    vibrate([80, 0.01, 80]);
-  } else if (delta < 0) {
-    // 완화: 단일 짧은 탭
-    vibrate([80, 0.01, 80]);
-  }
-}
-
-// (선택) EB 진입 시 더 강한 진동
-function hapticForEB() {
-  vibrate([100, 0.01, 100]);
-}
-
-// (권장) 콘솔에서 바로 시험 가능하도록
-window.testVibrate = () => vibrate(120);
-
-
+function canVibrate() { return isMobile && typeof navigator.vibrate === "function" && document.visibilityState === "visible"; }
+function vibrate(pattern) { if (!canVibrate()) return false; return navigator.vibrate(pattern) !== false; }
+function hapticForNotch(delta) { if (delta !== 0) vibrate([80, 10, 80]); }
+function hapticForEB() { vibrate([100, 10, 100]); }
 
 /* ===== 차량 JSON 로드 (캐시 무시) ===== */
 let vehicle=null; let brakeDecels={};
@@ -308,59 +261,100 @@ fetch('./e233_1000.json'+cacheBust(),{cache:'no-store'})
   }).catch(console.error);
 
 /* ===== DOM ===== */
-const remEl=document.getElementById("rem"), spdEl=document.getElementById("spd"), notchEl=document.getElementById("notch"), fb=document.getElementById("fb");
-const overlay=document.getElementById("overlay"), btnStart=document.getElementById("btnStart"), canvas=document.getElementById("hud"), ctx=canvas.getContext("2d");
-const weatherSelect=document.getElementById("weatherSelect"), snowflakes=document.querySelector(".snowflakes"), raindrops=document.querySelector(".raindrops");
-function resize(){ canvas.width=canvas.clientWidth*devicePixelRatio; canvas.height=canvas.clientHeight*devicePixelRatio; } addEventListener("resize",resize); resize();
+const remEl=document.getElementById("rem"),
+      spdEl=document.getElementById("spd"),
+      notchEl=document.getElementById("notch"),
+      fb=document.getElementById("fb"),
+      timerEl=document.getElementById("timer");
+const overlay=document.getElementById("overlay"),
+      btnStart=document.getElementById("btnStart"),
+      canvas=document.getElementById("hud"),
+      ctx=canvas.getContext("2d");
+const weatherSelect=document.getElementById("weatherSelect"),
+      snowflakes=document.querySelector(".snowflakes"),
+      raindrops=document.querySelector(".raindrops");
+
+function resize(){ canvas.width=canvas.clientWidth*devicePixelRatio; canvas.height=canvas.clientHeight*devicePixelRatio; } 
+addEventListener("resize",resize); resize();
 
 function getEbIdx(){
   const acc = (vehicle && Array.isArray(vehicle.notch_accels)) ? vehicle.notch_accels : null;
-  const n   = acc ? acc.length
-                  : (vehicle && Number.isInteger(vehicle.notches) ? vehicle.notches : 10);
+  const n   = acc ? acc.length : (vehicle && Number.isInteger(vehicle.notches) ? vehicle.notches : 10);
   return Math.max(1, n - 1); // 0:N, 1..EB-1:B..., EB:마지막
 }
-
-// 기존
 function sendCmd(name, delta){
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({type:"cmd", payload:{name, delta}}));
   }
 }
 
-
-
-
+/* ===== 편성 & 탑승률 ===== */
 function updateTrainLength(){ const L=document.getElementById("trainLength").value; ws.send(JSON.stringify({type:"cmd",payload:{name:"setTrainLength",length:L}})); sendLoadRate(); }
 function sendLoadRate(){
   const loadRate=parseFloat(document.getElementById("inputLoadRate").value)||0;
   const trainLength=parseInt(document.getElementById("trainLength").value)||8;
-
-ws.send(JSON.stringify({
-  type: "cmd",
-  payload: { 
-    name: "setLoadRate", 
-    loadRate: loadRate,
-    length: trainLength
-  }
-}));
+  ws.send(JSON.stringify({ type: "cmd", payload: { name: "setLoadRate", loadRate, length: trainLength }}));
 }
-/* 입력 보정 */
 
+/* ===== 입력 보정 & 제한 ===== */
+const inputSpeed=document.getElementById("inputSpeed"),
+      inputDist=document.getElementById("inputDist"),
+      inputGrade=document.getElementById("inputGrade"),
+      inputLoadRate=document.getElementById("inputLoadRate");
 
-
-const inputSpeed=document.getElementById("inputSpeed"), inputDist=document.getElementById("inputDist"), inputGrade=document.getElementById("inputGrade");
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 function enforceInt(el,min,max){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^\d-]/g,'');}); el.addEventListener('change',()=>{let v=parseInt(el.value,10); if(isNaN(v)){el.value='';return;} el.value=String(clamp(v,min,max));});}
 function enforceFloat(el,min,max,d=1){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^0-9.\-]/g,'');}); el.addEventListener('change',()=>{let v=parseFloat(el.value); if(isNaN(v)){el.value='';return;} v=clamp(v,min,max); el.value=v.toFixed(d);});}
-enforceInt(inputSpeed,10,130); enforceInt(inputDist,10,900);
-const inputLoadRate = document.getElementById("inputLoadRate"); // ← 추가
 
-enforceInt(inputLoadRate,0,120); // ← 이제 에러 없음
-document.getElementById("inputLoadRate").addEventListener("change",sendLoadRate); enforceFloat(inputGrade,-10,10,1);
+/* ✅ 범위 갱신: 속도 40~130 / 거리 150~900 */
+enforceInt(inputSpeed,40,130);
+enforceInt(inputDist,150,900);
+enforceInt(inputLoadRate,0,120);
+enforceFloat(inputGrade,-10,10,1);
 
-document.getElementById("inputLoadRate").addEventListener("change",sendLoadRate);
+/* ✅ 속도별 최소 거리 규칙 */
+function minDistForSpeed(v) {
+  if (v >= 110) return 700;
+  if (v >= 100) return 600;
+  if (v >= 90)  return 500;
+  if (v >= 80)  return 450;
+  if (v >= 70)  return 300;
+  if (v >= 60)  return 250;
+  if (v >= 50)  return 200;
+  return 150; // v >= 40
+}
+function showHint(msg) {
+  fb.innerHTML = `<div class="warn">${msg}</div>`;
+  setTimeout(() => {
+    if (!st || !st.finished) fb.textContent = "Space로 시작. W/S로 브레이크 조절하세요.";
+  }, 1200);
+}
+function applySpeedDistanceRule() {
+  let v = Number(inputSpeed.value || 0);
+  v = Math.min(130, Math.max(40, v));
+  const requiredMin = minDistForSpeed(v);
+  let d = Number(inputDist.value || 0);
+  const absoluteMin = 150, absoluteMax = 900;
+  const newMin = Math.max(absoluteMin, requiredMin);
 
-/* 날씨 UI */
+  // HTML min도 동적으로 반영 (사용자에게 즉시 보임)
+  inputDist.min = String(newMin);
+
+  if (isNaN(d) || d < newMin) {
+    inputDist.value = String(newMin);
+    showHint(`속도 ${v} km/h에서는 최소 거리 ${newMin} m 이상이어야 합니다.`);
+  } else if (d > absoluteMax) {
+    inputDist.value = String(absoluteMax);
+  }
+}
+inputSpeed.addEventListener('change', applySpeedDistanceRule);
+inputSpeed.addEventListener('input',  () => {
+  const v = Number(inputSpeed.value || 0);
+  const minD = minDistForSpeed(Math.min(130, Math.max(40, v)));
+  inputDist.min = Math.max(150, minD);
+});
+
+/* ===== 날씨 UI ===== */
 function muFromWeather(w){return w==="비옴"?0.6:(w==="눈옴"?0.3:1.0)}
 function updateWeatherUI(){
   const w=weatherSelect.value, ov=document.getElementById("overlay");
@@ -371,26 +365,42 @@ function updateWeatherUI(){
 weatherSelect.addEventListener("change",()=>{updateWeatherUI();const mu=muFromWeather(weatherSelect.value); if(ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({type:"cmd",payload:{name:"setMu",value:mu}}));}});
 updateWeatherUI();
 
-/* 시작/재시작 */
+/* ===== 시작/재시작 ===== */
 function startRun(){
-  inputSpeed.dispatchEvent(new Event('change')); inputDist.dispatchEvent(new Event('change')); inputGrade.dispatchEvent(new Event('change'));
-  const speed=Number(inputSpeed.value), dist=Number(inputDist.value), grade=Number(inputGrade.value), mu=muFromWeather(weatherSelect.value);
-  if(ws.readyState===WebSocket.OPEN){ ws.send(JSON.stringify({type:"cmd",payload:{name:"setInitial",speed,dist,grade,mu}})); ws.send(JSON.stringify({type:"cmd",payload:{name:"start"}})); }
+  // 입력 정규화
+  inputSpeed.dispatchEvent(new Event('change'));
+  inputDist.dispatchEvent(new Event('change'));
+  inputGrade.dispatchEvent(new Event('change'));
+
+  // ✅ 속도-거리 규칙 최종 강제
+  applySpeedDistanceRule();
+
+  const speed=Number(inputSpeed.value),
+        dist=Number(inputDist.value),
+        grade=Number(inputGrade.value),
+        mu=muFromWeather(weatherSelect.value);
+
+  if(ws.readyState===WebSocket.OPEN){
+    // 타이머 보장(중복 전송 무해)
+    ws.send(JSON.stringify({ type:"cmd", payload:{ name:"toggleTimer", enabled:true }}));
+    ws.send(JSON.stringify({type:"cmd",payload:{name:"setInitial",speed,dist,grade,mu}}));
+    ws.send(JSON.stringify({type:"cmd",payload:{name:"start"}}));
+  }
   overlay.classList.add("hide"); isFinished=false; overlayShowingResult=false;
   btnMobileRestart.classList.add("hide");
 }
 btnStart.addEventListener("click", startRun);
 
+/* 재시작 FAB */
 const btnMobileRestart=document.getElementById("btnMobileRestart");
 btnMobileRestart.addEventListener("click", ()=>{
-  // 혹시 오버레이가 이미 떠 있으면 중복 방지
   if(!overlay.classList.contains("hide")) overlay.classList.add("hide");
   overlay.classList.remove("hide");
   overlayShowingResult=true;
   btnMobileRestart.classList.add("hide");
 });
 
-/* 모바일 터치 조작 */
+/* ===== 모바일 터치 조작 ===== */
 if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
   const game=document.getElementById("hud");
   game.addEventListener("touchstart",(e)=>{
@@ -398,17 +408,12 @@ if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
     if(e.touches.length!==1) return;
     forceManualOverride();
     const r=game.getBoundingClientRect(), y=e.touches[0].clientY-r.top, half=r.height/2;
-    if(y<half){
-      hapticForNotch(+1);
-      sendCmd("applyNotch",+1);
-    } else {
-      hapticForNotch(-1);
-      sendCmd("applyNotch",-1);
- }
-}, { passive: true });
+    if(y<half){ hapticForNotch(+1); sendCmd("applyNotch",+1); }
+    else      { hapticForNotch(-1); sendCmd("applyNotch",-1); }
+  }, { passive: true });
 }
 
-/* 키보드 */
+/* ===== 키보드 ===== */
 addEventListener("keydown",(e)=>{
   if([" ","w","W","s","S","n","N"].includes(e.key)) e.preventDefault();
   if(e.repeat) return;
@@ -419,8 +424,8 @@ addEventListener("keydown",(e)=>{
   else if(e.key==="n"||e.key==="N"){ sendCmd("release",0); }
 });
 
-/* HUD & 상태 */
-const grade_percentEl=document.getElementById("grade_percent"), timerEl=document.getElementById("timer");
+/* ===== HUD & 상태 ===== */
+const grade_percentEl=document.getElementById("grade_percent");
 let isFinished=false, overlayShowingResult=false, st=null, lastTimestamp=0, prevMaxDistance=0;
 function loop(ts){ if(!lastTimestamp) lastTimestamp=ts; lastTimestamp=ts; if(st) drawHUD(st); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
@@ -429,38 +434,39 @@ ws.onmessage=(ev)=>{
   const msg=JSON.parse(ev.data);
   if(msg.type==="state"){
     st=msg.payload;
-    // === PATCH: 서버에서 온 TASC 예측 저장 ===
-    window.__tasc_pred__ = st.tasc_pred || {};
-    const remRaw=st.remaining_m, rem=typeof remRaw==="number"?remRaw:parseFloat(remRaw);
-    
 
- if (rem >= 0) {
-  if (rem <= 2) {
-    // 2m 이내 → 센티미터로 표기
-    remEl.textContent = Math.round(rem * 100) + " cm";
-  } else {
-    // 그 외 → 정수 미터
-    remEl.textContent = rem.toFixed(0) + " m";
-  }
-} else {
-  // 오버런(음수)
-  if (rem >= -2) {
-    remEl.textContent = "-" + Math.round(Math.abs(rem) * 100) + " cm";
-  } else {
-    remEl.textContent = "-" + Math.abs(rem).toFixed(0) + " m";
-  }
-}
+    const remRaw=st.remaining_m, rem=typeof remRaw==="number"?remRaw:parseFloat(remRaw);
+    if (rem >= 0) {
+      if (rem <= 2)  remEl.textContent = Math.round(rem * 100) + " cm";
+      else           remEl.textContent = rem.toFixed(0) + " m";
+    } else {
+      if (rem >= -2) remEl.textContent = "-" + Math.round(Math.abs(rem) * 100) + " cm";
+      else           remEl.textContent = "-" + Math.abs(rem).toFixed(0) + " m";
+    }
 
     spdEl.textContent = (st.v*3.6).toFixed(1);
     const maxIdx = (vehicle?.notches ?? 10) - 1; // EB 인덱스
-notchEl.textContent =
-  st.lever_notch === 0 ? "N" :
-  st.lever_notch === maxIdx ? "EB" : `B${st.lever_notch}`;
+    notchEl.textContent = st.lever_notch === 0 ? "N" : (st.lever_notch === maxIdx ? "EB" : `B${st.lever_notch}`);
     grade_percentEl.textContent = (10* st.grade_percent).toFixed(1);
-    timerEl.textContent = st.t.toFixed(0);
-    drawHUD(st);
 
-    drawBrakeLadderMini(st);  // ← 미니 인디케이터 갱신
+    /* ✅ 타이머 표기: div 레이블은 그대로(남은시간), 숫자만 '12 s' or '-2 s'
+       - 오버런(음수)인 경우 빨간색 표시 */
+    if (st.timer_enabled) {
+      if (st.time_remaining_int >= 0) {
+        timerEl.textContent = `${st.time_remaining_int} s`;
+        timerEl.classList.remove('bad');
+      } else {
+        timerEl.textContent = `-${Math.abs(st.time_overrun_int)} s`;
+        timerEl.classList.add('bad');
+      }
+    } else {
+      // 타이머 미사용시 경과시간 표기(원하면 숨겨도 됨)
+      timerEl.textContent = `${Math.floor(st.t)} s`;
+      timerEl.classList.remove('bad');
+    }
+
+    drawHUD(st);
+    drawBrakeLadderMini(st);
 
     if (st.finished) {
       isFinished = true;
@@ -477,7 +483,6 @@ notchEl.textContent =
           key: "step_brake_incomplete",
           goodText: "기본제동 (계단제동/완해) 수행함",
           badTextFunc: (issues) => {
-            const overrun = issues.stop_error_m !== undefined && issues.stop_error_m <= -2;
             if (issues.stop_error_m !== undefined && issues.stop_error_m <= -2) {
               return "기본제동 (계단제동/완해) 미흡 - 정차 위치 초과 및 운행 지연 발생";
             }
@@ -495,16 +500,8 @@ notchEl.textContent =
       });
 
       const isStopErrorGood = Math.abs(st.stop_error_m || 0) <= 2;
-
-      feedbacks.push({
-        text: `정지 오차: ${st.stop_error_m.toFixed(2)} m`,
-        isGood: isStopErrorGood,
-      });
-
-      feedbacks.push({
-        text: `최종 점수: ${st.score}점`,
-        isGood: isStopErrorGood,
-      });
+      feedbacks.push({ text: `정지 오차: ${st.stop_error_m.toFixed(2)} m`, isGood: isStopErrorGood });
+      feedbacks.push({ text: `최종 점수: ${st.score}점`, isGood: isStopErrorGood });
 
       fb.innerHTML = feedbacks
         .map(item => item.isBad
@@ -523,7 +520,7 @@ notchEl.textContent =
   }
 };
 
-/* HUD 그리기 (원본 유지) */
+/* ===== HUD 그리기 (기존 유지) ===== */
 function drawHUD(st){
   const dpr=devicePixelRatio||1, w=canvas.width, h=canvas.height;
   ctx.clearRect(0,0,w,h);
@@ -546,9 +543,7 @@ function drawHUD(st){
   ctx.textAlign="right"; ctx.textBaseline="middle";
   for(let k=0;k<=vmax;k+=10){ const y=Y(k); ctx.beginPath(); ctx.moveTo(left-4*dpr,y); ctx.lineTo(left,y); ctx.stroke(); ctx.fillText(`${k}`,left-6*dpr,y); }
 
-
-
-ctx.lineWidth=2*dpr; 
+  ctx.lineWidth=2*dpr; 
   const maxNotch = vehicle?.notches ?? 10;   // 총 개수(0~maxIdx)
   const maxIdx   = maxNotch - 1;  // EB 인덱스
   for(let n=0;n<maxNotch;n++){
@@ -565,10 +560,7 @@ ctx.lineWidth=2*dpr;
     ctx.fillText(label, tX+5*dpr, Y(0)+12*dpr);
   }
 
-
-
-
-const xRed=X(remaining); ctx.strokeStyle="#f00"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(xRed,Y(0)); ctx.lineTo(xRed,Y(vmax)); ctx.stroke();
+  const xRed=X(remaining); ctx.strokeStyle="#f00"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(xRed,Y(0)); ctx.lineTo(xRed,Y(vmax)); ctx.stroke();
   ctx.fillStyle="#f00"; ctx.font=`${14*dpr}px 'Orbitron', sans-serif`; ctx.textAlign="center"; ctx.fillText("남은 거리", xRed, Y(vmax)-18*dpr);
 
   const ribbonW=16*dpr, ribbonH=h*.9, ribbonX=w-right-ribbonW-10*dpr+20, ribbonY=((h-ribbonH)/2)-32;
@@ -586,13 +578,9 @@ const xRed=X(remaining); ctx.strokeStyle="#f00"; ctx.lineWidth=1.5*dpr; ctx.begi
   ctx.fillStyle="#444"; ctx.strokeStyle="#222"; ctx.lineWidth=2*dpr; ctx.beginPath();
   ctx.moveTo(dX, adjY-diamondH/2); ctx.lineTo(dX+diamondW/2, adjY); ctx.lineTo(dX, adjY+diamondH/2); ctx.lineTo(dX-diamondW/2, adjY);
   ctx.closePath(); ctx.fill(); ctx.stroke();
-
-
 }
 
-
-
-// 미니 인디케이터 사이즈 맞추기
+/* ===== 브레이크 미니 인디케이터 ===== */
 const ladderCanvas = document.getElementById('brakeLadder');
 function sizeLadderCanvas() {
   if (!ladderCanvas) return;
@@ -612,18 +600,12 @@ function drawBrakeLadderMini(st) {
   if (!w || !h) return;
   ctx2.clearRect(0, 0, w, h);
 
-  // ★ EB 위치는 notch_accels 길이로 결정 (있으면 무조건 이것만 신뢰)
   const accArr  = (vehicle && Array.isArray(vehicle.notch_accels)) ? vehicle.notch_accels : null;
-  const notches = accArr ? accArr.length
-                         : (vehicle && Number.isInteger(vehicle.notches) ? vehicle.notches : 10);
+  const notches = accArr ? accArr.length : (vehicle && Number.isInteger(vehicle.notches) ? vehicle.notches : 10);
+  const ebIdx   = accArr ? Math.max(1, accArr.length - 1) : Math.max(1, notches - 1);
+  const blocks  = ebIdx;
+  const cur     = Math.max(0, Math.min(ebIdx, st.lever_notch|0));
 
-  const ebIdx   = accArr ? Math.max(1, accArr.length - 1)   // 0:N, 1~EB-1:B1.., EB:마지막
-                         : Math.max(1, notches - 1);
-
-  const blocks  = ebIdx;                   // B1..EB 표시 블록 수
-  const cur     = Math.max(0, Math.min(ebIdx, st.lever_notch|0)); // 현재 노치 클램프
-
-  // 패널
   ctx2.fillStyle = "rgba(100,100,100,0.10)";
   ctx2.fillRect(0, 0, w, h);
 
@@ -633,108 +615,60 @@ function drawBrakeLadderMini(st) {
   const bW   = w - pad*2;
   const x    = pad;
 
-  // 서비스 노치(노랑): B1..EB-1
-  const serviceTop = (cur === ebIdx) ? 0 : Math.min(cur, ebIdx - 1);
   for (let k = 1; k <= ebIdx - 1; k++) {
     const i = k - 1;
     const y = h - pad - (i + 1) * bH - i * gap;
-
     ctx2.fillStyle = "rgba(60,80,100,0.35)";
     ctx2.fillRect(x, y, bW, bH);
-
-    if (cur !== ebIdx && k <= serviceTop) {
-      ctx2.fillStyle = "#ffd34d";
-      ctx2.fillRect(x, y, bW, bH);
-    }
-
+    if (cur !== ebIdx && k <= cur) { ctx2.fillStyle = "#ffd34d"; ctx2.fillRect(x, y, bW, bH); }
     ctx2.strokeStyle = "rgba(20,30,45,0.6)";
     ctx2.lineWidth   = 1 * dpr;
     ctx2.strokeRect(x, y, bW, bH);
   }
 
-  // EB(맨 위)는 빨강: cur===EB일 때만
   const yEB = h - pad - (ebIdx) * bH - (ebIdx - 1) * gap;
   ctx2.fillStyle = "rgba(60,80,100,0.35)";
   ctx2.fillRect(x, yEB, bW, bH);
-  if (cur === ebIdx) {
-    ctx2.fillStyle = "#ff5757";            // 빨간색
-    ctx2.fillRect(x, yEB, bW, bH);
-  }
+  if (cur === ebIdx) { ctx2.fillStyle = "#ff5757"; ctx2.fillRect(x, yEB, bW, bH); }
   ctx2.strokeStyle = "rgba(20,30,45,0.6)";
   ctx2.lineWidth   = 1 * dpr;
   ctx2.strokeRect(x, yEB, bW, bH);
 }
 
-
-
-/* ===== 전동차/시리즈/편성: 사진 스펙 고정 ===== */
+/* ===== 전동차/시리즈/편성 ===== */
 const TRAIN_DB={
   E233:[
-    
     {code:"EAST E233-1000", lines:"게이힌토호쿠·네기시", file:"./e233_1000.json", lengths:[10]},
     {code:"EAST E233-2000", lines:"조반 각역·쾌속", file:"./e233_2000.json", lengths:[10]},
     {code:"EAST E233-3000", lines:"도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file:"./e233_3000.json", lengths:[5,10,15]}
-    
   ],
   E235:[
     {code:"EAST E235-0", lines:"야마노테", file:"./e235_0.json", lengths:[11]},
     {code:"EAST E235-1000", lines:"요코스카·소부쾌속", file:"./e235_1000.json", lengths:[4,11,15]}
-  ]
+  ],
+  JRW223: [
+    { code: "WEST 223-0",
+      lines: "오사카 순환선 · 한와선 · 간사이공항선 직결 · 기노쿠니선",
+      file: "./223_0000.json", lengths: [4] },
+    { code: "WEST 223-1000",
+      lines: "비와코·JR 교토·JR 고베 라인 등",
+      file: "./223_1000.json", lengths: [8,4] }
+  ],
+  JRW225: [
+    { code: "WEST 225-0",
+      lines: "비와코·JR 교토·JR 고베 라인 등",
+      file: "./225_0000.json", lengths: [4,8] },
+    { code: "WEST 225-5000",
+      lines: "오사카 순환선 · 한와선 · 간사이공항선",
+      file: "./225_5000.json", lengths: [4] },
+    { code: "WEST 225-6000",
+      lines: "JR 고베선 · 후쿠치야마선",
+      file: "./225_6000.json", lengths: [6,4] }
+  ],
+  JRW323: [{ code: "WEST 323-0", lines: "오사카 순환선 전용", file: "./323_0000.json", lengths: [8] }],
+  JRW285: [{ code: "WEST 285-0/3000", lines: "선라이즈 이즈모·세토", file: "./285.json", lengths: [7, 14] }],
+  JRH261: [{ code: "HOKKAIDO KiHa 261-5000", lines: "하마나스·라벤더", file: "./261_5000.json", lengths: [4, 5, 6, 10] }]
 };
-
-// ▼ JR-WEST : 노선명으로 교체 (사실 확인 반영)
-TRAIN_DB.JRW223 = [
-  // 223-0 (HE 계열: 히네노 소속)
-  { code: "WEST 223-0",
-    lines: "오사카 순환선 · 한와선 · 간사이공항선 직결 · 기세이 본선(기노쿠니선, 와카야마–스사미/기이타나베)",
-    file: "./223_0000.json", lengths: [4] }, // 0
-
-  // 223-1000 (V/W 편성)
-  { code: "WEST 223-1000",
-    lines: "도카이도 본선(비와코·JR 교토·JR 고베 라인) · 산요 본선(JR 고베 라인) · 호쿠리쿠 본선(쓰루가–마이바라) · 고세이선 · 구사쓰선 · 아코선",
-    file: "./223_1000.json", lengths: [8,4] }
-
-  
-  // 223-6000 (PR/MA 편성: 감속 제한형, 소속별 운용 구간 상이)
-];
-
-TRAIN_DB.JRW225 = [
-  // 225-0 / 100 : 신쾌속 축
-  { code: "WEST 225-0",
-    lines: "도카이도 본선(비와코·JR 교토·JR 고베 라인, 마이바라–고베) · 산요 본선(JR 고베 라인, 고베–카미고리) · 호쿠리쿠 본선(쓰루가–마이바라) · 고세이선 · 구사쓰선 · 아코선",
-    file: "./225_0000.json", lengths: [4,8] }, // 6
-  
-
-  // 225-5000/5100 : 공항·한와·순환선 중심
-  { code: "WEST 225-5000",
-    lines: "오사카 순환선 · 한와선(간사이공항선 직결) · 간사이공항선 · 기세이 본선(기노쿠니선, 와카야마–기이타나베)",
-    file: "./225_5000.json", lengths: [4] }, // 9
-  
-  // 225-6000 : 성능 제한형(후쿠치야마 방면)
-  { code: "WEST 225-6000",
-    lines: "JR 고베선(오사카–아마가사키) · 후쿠치야마선(JR 타카라즈카선, 아마가사키–사사야마구치/후쿠치야마)",
-    file: "./225_6000.json", lengths: [6,4] } // 12
-];
-
-TRAIN_DB.JRW323 = [
-  { code: "WEST 323-0",
-    lines: "오사카 순환선 전용",
-    file: "./323_0000.json", lengths: [8] } // 13
-];
-
-TRAIN_DB.JRW285 = [
-  { code: "WEST 285-0/3000",
-    lines: "침대특급 선라이즈 이즈모·세토 전용",
-    file: "./285.json",
-    lengths: [7, 14] } // 7량편성, 병결 시 14량편성
-];
-
-TRAIN_DB.JRH261 = [
-  { code: "HOKKAIDO KiHa 261-5000",
-    lines: "조이풀 트레인 하마나스·라벤더",
-    file: "./261_5000.json",
-    lengths: [4, 5, 6, 10] } // 5량 기본, 10량 병결
-];
 
 const trainFamilyEl=document.getElementById('trainFamily');
 const trainSeriesEl=document.getElementById('trainSeries');
@@ -749,14 +683,12 @@ function setTrainLengthOptions(lengths){
   });
   updateTrainLength();
 }
-
-
 function loadVehicleFile(filePath){
   fetch(filePath + cacheBust(), { cache: 'no-store' })
     .then(res => res.json())
     .then(data => {
       vehicle = data;
-      vehicle.notches = (vehicle.notch_accels || []).length;  // EB 동기화
+      vehicle.notches = (vehicle.notch_accels || []).length;
       document.getElementById('carName').textContent = vehicle.name;
 
       brakeDecels = {};
@@ -766,16 +698,13 @@ function loadVehicleFile(filePath){
         }
       }
 
-      // 서버 vehicle 교체
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: filePath } }));
       }
-
       sendLoadRate();
     })
     .catch(console.error);
 }
-
 function populateSeries(){
   const fam=trainFamilyEl.value, list=TRAIN_DB[fam]||[];
   trainSeriesEl.innerHTML="";
