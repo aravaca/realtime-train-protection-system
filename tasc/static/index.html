@@ -451,22 +451,24 @@ ws.onmessage=(ev)=>{
     notchEl.textContent = st.lever_notch === 0 ? "N" : (st.lever_notch === maxIdx ? "EB" : `B${st.lever_notch}`);
     grade_percentEl.textContent = (10* st.grade_percent).toFixed(1);
 
-    /* ✅ 타이머 표기: div 레이블은 그대로(남은시간), 숫자만 '12 s' or '-2 s'
-       - 오버런(음수)인 경우 빨간색 표시 */
-    if (st.timer_enabled) {
-      if (st.time_remaining_int >= 0) {
-        timerEl.textContent = `${st.time_remaining_int} s`;
-        timerEl.classList.remove('bad');
-      } else {
-        timerEl.textContent = `-${Math.abs(st.time_overrun_int)} s`;
-        timerEl.classList.add('bad');
-      }
-    } else {
-      // 타이머 미사용시 경과시간 표기(원하면 숨겨도 됨)
-      timerEl.textContent = `${Math.floor(st.t)} s`;
-      timerEl.classList.remove('bad');
-    }
+ /* ✅ 타이머 표기: 시작 전엔 budget, 시작하면 카운트다운, 오버런 음수(빨간색) */
+if (st.timer_enabled) {
+  const waiting = !st.running && !st.finished;
+  const toShow = waiting
+    ? Math.max(0, Math.round(st.time_budget_s || 0))  // 예: 28 s
+    : st.time_remaining_int;                          // 예: 28→27→...
 
+  if (toShow >= 0) {
+    timerEl.textContent = `${toShow} s`;
+    timerEl.classList.remove('bad');
+  } else {
+    timerEl.textContent = `-${Math.abs(toShow)} s`;
+    timerEl.classList.add('bad');
+  }
+} else {
+  timerEl.textContent = '';               // 타이머 안 쓰면 표시 안 함(디버그 가드)
+  timerEl.classList.remove('bad');
+}
     drawHUD(st);
     drawBrakeLadderMini(st);
 
