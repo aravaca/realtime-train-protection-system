@@ -155,8 +155,8 @@ class StoppingSim:
         # ---------- TASC ----------
         self.tasc_enabled = False
         self.manual_override = False
-        self.tasc_deadband_m = 0.04   # (기존 0.01 → 챠터 방지)
-        self.tasc_hold_min_s = 0.05  # (기존 0.05 → 반응 둔화 보정)
+        self.tasc_deadband_m = 0.1
+        self.tasc_hold_min_s = 0.05
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"  # "build" → "relax"
         self._tasc_peak_notch = 1
@@ -172,9 +172,10 @@ class StoppingSim:
             "t": -1.0, "v": -1.0, "notch": -1, "keys": None,
             "s_cur": float('inf'), "s_up": float('inf'), "s_dn": float('inf')
         }
-        self._tasc_pred_interval = 0.05  # 50ms
+        self._tasc_pred_interval = 0.15  # ★ 50ms -> 150ms (부하↓)
         self._tasc_last_pred_t = -1.0
         self._tasc_speed_eps = 0.3  # m/s
+        self._tasc_last_wall = 0.0  # ★ 실시간 스로틀(벽시계)
 
         # ---- B5 필요 여부 캐시/스로틀 ----
         self._need_b5_last_t = -1.0
@@ -346,9 +347,7 @@ class StoppingSim:
 
         # 초기화 (B1/B2 초제동용)
         self.first_brake_start = None
-        self.first_brake_done = False
-
-        # 기록 초기화
+               # 기록 초기화
         self.notch_history.clear()
         self.time_history.clear()
 
@@ -411,7 +410,7 @@ class StoppingSim:
             return float('inf')
 
         # ----- seed from live state -----
-        dt = 0.03
+        dt = 0.05  # ★ 0.03 -> 0.05 (부하↓)
         v  = max(0.0, v0)
         a  = float(self.state.a)
 
@@ -429,8 +428,14 @@ class StoppingSim:
         ctrl_delay = max(self._tasc_pred_interval, self.tasc_hold_min_s)
         latency_margin = v * ctrl_delay
 
+        # ★ 동적 스텝 상한 (현재 v와 노치 기반 간이 추정)
+        base_mag = abs(self.veh.notch_accels[min(notch, len(self.veh.notch_accels)-1)])
+        amin = max(0.5, min(1.3, base_mag))          # 보수적 서비스 감속 상한
+        t_est = v / max(0.3, amin) + 1.0             # 여유 1초
+        steps = int(min(1800, max(60, t_est / dt * 1.4)))
+
         # 메인 루프
-        for _ in range(2400):  # ~72s 상한
+        for _ in range(steps):
             # (1) 명령 제동가속도 (서비스/EB 캡 포함)
             is_eb = (notch == self.veh.notches - 1)
             a_cmd_total = self._effective_brake_accel(notch, v)
@@ -467,7 +472,6 @@ class StoppingSim:
             a_brake = brk_elec + brk_air
 
             # (4) WSP 예측 적용 (상태는 예측 내부에서만 변경)
-            #   예측용 간이 버전(본체와 동일 정책)
             a_cap = -0.85 * self.scn.mu * 9.81
             margin = 0.05
             if wsp_state == "normal":
@@ -537,7 +541,7 @@ class StoppingSim:
         return self._estimate_stop_distance(notch, v)
 
     def _tasc_predict(self, cur_notch: int, v: float):
-        """TASC 정지거리 예측 스로틀링 + 캐시"""
+        """TASC 정지거리 예측 스로틀링 + 캐시(부하 완화)"""
         st = self.state
         need = False
         if (st.t - self._tasc_last_pred_t) >= self._tasc_pred_interval:
@@ -547,15 +551,27 @@ class StoppingSim:
         if cur_notch != self._tasc_pred_cache["notch"]:
             need = True
 
+        # ★ 캐시 키 양자화(버킷)으로 히트율↑
+        def _q(x, q=0.05):
+            return round(float(x) / q) * q
+
         keys = (
-            self.scn.mu,
-            self.scn.grade_percent,
-            getattr(self, "brk_elec", 0.0),
-            getattr(self, "brk_air", 0.0),
+            round(self.scn.mu, 2),
+            round(self.scn.grade_percent, 2),
+            _q(getattr(self, "brk_elec", 0.0), 0.05),
+            _q(getattr(self, "brk_air", 0.0), 0.05),
             getattr(self, "wsp_state", "normal"),
         )
         if keys != self._tasc_pred_cache.get("keys"):
             need = True
+
+        # ★ 실시간(벽시계) 스로틀: 120ms 이내엔 캐시 재사용
+        if need:
+            now = time.perf_counter()
+            if (now - self._tasc_last_wall) < 0.12 and self._tasc_pred_cache["t"] >= 0.0:
+                c = self._tasc_pred_cache
+                return (c["s_cur"], c["s_up"], c["s_dn"])
+            self._tasc_last_wall = now
 
         if not need:
             c = self._tasc_pred_cache
