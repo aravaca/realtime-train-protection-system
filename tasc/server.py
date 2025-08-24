@@ -624,8 +624,11 @@ class StoppingSim:
 
             if self.tasc_active:
                 # (B) 초제동 유지: 활성화 이후에만 B1/B2를 1초간 강제
-                if not self.first_brake_done:
-                    desired = 2 if speed_kmh >= 70.0 else 1
+                if not self.first_brake_done:    
+                    v0_kmh = self.scn.v0 * 3.6 
+                    desired = 2 if v0_kmh >= 75.0 else 1
+
+                    
                     if dwell_ok and cur != desired:
                         stepv = 1 if desired > cur else -1
                         st.lever_notch = self._clamp_notch(cur + stepv)
@@ -750,7 +753,7 @@ class StoppingSim:
 
             # 0 cm 정차 보너스 (+100)
             if abs(st.stop_error_m or 0.0) < 0.01:
-                score += 100
+                score += 400
 
             # 이슈 플래그들
             st.issues["early_brake_too_short"] = not self.first_brake_done
