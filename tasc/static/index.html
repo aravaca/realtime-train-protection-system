@@ -452,22 +452,47 @@ ws.onmessage=(ev)=>{
     grade_percentEl.textContent = (10* st.grade_percent).toFixed(1);
 
  /* ✅ 타이머 표기: 시작 전엔 budget, 시작하면 카운트다운, 오버런 음수(빨간색) */
-if (st.timer_enabled) {
-  const waiting = !st.running && !st.finished;
-  const toShow = waiting
-    ? Math.max(0, Math.round(st.time_budget_s || 0))  // 예: 28 s
-    : st.time_remaining_int;                          // 예: 28→27→...
+/* ✅ 타이머 표기(견고 버전): 
+   - 대기중: time_budget_s(반올림) 
+   - 실행중: time_remaining_int(카운트다운)
+   - 타이머 미사용/오작동: 가능한 값으로 최대한 보여줌(디버그용)
+*/
+const running  = !!st.running;
+const finished = !!st.finished;
+const budget   = Number(st.time_budget_s ?? 0);
+const remainI  = Number(st.time_remaining_int ?? 0);
+const overI    = Number(st.time_overrun_int ?? 0);
+const timerOn  = !!st.timer_enabled;
 
-  if (toShow >= 0) {
-    timerEl.textContent = `${toShow} s`;
-    timerEl.classList.remove('bad');
-  } else {
-    timerEl.textContent = `-${Math.abs(toShow)} s`;
-    timerEl.classList.add('bad');
-  }
+// 시작 전에는 budget을, 시작하면 카운트다운을, 오버런은 음수로 표시
+let toShowInt;
+if (running || finished) {
+  // 실행 중/종료: 남은시간(정수), 음수면 타임오버
+  toShowInt = remainI;
 } else {
-  timerEl.textContent = '';               // 타이머 안 쓰면 표시 안 함(디버그 가드)
+  // 대기 중: budget이 있으면 그걸 보여줌
+  toShowInt = Math.round(budget);
+}
+
+// 타이머가 꺼져 있어도(=timerOn=false) 최소한 숫자는 보이게 함
+if (!Number.isFinite(toShowInt)) {
+  // 최후의 보강: time_remaining_s 또는 경과시간으로라도 표시
+  const remainF = Number(st.time_remaining_s);
+  if (Number.isFinite(remainF)) {
+    toShowInt = Math.floor(remainF);
+  } else {
+    toShowInt = Math.floor(Number(st.t) || 0); // 디버그용
+  }
+}
+
+// 출력
+if (toShowInt >= 0) {
+  timerEl.textContent = `${toShowInt} s`;   // 28 s, 27 s …
   timerEl.classList.remove('bad');
+} else {
+  const ov = Math.abs(overI || toShowInt);
+  timerEl.textContent = `-${ov} s`;         // -1 s, -2 s …
+  timerEl.classList.add('bad');
 }
     drawHUD(st);
     drawBrakeLadderMini(st);
