@@ -430,14 +430,14 @@ ws.onmessage=(ev)=>{
     // === PATCH: 서버에서 온 TASC 예측 저장 ===
     window.__tasc_pred__ = st.tasc_pred || {};
     const remRaw=st.remaining_m, rem=typeof remRaw==="number"?remRaw:parseFloat(remRaw);
-    remEl.textContent = rem>=0 ? rem.toFixed(2) : `-${Math.abs(rem).toFixed(2)}`;
-    spdEl.textContent = (st.v*3.6).toFixed(1);
+    remEl.textContent = rem>=0 ? rem.toFixed(1) : `-${Math.abs(rem).toFixed(2)}`;
+    spdEl.textContent = (st.v*3.6).toFixed(0);
     const maxIdx = (vehicle?.notches ?? 10) - 1; // EB 인덱스
 notchEl.textContent =
   st.lever_notch === 0 ? "N" :
   st.lever_notch === maxIdx ? "EB" : `B${st.lever_notch}`;
     grade_percentEl.textContent = (10* st.grade_percent).toFixed(1);
-    timerEl.textContent = st.t.toFixed(3);
+    timerEl.textContent = st.t.toFixed(0);
     drawHUD(st);
 
     drawBrakeLadderMini(st);  // ← 미니 인디케이터 갱신
