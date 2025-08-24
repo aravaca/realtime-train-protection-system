@@ -155,7 +155,7 @@ class StoppingSim:
         # ---------- TASC ----------
         self.tasc_enabled = False
         self.manual_override = False
-        self.tasc_deadband_m = 0.08
+        self.tasc_deadband_m = 0.083
         self.tasc_hold_min_s = 0.05
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"  # "build" → "relax"
@@ -188,7 +188,7 @@ class StoppingSim:
 
         # 속도 의존 시정수 기준값(안전한 기본값은 그대로 둠)
         self.tau_apply = 0.25
-        self.tau_release = 0.81
+        self.tau_release = 0.8
         self.tau_apply_eb = 0.15
         self.tau_release_lowv = 0.8
 
