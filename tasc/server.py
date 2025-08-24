@@ -249,7 +249,7 @@ class StoppingSim:
         self.timer_calib: List[dict] = [
             {"v": 60, "L": 200, "t": 24},
             {"v": 70, "L": 300, "t": 29},
-            {"v": 90, "L": 400, "t": 31}
+            {"v": 90, "L": 500, "t": 35}
         ]
         self.timer_idw_power = 2.0         # IDW 거듭제곱
         # 속도/거리 정규화 스케일(거리 계산 공정성 확보)
