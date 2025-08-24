@@ -1023,7 +1023,7 @@ async def ws_endpoint(ws: WebSocket):
     scenario = Scenario.from_json(scenario_json_path)
 
     sim = StoppingSim(vehicle, scenario)
-    sim.start()
+    sim.reset()
 
     # 전송 속도: 30Hz
     send_interval = 1.0 / 30.0
@@ -1055,8 +1055,8 @@ async def ws_endpoint(ws: WebSocket):
                         # ▼ 서버 측 이중 방어(클램프)
                         v_kmh_raw = float(speed)
                         L_raw = float(dist)
-                        v_kmh = max(10.0, min(130.0, v_kmh_raw))
-                        L_m   = max(10.0, min(900.0,  L_raw))
+                        v_kmh = max(40.0, min(130.0, v_kmh_raw))
+                        L_m   = max(150.0, min(900.0,  L_raw))
 
                         sim.scn.v0 = v_kmh / 3.6
                         sim.scn.L = L_m
