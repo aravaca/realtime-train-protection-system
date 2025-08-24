@@ -432,6 +432,15 @@ let isFinished=false, overlayShowingResult=false, st=null, lastTimestamp=0, prev
 function loop(ts){ if(!lastTimestamp) lastTimestamp=ts; lastTimestamp=ts; if(st) drawHUD(st); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 
+// 헬퍼: 정수를 MM:SS 형식으로 바꾸기
+function formatTimeSec(secInt) {
+  const sign = secInt < 0 ? "-" : "";
+  const s = Math.abs(secInt);
+  const m = Math.floor(s / 60);
+  const s2 = s % 60;
+  return sign + (m < 10 ? "0" : "") + m + ":" + (s2 < 10 ? "0" : "") + s2;
+}
+
 ws.onmessage=(ev)=>{
   const msg=JSON.parse(ev.data);
   if(msg.type==="state"){
@@ -485,13 +494,13 @@ if (!Number.isFinite(toShowInt)) {
   }
 }
 
-// 출력
+
+// 출력 (MM:SS 포맷)
 if (toShowInt >= 0) {
-  timerEl.textContent = `${toShowInt} s`;   // 28 s, 27 s …
+  timerEl.textContent = formatTimeSec(toShowInt);   // 00:12 …
   timerEl.classList.remove('bad');
 } else {
-  const ov = Math.abs(overI || toShowInt);
-  timerEl.textContent = `-${ov} s`;         // -1 s, -2 s …
+  timerEl.textContent = formatTimeSec(toShowInt);   // -00:02 …
   timerEl.classList.add('bad');
 }
     drawHUD(st);
