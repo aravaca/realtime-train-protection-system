@@ -188,7 +188,7 @@ class StoppingSim:
 
         # 속도 의존 시정수 기준값(안전한 기본값은 그대로 둠)
         self.tau_apply = 0.25
-        self.tau_release = 0.8
+        self.tau_release = 0.81
         self.tau_apply_eb = 0.15
         self.tau_release_lowv = 0.8
 
