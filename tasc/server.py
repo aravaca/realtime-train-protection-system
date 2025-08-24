@@ -467,7 +467,7 @@ class StoppingSim:
             if rem_pred <= 1.0:
                 safe_rem = max(0.05, rem_pred)
                 a_need = -(v * v) / (2.0 * safe_rem)
-                a_soft = max(-0.40, min(-0.12, a_need))
+                a_soft = max(-0.35, min(-0.10, a_need))
                 if rem_pred <= 0.0:
                     w_soft = 1.0
                 else:
@@ -627,7 +627,7 @@ class StoppingSim:
         if rem_now <= 1.0:
             safe_rem = max(0.05, rem_now)
             a_need = -(st.v * st.v) / (2.0 * safe_rem)
-            a_soft = max(-0.40, min(-0.12, a_need))
+            a_soft = max(-0.35, min(-0.10, a_need))
             w = 1.0 - rem_now
             if rem_now <= 0.0:
                 w = 1.0
