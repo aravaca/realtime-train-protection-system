@@ -6,7 +6,7 @@ import os
 
 from dataclasses import dataclass
 from collections import deque
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
@@ -74,7 +74,6 @@ class Vehicle:
         mass_t = data.get("mass_t", 200.0)
         obj = cls(
             name=data.get("name", "EMU-233-JR-East"),
-            mass_t=mass_t,
             a_max=data.get("a_max", 1.0),
             j_max=data.get("j_max", 0.8),
             notches=data.get("notches", 8),
@@ -84,6 +83,7 @@ class Vehicle:
             ),
             tau_cmd=data.get("tau_cmd_ms", 150) / 1000.0,
             tau_brk=data.get("tau_brk_ms", 250) / 1000.0,
+            mass_t=mass_t,
             mass_kg=mass_t * 1000,
 
             # 초기값(로드 시점 값; 재계산으로 덮어씀)
@@ -142,6 +142,15 @@ class State:
     score: Optional[int] = None
     running: bool = False
 
+    # ▼ 타이머(카운트다운): float 원본 + 정수 표시값
+    time_budget_s: float = 0.0            # 스테이지 부여 시간(초)
+    time_remaining_s: float = 0.0         # 남은 시간(초) — 0 아래로 내려갈 수 있음
+    timer_enabled: bool = False           # 타이머 사용 여부
+    time_remaining_int: int = 0           # 정수 표시용(내림)
+    time_overrun_s: float = 0.0           # 초과 시간(양수)
+    time_overrun_int: int = 0             # 초과 시간 정수 표시
+    time_overrun_started: bool = False    # 오버런 진입 여부
+
 
 # ------------------------------------------------------------
 # Helpers
@@ -168,8 +177,8 @@ class StoppingSim:
         self._cmd_queue = deque()
 
         # 초기 제동(B1/B2) 판정
-        self.first_brake_start = None
-        self.first_brake_done = False
+        self.first_brake_start: Optional[float] = None
+        self.first_brake_done: bool = False
 
         # 기록
         self.notch_history: List[int] = []
@@ -226,6 +235,137 @@ class StoppingSim:
 
         self._a_cmd_filt = 0.0  # 명령 가속도 1차 필터
 
+        # -------------- 타이머 정책(카운트다운) --------------
+        # 표 기반 / 공식 기반 / 보정 기반 자동 산출
+        self.timer_use_table = False
+        self.timer_table = {}             # 예: {60:35, 70:30, 80:26}
+        self.timer_v_target_kmh = 70.0    # 공식 기반 목표 속도(km/h)
+        self.timer_buffer_s = 0.0         # 여유초
+
+        # ---------- 타이머 자동 산출(보정 데이터 기반) ----------
+        # 보정 데이터: [{"v":60, "L":200, "t":23}, ...]  (km/h, m, sec)
+        self.timer_calib: List[dict] = []
+        self.timer_idw_power = 2.0         # IDW 거듭제곱
+        # 속도/거리 정규화 스케일(거리 계산 공정성 확보)
+        self.timer_norm_v = 100.0          # km/h 스케일
+        self.timer_norm_L = 300.0          # m 스케일
+        # 기준점에서 멀면 공식기반과 블렌딩
+        self.timer_blend_threshold = 1.5   # 정규화 거리 기준
+
+        # ▼ 극단값/이상치 처리용 가드레일
+        self.timer_min_s = 5.0
+        self.timer_max_s = 300.0
+        self.timer_min_effective_v_kmh = 12.0   # 공식에 쓰는 최소 유효 속도
+        self.timer_max_effective_v_kmh = 110.0  # 공식에 쓰는 최대 유효 속도
+        self.timer_far_outlier_scale = 0.35     # 아주 멀면 공식 가중 하한
+
+        # 타임오버 페널티/보너스 정책
+        self.timer_overtime_penalty_per_s = 20.0  # 1초당 -20점
+        self.timer_overtime_penalty_cap = 400.0   # 최대 페널티
+        self.timer_exact_bonus = 100              # 정수 0초 도착 시 +100점
+
+        # 입력 보정 기록(클라이언트에 안내용)
+        self.last_input_sanitized = {}
+
+    # ----------------- Timer helpers -----------------
+
+    def set_timer_calibration(self, points: List[dict],
+                              norm_v: float = None,
+                              norm_L: float = None,
+                              idw_power: float = None,
+                              blend_threshold: float = None):
+        """보정 표를 통째로 교체"""
+        self.timer_calib = []
+        for p in points:
+            v = float(p.get("v") or p.get("v_kmh"))
+            L = float(p.get("L") or p.get("dist"))
+            t = float(p.get("t") or p.get("time"))
+            self.timer_calib.append({"v": v, "L": L, "t": t})
+        if norm_v is not None: self.timer_norm_v = float(norm_v)
+        if norm_L is not None: self.timer_norm_L = float(norm_L)
+        if idw_power is not None: self.timer_idw_power = float(idw_power)
+        if blend_threshold is not None: self.timer_blend_threshold = float(blend_threshold)
+
+    def _idw_predict_time(self, v_kmh: float, L_m: float) -> Tuple[float, float]:
+        """보정 표 기반 IDW 추정. (예상시간, 기준점까지의 최소 정규화거리) 반환"""
+        if not self.timer_calib:
+            return float("nan"), float("inf")
+        eps = 1e-6
+        num = 0.0
+        den = 0.0
+        min_d = float("inf")
+        for p in self.timer_calib:
+            dv = (v_kmh - p["v"]) / max(eps, self.timer_norm_v)
+            dL = (L_m   - p["L"]) / max(eps, self.timer_norm_L)
+            d = (dv*dv + dL*dL) ** 0.5
+            min_d = min(min_d, d)
+            w = 1.0 / ((d + eps) ** self.timer_idw_power)
+            num += w * p["t"]
+            den += w
+        t_idw = num / max(eps, den)
+        return t_idw, min_d
+
+    def _formula_time(self, v0_kmh: float, L_m: float) -> float:
+        """
+        기본 공식 기반 시간 = L / v_eff + buffer
+        v_eff는 v_target과 v0의 완만한 혼합(안정적 추정).
+        """
+        v_target = self.timer_v_target_kmh
+        # 거리 비율로 혼합 가중(멀수록 v_target 비중 ↑) — 0~1로 스케일
+        r = min(1.0, max(0.0, L_m / self.timer_norm_L))  # 300m 기준
+        # 너무 느린 v0는 하한, 너무 빠른 v0는 상한
+        v0_clip = min(self.timer_max_effective_v_kmh,
+                      max(self.timer_min_effective_v_kmh, v0_kmh))
+        v_eff = (1.0 - 0.35*r) * v0_clip + (0.35*r) * v_target  # r↑일수록 v_target 쪽
+        v_ms = max(0.1, v_eff / 3.6)
+        return float(L_m / v_ms + self.timer_buffer_s)
+
+    def _compute_time_budget_auto(self, v_kmh: float, L_m: float) -> float:
+        # 1) 보정 표(IDW)
+        t_idw, min_d = self._idw_predict_time(v_kmh, L_m)
+
+        # 2) 강화된 공식 기반
+        t_formula = self._formula_time(v_kmh, L_m)
+
+        # 3) 블렌딩(기준점과 멀수록 공식 비중↑)
+        if not self.timer_calib or math.isnan(t_idw):
+            t = t_formula
+        else:
+            if min_d < self.timer_blend_threshold:
+                # 기준점 근방 → 보정 표 신뢰
+                t = t_idw
+            else:
+                # 먼 이상치 → 선형으로 공식 비중↑
+                alpha = max(0.0, 1.0 - (min_d / (self.timer_blend_threshold * 2.0)))
+                # 공식 비중 하한(너무 멀면 공식 최소 35% 반영)
+                formula_weight = max(1.0 - alpha, self.timer_far_outlier_scale)
+                t = (1.0 - formula_weight) * t_idw + formula_weight * t_formula
+
+        # 4) 최종 클램핑
+        t = max(self.timer_min_s, min(self.timer_max_s, t))
+        return t
+
+    def _compute_time_budget(self) -> float:
+        """스테이지 시작 시 부여할 제한시간(초) 계산"""
+        if not self.state.timer_enabled:
+            return 0.0
+
+        v0_kmh = self.scn.v0 * 3.6
+        L_m = self.scn.L
+
+        # A) 보정 표가 있으면 자동 산출 우선
+        if self.timer_calib:
+            return self._compute_time_budget_auto(v0_kmh, L_m)
+
+        # B) 정적 테이블 매핑 사용 시
+        if self.timer_use_table and self.timer_table:
+            v0_round = round(v0_kmh)
+            key = min(self.timer_table.keys(), key=lambda k: abs(int(k) - v0_round))
+            return float(self.timer_table[key])
+
+        # C) 그 외엔 공식 기반
+        return self._formula_time(v0_kmh, L_m)
+
     # ----------------- Physics helpers -----------------
 
     def _effective_brake_accel(self, notch: int, v: float) -> float:
@@ -254,7 +394,7 @@ class StoppingSim:
         F = A0 + B1 * v + C2 * v * v  # N
         return -F / self.veh.mass_kg if v != 0 else 0.0
 
-    # ----------------- (2)(3)(4)(5) 등 나머지 로직은 그대로 -----------------
+    # ----------------- 기타 헬퍼 -----------------
     def _taus_for_speed(self, v: float, is_eb: bool):
         v_kmh = v * 3.6
         if is_eb:
@@ -380,6 +520,20 @@ class StoppingSim:
 
         self.rr_factor = 1.0
 
+        # ▼ 타이머 초기화
+        if self.state.timer_enabled:
+            self.state.time_budget_s = self._compute_time_budget()
+            self.state.time_remaining_s = self.state.time_budget_s
+        else:
+            self.state.time_budget_s = 0.0
+            self.state.time_remaining_s = 0.0
+
+        # ▼ 정수 표시 초기화
+        self.state.time_remaining_int = math.floor(self.state.time_remaining_s)
+        self.state.time_overrun_s = 0.0
+        self.state.time_overrun_int = 0
+        self.state.time_overrun_started = False
+
         if DEBUG:
             print("Simulation reset")
 
@@ -460,21 +614,16 @@ class StoppingSim:
 
             a_grade = self._grade_accel()
             a_davis = self._davis_accel(v)
-
             a_target = a_brake + a_grade + a_davis
 
-            # (신규) 속도 기반 소프트 스톱: v_kmh ∈ [0, 5]에서 부드럽게 감쇠
+            # (신규) 속도 기반 소프트 스톱
             rem_pred = max(0.0, rem_now - s)
             v_kmh = v * 3.6
             if v_kmh <= 5.0:
-    # alpha: 5km/h에서 1, 0km/h에서 0
                 alpha = max(0.0, min(1.0, v_kmh / 5.0))
-    # a_soft: 5km/h에서는 약 -0.30 m/s^2, 0에서는 -0.08 m/s^2 쪽으로 점진 완화
                 a_soft = (-0.30) * alpha + (-0.08) * (1.0 - alpha)
-    # w_soft: 속도가 낮아질수록 소프트 타겟 비중 증가
                 w_soft = 1.0 - alpha
                 a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
-
 
             if notch == 1 or rem_pred <= 0.0:
                 a_target = min(a_target, 0.0)
@@ -577,10 +726,25 @@ class StoppingSim:
             else:
                 self.first_brake_start = None
 
+        # ▼ 타이머(카운트다운): 0 아래로도 계속 진행
+        if st.timer_enabled and not st.finished:
+            st.time_remaining_s -= dt
+            st.time_remaining_int = math.floor(st.time_remaining_s)
+            if st.time_remaining_s < 0.0:
+                st.time_overrun_s = -st.time_remaining_s
+                st.time_overrun_int = abs(st.time_remaining_int)
+                if not st.time_overrun_started:
+                    st.time_overrun_started = True
+                    st.issues = getattr(st, "issues", {})
+                    st.issues["timeout_started"] = True
+            else:
+                st.time_overrun_s = 0.0
+                st.time_overrun_int = 0
+
+        # ---------- TASC ----------
         if self.tasc_enabled and not self.manual_override and not st.finished:
             dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
             rem_now = self.scn.L - st.s
-            speed_kmh = st.v * 3.6
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2
 
@@ -616,6 +780,7 @@ class StoppingSim:
                                 st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
 
+        # ---------- Dynamics ----------
         a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v)
         is_eb = (st.lever_notch == self.veh.notches - 1)
         self._update_brake_dyn_split(a_cmd_brake, st.v, is_eb, dt)
@@ -627,14 +792,13 @@ class StoppingSim:
         a_target = a_brake + a_grade + a_davis
 
         rem_now = self.scn.L - st.s
-        # --- 속도 기반 소프트 스톱 ---
         v_kmh = st.v * 3.6
+        # --- 속도 기반 소프트 스톱 ---
         if v_kmh <= 5.0:
             alpha = max(0.0, min(1.0, v_kmh / 5.0))     # 5km/h→1, 0km/h→0
             a_soft = (-0.30) * alpha + (-0.08) * (1.0 - alpha)
             w_soft = 1.0 - alpha                         # 속도가 낮을수록 소프트 비중↑
             a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
-
 
         if st.lever_notch >= 1 or rem_now <= 0.0:
             a_target = min(a_target, 0.0)
@@ -642,7 +806,6 @@ class StoppingSim:
         self._a_cmd_filt += (a_target - self._a_cmd_filt) * (dt / max(1e-6, self.veh.tau_brk))
 
         max_da = self.veh.j_max * dt
-        v_kmh = st.v * 3.6
         if v_kmh <= 5.0:
             scale = 0.25 + 0.75 * (v_kmh / 5.0)
             max_da *= scale
@@ -658,6 +821,7 @@ class StoppingSim:
         st.s += st.v * dt + 0.5 * st.a * dt * dt
         st.t += dt
 
+        # ---------- Finish ----------
         rem = self.scn.L - st.s
         if not st.finished and (rem <= -5.0 or st.v <= 0.0):
             st.finished = True
@@ -713,6 +877,26 @@ class StoppingSim:
 
             avg_jerk, jerk_score = self.compute_jerk_score()
             score += int(jerk_score)
+
+            # ▼ 타임오버/정확 도착 보정 (정수 초 기준)
+            if st.timer_enabled:
+                # 정수 0초(내림) 도착 → 보너스
+                if st.time_remaining_int == 0:
+                    score += int(self.timer_exact_bonus)
+                    st.issues["timer_exact_hit"] = True
+                    st.issues["timer_exact_bonus"] = int(self.timer_exact_bonus)
+                    st.time_overrun_int = 0
+                    st.time_overrun_s = 0.0
+                elif st.time_remaining_int < 0:
+                    over_s = abs(st.time_remaining_int)  # 정수 초
+                    overtime_pen = min(
+                        self.timer_overtime_penalty_per_s * over_s,
+                        self.timer_overtime_penalty_cap
+                    )
+                    score -= int(overtime_pen)
+                    st.issues["timeout_overrun_s"] = over_s
+                    st.issues["timeout_penalty"] = int(overtime_pen)
+                # 남은 시간이 양수(조기 도착)인 경우는 보너스/페널티 없음
 
             st.score = score
             self.running = False
@@ -787,12 +971,25 @@ class StoppingSim:
             "score": getattr(st, "score", 0),
             "issues": getattr(st, "issues", {}),
             "tasc_enabled": getattr(self, "tasc_enabled", False),
+
             # HUD/디버그용 (업데이트된 Davis 확인 가능)
             "mu": float(self.scn.mu),
             "rr_factor": float(self.rr_factor),
             "davis_A0": self.veh.A0,
             "davis_B1": self.veh.B1,
             "davis_C2": self.veh.C2,
+
+            # ▼ 타이머 표시용
+            "timer_enabled": st.timer_enabled,
+            "time_budget_s": st.time_budget_s,
+            "time_remaining_s": st.time_remaining_s,     # float 원본(음수 가능)
+            "time_remaining_int": st.time_remaining_int, # 정수 표시(내림)
+            "time_overrun_s": st.time_overrun_s,
+            "time_overrun_int": st.time_overrun_int,
+            "time_overrun_started": st.time_overrun_started,
+
+            # 입력 보정 정보(서버 클램프)
+            "input_sanitized": getattr(self, "last_input_sanitized", {}),
         }
 
 
@@ -855,15 +1052,27 @@ async def ws_endpoint(ws: WebSocket):
                     grade = payload.get("grade", 0.0) / 10.0
                     mu = float(payload.get("mu", 1.0))
                     if speed is not None and dist is not None:
-                        sim.scn.v0 = float(speed) / 3.6
-                        sim.scn.L = float(dist)
+                        # ▼ 서버 측 이중 방어(클램프)
+                        v_kmh_raw = float(speed)
+                        L_raw = float(dist)
+                        v_kmh = max(10.0, min(130.0, v_kmh_raw))
+                        L_m   = max(10.0, min(900.0,  L_raw))
+
+                        sim.scn.v0 = v_kmh / 3.6
+                        sim.scn.L = L_m
                         sim.scn.grade_percent = float(grade)
                         sim.scn.mu = mu
-                        # rr_factor는 고정(1.0)
+
+                        # 클램프 여부 기록
+                        sim.last_input_sanitized = {
+                            "speed_input": v_kmh_raw, "speed_used": v_kmh,
+                            "dist_input": L_raw, "dist_used": L_m,
+                            "clamped": (v_kmh != v_kmh_raw) or (L_m != L_raw)
+                        }
+
                         if DEBUG:
-                            print(
-                                f"setInitial: v0={speed}km/h, L={dist}m, grade={grade}%, mu={mu}"
-                            )
+                            print(f"setInitial: v0={v_kmh:.1f}km/h ({v_kmh_raw}), "
+                                  f"L={L_m:.0f}m ({L_raw}), grade={grade}%, mu={mu}")
                         sim.reset()
 
                 elif name == "start":
@@ -966,6 +1175,60 @@ async def ws_endpoint(ws: WebSocket):
                                 print(f"[Vehicle] load failed: {rel} -> {e}")
 
                 elif name == "reset":
+                    sim.reset()
+
+                # ---------- 타이머/페널티/보너스/보정 설정 ----------
+                elif name == "setTimerFormula":
+                    # payload: { "enabled": true, "v_target_kmh": 70, "buffer_s": 0 }
+                    sim.timer_use_table = False
+                    sim.state.timer_enabled = bool(payload.get("enabled", True))
+                    sim.timer_v_target_kmh = float(payload.get("v_target_kmh", 70))
+                    sim.timer_buffer_s = float(payload.get("buffer_s", 0.0))
+                    sim.reset()
+
+                elif name == "setTimerTable":
+                    # payload: { "enabled": true, "table": { "60":35, "70":30, "80":26 } }
+                    tbl = payload.get("table", {})
+                    sim.timer_use_table = True
+                    sim.state.timer_enabled = bool(payload.get("enabled", True))
+                    sim.timer_table = {int(k): float(v) for k, v in tbl.items()}
+                    sim.reset()
+
+                elif name == "toggleTimer":
+                    # payload: { "enabled": false }
+                    sim.state.timer_enabled = bool(payload.get("enabled", False))
+                    sim.reset()
+
+                elif name == "setTimerPenalty":
+                    # payload: { "per_s": 20, "cap": 400 }
+                    sim.timer_overtime_penalty_per_s = float(payload.get("per_s", 20.0))
+                    sim.timer_overtime_penalty_cap = float(payload.get("cap", 400.0))
+
+                elif name == "setTimerExactBonus":
+                    # payload: {"bonus": 100}
+                    sim.timer_exact_bonus = float(payload.get("bonus", 100))
+
+                elif name == "setTimerCalib":
+                    # payload 예시:
+                    # {
+                    #   "points":[
+                    #     {"v":60, "L":200, "t":23},
+                    #     {"v":70, "L":200, "t":28},
+                    #     {"v":90, "L":400, "t":30}
+                    #   ],
+                    #   "norm_v": 100, "norm_L": 300,
+                    #   "idw_power": 2.0, "blend_threshold": 1.5
+                    # }
+                    pts = payload.get("points", [])
+                    sim.set_timer_calibration(
+                        points=pts,
+                        norm_v=payload.get("norm_v"),
+                        norm_L=payload.get("norm_L"),
+                        idw_power=payload.get("idw_power"),
+                        blend_threshold=payload.get("blend_threshold"),
+                    )
+                    # 자동 산출이 적용되도록 리셋
+                    sim.state.timer_enabled = True
                     sim.reset()
 
         except WebSocketDisconnect:
