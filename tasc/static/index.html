@@ -925,59 +925,54 @@ populateSeries(); // 최초 세팅
     if(nodes.btnMobileRestart){ nodes.btnMobileRestart.textContent = d.btnMobileRestart; nodes.btnMobileRestart.setAttribute("aria-label", d.btnMobileRestart); }
 
 // ---- 피드백 번역 (상태 기반으로 재렌더링) ----
+// ---- 피드백 번역 (상태 기반으로 재렌더링) ----
 if (nodes.fb) {
+  const fbd = d.feedback;
+  const issues  = window.st?.issues ?? {};
+
+  const rows = [];
+  rows.push({
+    bad: !!issues.early_brake_too_short,
+    goodText: fbd.early_good,
+    badText:  fbd.early_bad
+  });
+  rows.push({
+    bad: !!issues.stop_not_b1,
+    goodText: fbd.stop_good,
+    badText:  fbd.stop_bad
+  });
+  rows.push({
+    bad: !!issues.step_brake_incomplete,
+    goodText: fbd.step_good,
+    badText:  fbd.step_bad
+  });
+  rows.push({
+    bad: !!issues.unnecessary_eb_usage,
+    goodText: fbd.eb_good,
+    badText:  fbd.eb_bad
+  });
+
+  let html = rows.map(r =>
+    `<div class="${r.bad ? "bad" : "ok"}">${r.bad ? r.badText : r.goodText}</div>`
+  ).join("");
+
+  const stopErr = Number(window.st?.stop_error_m ?? 0);
+  const score   = Number(window.st?.score ?? 0);
+  const goodErr = Math.abs(stopErr) <= 2;
+
+  // 정차 완료 후에만 유효한 값, 아니면 hintIdle만
   if (window.st && window.st.finished) {
-    const fbd = d.feedback;
-
-    // ✅ window.st로 일관되게 참조
-    const issues  = window.st?.issues ?? {};
-
-    const rows = [];
-    rows.push({
-      bad: !!issues.early_brake_too_short,
-      goodText: fbd.early_good,
-      badText:  fbd.early_bad
-    });
-    rows.push({
-      bad: !!issues.stop_not_b1,
-      goodText: fbd.stop_good,
-      badText:  fbd.stop_bad
-    });
-    rows.push({
-      bad: !!issues.step_brake_incomplete,
-      goodText: fbd.step_good,
-      badText:  fbd.step_bad
-    });
-    rows.push({
-      bad: !!issues.unnecessary_eb_usage,
-      goodText: fbd.eb_good,
-      badText:  fbd.eb_bad
-    });
-
-    let html = rows.map(r =>
-      `<div class="${r.bad ? "bad" : "ok"}">${r.bad ? r.badText : r.goodText}</div>`
-    ).join("");
-
-    // ✅ 역시 window.st로
-    const stopErr = Number(window.st?.stop_error_m ?? 0);
-    const score   = Number(window.st?.score ?? 0);
-    const goodErr = Math.abs(stopErr) <= 2;
-
     html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.stopErr(stopErr)}</div>`;
     html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.score(score)}</div>`;
     html += `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">${fbd.hintAgain}</div>`;
-
-    nodes.fb.innerHTML = html;
   } else {
-    const fbd = d.feedback;
-    const txt = (nodes.fb.textContent || "").trim();
-    if (!txt || /Space|시작|Start/i.test(txt)) {
-      nodes.fb.textContent = fbd.hintIdle;
-    }
+    html = `<div class="warn">${fbd.hintIdle}</div>`;
   }
+
+  nodes.fb.innerHTML = html;
 }
 
-// 최초 한국어 → 10초(또는 5초)마다 토글
+// 최초 한국어 → 5초마다 토글
 let current = "ko";
 setLang(current);
 setInterval(()=>{
