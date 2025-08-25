@@ -515,9 +515,32 @@ if (Math.abs(rem) <= 0.35) {
 }
 
   spdEl.textContent = (st.v * 3.6).toFixed(1);
+
+
   const maxIdx = (vehicle?.notches ?? 10) - 1; // EB 인덱스
-  notchEl.textContent = st.lever_notch === 0 ? "N" : (st.lever_notch === maxIdx ? "EB" : `B${st.lever_notch}`);
+let notchText = "N";
+let notchColor = "";
+
+if (st.lever_notch === 0) {
+  notchText = "N";
+  notchColor = "#9effb5";     // 초록
+} else if (st.lever_notch === maxIdx) {
+  notchText = "EB";
+  notchColor = "#ff5757";     // 빨강
+} else {
+  notchText = `B${st.lever_notch}`;
+  notchColor = "#d08c3f";     // 어두운 주황/황토색
+}
+
+notchEl.textContent = notchText;
+notchEl.style.color = notchColor;
+
+
+
+
   grade_percentEl.textContent = (10 * st.grade_percent).toFixed(1);
+
+
 
   const running  = !!st.running;
   const finished = !!st.finished;
