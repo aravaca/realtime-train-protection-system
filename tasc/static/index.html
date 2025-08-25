@@ -291,7 +291,7 @@ const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 function canVibrate() { return isMobile && typeof navigator.vibrate === "function" && document.visibilityState === "visible"; }
 function vibrate(pattern) { if (!canVibrate()) return false; return navigator.vibrate(pattern) !== false; }
 function hapticForNotch(delta) { if (delta !== 0) vibrate([80, 10, 80]); }
-function hapticForEB() { vibrate([100, 10, 100]); }
+function hapticForEB() { vibrate([100, 50, 100, 50, 100]); }
 
 /* ===== 차량 JSON 로드 (캐시 무시) ===== */
 let vehicle=null; let brakeDecels={};
@@ -709,7 +709,7 @@ const TRAIN_DB={
       file: "./223_0000.json", lengths: [4] },
     { code: "WEST 223-1000",
       lines: "비와코·JR 교토·JR 고베 라인 등",
-      file: "./223_1000.json", lengths: [8,4] }
+      file: "./223_1000.json", lengths: [4,8] }
   ],
   JRW225: [
     { code: "WEST 225-0",
@@ -720,7 +720,7 @@ const TRAIN_DB={
       file: "./225_5000.json", lengths: [4] },
     { code: "WEST 225-6000",
       lines: "JR 고베선 · 후쿠치야마선",
-      file: "./225_6000.json", lengths: [6,4] }
+      file: "./225_6000.json", lengths: [4,6] }
   ],
   JRW323: [{ code: "WEST 323-0", lines: "오사카 순환선 전용", file: "./323_0000.json", lengths: [8] }],
   JRW285: [{ code: "WEST 285-0/3000", lines: "침대특급 선라이즈 이즈모·세토", file: "./285.json", lengths: [7, 14] }],
