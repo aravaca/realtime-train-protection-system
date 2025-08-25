@@ -923,78 +923,77 @@ populateSeries(); // 최초 세팅
     if(nodes.btnMobileRestart){ nodes.btnMobileRestart.textContent = d.btnMobileRestart; nodes.btnMobileRestart.setAttribute("aria-label", d.btnMobileRestart); }
 
 // ---- 피드백 번역 (상태 기반으로 재렌더링) ----
-    if (nodes.fb) {
-      // finished 상태면 새로 렌더링
-      if (typeof window.st === "object" && st && st.finished) {
-        const fbd = d.feedback;
-        const issues = st.issues || {};
+if (nodes.fb) {
+  // finished 상태면 새로 렌더링
+  if (st && st.finished) {  // 👈 여기만 수정: window.st 체크 제거
+    const fbd = d.feedback;
+    const issues = st.issues || {};
 
-        const rows = [];
+    const rows = [];
 
-        // 초기 제동
-        rows.push({
-          bad: !!issues.early_brake_too_short,
-          goodText: fbd.early_good,
-          badText:  fbd.early_bad
-        });
+    // 초기 제동
+    rows.push({
+      bad: !!issues.early_brake_too_short,
+      goodText: fbd.early_good,
+      badText:  fbd.early_bad
+    });
 
-        // B1 정차
-        rows.push({
-          bad: !!issues.stop_not_b1,
-          goodText: fbd.stop_good,
-          badText:  fbd.stop_bad
-        });
+    // B1 정차
+    rows.push({
+      bad: !!issues.stop_not_b1,
+      goodText: fbd.stop_good,
+      badText:  fbd.stop_bad
+    });
 
-        // 계단제동/완해
-        rows.push({
-          bad: !!issues.step_brake_incomplete,
-          goodText: fbd.step_good,
-          badText:  fbd.step_bad
-        });
+    // 계단제동/완해
+    rows.push({
+      bad: !!issues.step_brake_incomplete,
+      goodText: fbd.step_good,
+      badText:  fbd.step_bad
+    });
 
-        // 불필요한 EB
-        rows.push({
-          bad: !!issues.unnecessary_eb_usage,
-          goodText: fbd.eb_good,
-          badText:  fbd.eb_bad
-        });
+    // 불필요한 EB
+    rows.push({
+      bad: !!issues.unnecessary_eb_usage,
+      goodText: fbd.eb_good,
+      badText:  fbd.eb_bad
+    });
 
-        // 본문 HTML 구성
-        let html = rows.map(r =>
-          `<div class="${r.bad ? "bad" : "ok"}">${r.bad ? r.badText : r.goodText}</div>`
-        ).join("");
+    // 본문 HTML 구성
+    let html = rows.map(r =>
+      `<div class="${r.bad ? "bad" : "ok"}">${r.bad ? r.badText : r.goodText}</div>`
+    ).join("");
 
-        // 정지 오차/점수
-        const stopErr = Number(st.stop_error_m ?? 0);
-        const score   = Number(st.score ?? 0);
-        const goodErr = Math.abs(stopErr) <= 2;
+    // 정지 오차/점수
+    const stopErr = Number(st.stop_error_m ?? 0);
+    const score   = Number(st.score ?? 0);
+    const goodErr = Math.abs(stopErr) <= 2;
 
-        html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.stopErr(stopErr)}</div>`;
-        html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.score(score)}</div>`;
+    html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.stopErr(stopErr)}</div>`;
+    html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.score(score)}</div>`;
 
-        // 힌트
-        html += `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">${fbd.hintAgain}</div>`;
+    // 힌트
+    html += `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">${fbd.hintAgain}</div>`;
 
-        nodes.fb.innerHTML = html;
+    nodes.fb.innerHTML = html;
 
-      } else {
-        // 아직 종료 전이면 idle 힌트만 언어에 맞춰 교체
-        const fbd = d.feedback;
-        const txt = (nodes.fb.textContent || "").trim();
-        if (!txt || /Space|시작|Start/i.test(txt)) {
-          nodes.fb.textContent = fbd.hintIdle;
-        }
-      }
+  } else {
+    // 아직 종료 전이면 idle 힌트만 언어에 맞춰 교체
+    const fbd = d.feedback;
+    const txt = (nodes.fb.textContent || "").trim();
+    if (!txt || /Space|시작|Start/i.test(txt)) {
+      nodes.fb.textContent = fbd.hintIdle;
     }
+  }
+}
 
-  // 최초 한국어 → 10초마다 토글
-  let current = "ko";
+// 최초 한국어 → 10초(또는 5초)마다 토글
+let current = "ko";
+setLang(current);
+setInterval(()=>{
+  current = (current==="ko") ? "en" : "ko";
   setLang(current);
-  setInterval(()=>{
-    current = (current==="ko") ? "en" : "ko";
-    setLang(current);
-  }, 5000);
-})();
+}, 5000);
 </script>
 
 <footer style="text-align:center; font-size:12px; color:#888; padding:8px 0; user-select:none;">
