@@ -925,7 +925,7 @@ populateSeries(); // 최초 세팅
 // ---- 피드백 번역 (상태 기반으로 재렌더링) ----
 if (nodes.fb) {
   // finished 상태면 새로 렌더링
-  if (window.st && st.finished) {  // 👈 여기만 수정: window.st 체크 제거
+  if (window.st && window.st.finished) {  // 👈 여기만 수정: window.st 체크 제거
     const fbd = d.feedback;
     const issues = st.issues || {};
 
