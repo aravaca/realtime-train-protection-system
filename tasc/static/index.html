@@ -93,29 +93,29 @@ body{overflow-x:hidden;overflow-y:auto}
       정차 후 아래 화면에서 피드백을 확인하세요.
     </div>
 
-    <div class="card" style="flex:1 1 260px; position: relative">
-      <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal;" class="stat">차량 로딩 중...</div>
+<div class="card" style="flex:1 1 260px; position: relative">
+  <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal;" class="stat">차량 로딩 중...</div>
 
-      <div><span id="labelRemainTime">남은시간</span> <span class="stat" id="timer">0 s</span></div>
-      <div><span id="labelSpeed">속도</span> <span class="stat" id="spd">—</span> km/h</div>
-      <div><span id="labelRemainDist">정차</span> <span class="stat" id="rem">—</span></div>
-      <div><span id="labelGrade">구배</span> <span class="stat" id="grade_percent">—</span> ‰</div>
-      <div><span id="labelNotch">제동</span> <span class="stat" id="notch">-</span></div>    
+  <div><span id="labelRemainTime">남은시간</span> <span class="stat" id="timer">0 s</span></div>
+  <div><span id="labelSpeed">속도</span> <span class="stat" id="spd">—</span> km/h</div>
+  <div><span id="labelRemainDist">정차</span> <span class="stat" id="rem">—</span></div>
+  <div><span id="labelGrade">구배</span> <span class="stat" id="grade_percent">—</span> ‰</div>
+  <div><span id="labelNotch">제동</span> <span class="stat" id="notch">-</span></div>    
 
-      <div style="margin-top:8px">
-        <span id="labelControls">조작:</span>
-        <span class="kbd">Space</span> <span id="labelStartKey">시작</span> ·
-        <span class="kbd">W</span> <span id="labelUp">강화</span> ·
-        <span class="kbd">S</span> <span id="labelDown">완화</span> ·
-        <span class="kbd">N</span> <span id="labelRelease">해방</span>
-      </div>
-
-      <canvas id="brakeLadder" style="position:absolute; right:10px; top:30px; width:28px; height:70%;"></canvas>
-    </div>
-
-    <div class="card" style="flex:2 1 520px"><canvas id="hud"></canvas></div>
-    <div class="card" style="flex:1 1 240px"><div><b>피드백</b></div><div id="fb">Space로 시작. W/S로 브레이크 조절하세요.</div></div>
+  <div style="margin-top:8px">
+    <span id="labelControls">조작:</span>
+    <span class="kbd">Space</span> <span id="labelStartKey">시작</span> ·
+    <span class="kbd">W</span> <span id="labelUp">강화</span> ·
+    <span class="kbd">S</span> <span id="labelDown">완화</span> ·
+    <span class="kbd">N</span> <span id="labelRelease">해방</span>
   </div>
+
+  <canvas id="brakeLadder" style="position:absolute; right:10px; top:30px; width:28px; height:70%;"></canvas>
+</div>
+
+<div class="card" style="flex:2 1 520px"><canvas id="hud"></canvas></div>
+<div class="card" style="flex:1 1 240px"><div><b>피드백</b></div><div id="fb">Space로 시작. W/S로 브레이크 조절하세요.</div></div>
+</div>
 </div>
 
 <!-- 오버레이 -->
@@ -136,7 +136,7 @@ body{overflow-x:hidden;overflow-y:auto}
     </div>
 
     <!-- 전동차 / 시리즈 -->
-    <label class="form-label" id="labelTrain">전동차
+    <label class="form-label"><span id="labelTrain">전동차</span>
       <select id="trainFamily" class="form-input">
         <option value="E233" selected>E233계</option>
         <option value="E235">E235계</option>
@@ -147,33 +147,33 @@ body{overflow-x:hidden;overflow-y:auto}
         <option value="JRW323">323계</option>
       </select>
     </label>
-    <label class="form-label" id="labelSeries">시리즈
+    <label class="form-label"><span id="labelSeries">시리즈</span>
       <select id="trainSeries" class="form-input"></select>
     </label>
 
     <!-- ✅ 속도/거리 입력 범위 갱신: 속도 40~130, 거리 150~900 -->
-    <label class="form-label" id="labelInitSpeed">초기 속도 (km/h)
+    <label class="form-label"><span id="labelInitSpeed">초기 속도 (km/h)</span>
       <input id="inputSpeed" type="number" value="70" min="40" max="130" step="1" class="form-input">
     </label>
-    <label class="form-label" id="labelInitDist">거리 (m)
+    <label class="form-label"><span id="labelInitDist">거리 (m)</span>
       <input id="inputDist" type="number" value="300" min="150" max="900" step="1" class="form-input">
     </label>
-    <label class="form-label" id="labelGradeInput">경사도 (‰)
+    <label class="form-label"><span id="labelGradeInput">경사도 (‰)</span>
       <input id="inputGrade" type="number" value="0.0" min="-10" max="10" step="0.1" class="form-input">
     </label>
 
-    <label class="form-label" id="labelWeather">날씨
+    <label class="form-label"><span id="labelWeather">날씨</span>
       <select id="weatherSelect" class="form-input">
         <option value="맑음">맑음</option><option value="비옴">비옴</option><option value="눈옴">눈옴</option>
       </select>
     </label>
-    <label class="form-label" id="labelLoadRate">승객 탑승률 (%)
+    <label class="form-label"><span id="labelLoadRate">승객 탑승률 (%)</span>
       <input id="inputLoadRate" type="number" value="70" min="0" max="120" step="1" class="form-input">
     </label>
 
     <!-- 편성 (시리즈별로만 고정 노출) -->
-    <label class="form-label" id="labelTrainLength">편성
-      <select class="form-input" id="trainLength" onchange="updateTrainLength"></select>
+    <label class="form-label"><span id="labelTrainLength">편성</span>
+      <select class="form-input" id="trainLength" onchange="updateTrainLength()"></select>
     </label>
 
     <div class="game-background"></div>
