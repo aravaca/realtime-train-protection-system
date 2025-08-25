@@ -108,11 +108,12 @@ body{overflow-x:hidden;overflow-y:auto}
 <body>
 <div id="wrap" class="row" style="flex-direction:column">
   <div class="row" style="gap:16px;flex-wrap:wrap">
-    <div class="mobile-control-guide" id="mobileGuide">
+
+ <!--   <div class="mobile-control-guide" id="mobileGuide">
       📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>
       위쪽 터치 → 브레이크 강화 🔼 / 아래쪽 터치 → 완화 🔽<br>
       정차 후 아래 화면에서 피드백을 확인하세요.
-    </div>
+    </div> --!>
 
 <div class="card" style="flex:1 1 260px; position: relative">
   <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal;" class="stat">차량 로딩 중...</div>
@@ -840,8 +841,8 @@ populateSeries(); // 최초 세팅
       labelNotch: "Brake",
       labelControls: "",
       labelStartKey: "Start",
-      labelUp: "Apply",
-      labelDown: "Ease",
+      labelUp: "B+",
+      labelDown: "B-",
       labelRelease: "Release",
       subtitleIntro:
         "Enter initial values, set <b>TASC (Auto-Stop)</b>, then press <b>Space</b> or the button below to start. Even with TASC enabled, the driver can intervene manually.",
@@ -857,7 +858,7 @@ populateSeries(); // 최초 세팅
       btnStart: "Start (Space)",
       btnMobileRestart: "Restart",
       mobileGuide:
-        "📱 <b>Mobile Controls:</b> Tap on the canvas (graph).<br>Upper half → apply brake / Lower half → ease brake <br>Check feedback below after stopping.",
+        "📱 <b>Mobile Controls:</b> Tap on the canvas (graph).<br>Upper half → apply brake 🔼 / Lower half → ease brake 🔽<br>Check feedback below after stopping.",
       feedback: {
         early_good: "Early brake applied — smooth ride",
         early_bad: "Early brake neglected — uncomfortable ride",
