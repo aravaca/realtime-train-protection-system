@@ -922,37 +922,70 @@ populateSeries(); // 최초 세팅
     if(nodes.btnStart){ nodes.btnStart.textContent = d.btnStart; nodes.btnStart.setAttribute("aria-label", d.btnStart); }
     if(nodes.btnMobileRestart){ nodes.btnMobileRestart.textContent = d.btnMobileRestart; nodes.btnMobileRestart.setAttribute("aria-label", d.btnMobileRestart); }
 
-    // ---- 피드백 번역 (현재 fb.innerHTML 내용을 정규식으로 치환) ----
-    if(nodes.fb && nodes.fb.innerHTML){
-      const fbd = d.feedback;
-      let raw = nodes.fb.innerHTML;
+// ---- 피드백 번역 (상태 기반으로 재렌더링) ----
+    if (nodes.fb) {
+      // finished 상태면 새로 렌더링
+      if (typeof window.st === "object" && st && st.finished) {
+        const fbd = d.feedback;
+        const issues = st.issues || {};
 
-      // 힌트 문구
-      raw = raw
-        .replace(/Space로 시작\. W\/S로 브레이크 조절하세요\./, fbd.hintIdle)
-        .replace(/Space로 다시 시작 · N 해방 · W\/S로 조작/, fbd.hintAgain)
-        .replace(/Press Space to start\. Use W\/S to adjust brake\./, fbd.hintIdle)
-        .replace(/Press Space to restart · N to release · W\/S to operate/, fbd.hintAgain);
+        const rows = [];
 
-      // 평가 문구
-      raw = raw
-        .replace(/초기 제동을 수행함 — 승차감 양호|초기 제동을 수행함 - 승차감 양호/, fbd.early_good)
-        .replace(/초기 제동을 게을리함 — 승차감 불쾌|초기 제동을 게을리함 - 승차감 불쾌/, fbd.early_bad)
-        .replace(/정차 시 B1로 정차함 — 승차감 양호|정차 시 B1로 정차함 - 승차감 양호/, fbd.stop_good)
-        .replace(/정차 시 B1로 정차하지 않음/, fbd.stop_bad)
-        .replace(/기본제동 \(계단제동\/완해\) 수행함/, fbd.step_good)
-        .replace(/기본제동 \(계단제동\/완해\) 미흡 — 단속적 제동으로 승객 쏠림\/진동|기본제동 \(계단제동\/완해\) 미흡 - 단속적인 제동으로 인한 승객 쏠림 및 차량 진동 발생/, fbd.step_bad)
-        .replace(/영업 안전 제동범위 준수/, fbd.eb_good)
-        .replace(/불필요한 비상제동\(EB\) 사용 — 급감속 충격|불필요한 비상제동\(EB\) 사용 - 급감속으로 인한 충격 발생/, fbd.eb_bad)
-        // 수치 포함 항목
-        .replace(/최종 점수:\s*(\d+)점/, (_,n)=>fbd.score(Number(n)))
-        .replace(/Final Score:\s*(\d+)/, (_,n)=>fbd.score(Number(n)))
-        .replace(/정지 오차:\s*([\-0-9.]+)\s*m/, (_,m)=>fbd.stopErr(Number(m)))
-        .replace(/Stop Error:\s*([\-0-9.]+)\s*m/,  (_,m)=>fbd.stopErr(Number(m)));
+        // 초기 제동
+        rows.push({
+          bad: !!issues.early_brake_too_short,
+          goodText: fbd.early_good,
+          badText:  fbd.early_bad
+        });
 
-      nodes.fb.innerHTML = raw;
+        // B1 정차
+        rows.push({
+          bad: !!issues.stop_not_b1,
+          goodText: fbd.stop_good,
+          badText:  fbd.stop_bad
+        });
+
+        // 계단제동/완해
+        rows.push({
+          bad: !!issues.step_brake_incomplete,
+          goodText: fbd.step_good,
+          badText:  fbd.step_bad
+        });
+
+        // 불필요한 EB
+        rows.push({
+          bad: !!issues.unnecessary_eb_usage,
+          goodText: fbd.eb_good,
+          badText:  fbd.eb_bad
+        });
+
+        // 본문 HTML 구성
+        let html = rows.map(r =>
+          `<div class="${r.bad ? "bad" : "ok"}">${r.bad ? r.badText : r.goodText}</div>`
+        ).join("");
+
+        // 정지 오차/점수
+        const stopErr = Number(st.stop_error_m ?? 0);
+        const score   = Number(st.score ?? 0);
+        const goodErr = Math.abs(stopErr) <= 2;
+
+        html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.stopErr(stopErr)}</div>`;
+        html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.score(score)}</div>`;
+
+        // 힌트
+        html += `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">${fbd.hintAgain}</div>`;
+
+        nodes.fb.innerHTML = html;
+
+      } else {
+        // 아직 종료 전이면 idle 힌트만 언어에 맞춰 교체
+        const fbd = d.feedback;
+        const txt = (nodes.fb.textContent || "").trim();
+        if (!txt || /Space|시작|Start/i.test(txt)) {
+          nodes.fb.textContent = fbd.hintIdle;
+        }
+      }
     }
-  }
 
   // 최초 한국어 → 10초마다 토글
   let current = "ko";
