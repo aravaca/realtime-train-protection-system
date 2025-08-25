@@ -498,13 +498,21 @@ ws.onmessage = (ev) => {
   // 숫자 HUD 갱신
   const remRaw = st.remaining_m;
   const rem = (typeof remRaw === "number") ? remRaw : parseFloat(remRaw);
-  if (rem >= 0) {
-    if (rem <= 2)  remEl.textContent = Math.round(rem * 100) + " cm";
-    else           remEl.textContent = rem.toFixed(0) + " m";
-  } else {
-    if (rem >= -2) remEl.textContent = "-" + Math.round(Math.abs(rem) * 100) + " cm";
-    else           remEl.textContent = "-" + Math.abs(rem).toFixed(0) + " m";
-  }
+  // 거리 표시
+if (rem >= 0) {
+  if (rem <= 2)  remEl.textContent = Math.round(rem * 100) + " cm";
+  else           remEl.textContent = rem.toFixed(0) + " m";
+} else {
+  if (rem >= -2) remEl.textContent = "-" + Math.round(Math.abs(rem) * 100) + " cm";
+  else           remEl.textContent = "-" + Math.abs(rem).toFixed(0) + " m";
+}
+
+// ✅ 색상 조건 적용 (±0.35m 이내면 초록색, 아니면 기본)
+if (Math.abs(rem) <= 0.35) {
+  remEl.style.color = "#9effb5";   // 초록
+} else {
+  remEl.style.color = "";          // 기본 (.stat의 하얀색으로 복귀)
+}
 
   spdEl.textContent = (st.v * 3.6).toFixed(1);
   const maxIdx = (vehicle?.notches ?? 10) - 1; // EB 인덱스
