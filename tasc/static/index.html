@@ -291,7 +291,7 @@ const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 function canVibrate() { return isMobile && typeof navigator.vibrate === "function" && document.visibilityState === "visible"; }
 function vibrate(pattern) { if (!canVibrate()) return false; return navigator.vibrate(pattern) !== false; }
 function hapticForNotch(delta) { if (delta !== 0) vibrate([80, 10, 80]); }
-function hapticForEB() { vibrate([100, 50, 100, 50, 100]); }
+function hapticForEB() { vibrate([80, 100, 80]); }
 
 /* ===== 차량 JSON 로드 (캐시 무시) ===== */
 let vehicle=null; let brakeDecels={};
