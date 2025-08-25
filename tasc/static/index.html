@@ -560,12 +560,12 @@ ws.onmessage=(ev)=>{
       feedbacks.push({ text: `정지 오차: ${st.stop_error_m.toFixed(2)} m`, isGood: isStopErrorGood });
       feedbacks.push({ text: `최종 점수: ${st.score}점`, isGood: isStopErrorGood });
 
-      fb.innerHTML = feedbacks
+   /*   fb.innerHTML = feedbacks
         .map(item => item.isBad
           ? `<div class="bad">${item.text}</div>`
           : `<div class="${item.isGood ? "ok" : "warn"}">${item.text}</div>`
         )
-        .join("") + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S로 조작</div>`;
+        .join("") + `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">Space로 다시 시작 · N 해방 · W/S로 조작</div>`; */
 
       if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
         document.getElementById("btnMobileRestart").classList.remove("hide");
@@ -788,6 +788,18 @@ populateSeries(); // 최초 세팅
 <script>
 
 
+// ===== WebSocket =====
+ws.onmessage = (ev) => {
+  const msg = JSON.parse(ev.data);
+  if (msg.type === "state") {
+    window.st = msg.payload;   // 상태만 저장
+    drawHUD(st);
+    drawBrakeLadderMini(st);
+    // ❌ 여기서는 fb.innerHTML 직접 수정하지 않음
+  }
+};
+
+// ===== 언어 토글 =====
 (function(){
   const dict = {
     ko: {
@@ -798,7 +810,6 @@ populateSeries(); // 최초 세팅
       labelRemainDist: "정차",
       labelGrade: "구배",
       labelNotch: "제동",
-      labelControls: "",
       labelStartKey: "시작",
       labelUp: "강화",
       labelDown: "완화",
@@ -816,15 +827,13 @@ populateSeries(); // 최초 세팅
       labelTrainLength: "편성",
       btnStart: "Start (Space)",
       btnMobileRestart: "재시작",
-      mobileGuide:
-        "📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>위쪽 터치 → 브레이크 강화 🔼 / 아래쪽 터치 → 완화 🔽<br>정차 후 아래 화면에서 피드백을 확인하세요.",
       feedback: {
         early_good: "초기 제동을 수행함 — 승차감 양호",
         early_bad: "초기 제동을 게을리함 — 승차감 불쾌",
         stop_good: "정차 시 B1로 정차함 — 승차감 양호",
         stop_bad: "정차 시 B1로 정차하지 않음",
         step_good: "기본제동 (계단제동/완해) 수행함",
-        step_bad: "기본제동 (계단제동/완해) 미흡 — 단속적 제동으로 승객 쏠림/진동",
+        step_bad: "기본제동 (계단제동/완해) 미흡 — 승객 쏠림/진동",
         eb_good: "영업 안전 제동범위 준수",
         eb_bad: "불필요한 비상제동(EB) 사용 — 급감속 충격",
         score: n=>`최종 점수: ${n}점`,
@@ -841,7 +850,6 @@ populateSeries(); // 최초 세팅
       labelRemainDist: "Dist",
       labelGrade: "Grade",
       labelNotch: "Brake",
-      labelControls: "",
       labelStartKey: "Start",
       labelUp: "B+",
       labelDown: "B-",
@@ -859,8 +867,6 @@ populateSeries(); // 최초 세팅
       labelTrainLength: "Formation",
       btnStart: "Start (Space)",
       btnMobileRestart: "Restart",
-      mobileGuide:
-        "📱 <b>Mobile Controls:</b> Tap on the canvas (graph).<br>Upper half → apply brake 🔼 / Lower half → ease brake 🔽<br>Check feedback below after stopping.",
       feedback: {
         early_good: "Early brake applied — smooth ride",
         early_bad: "Early brake neglected — uncomfortable ride",
@@ -884,11 +890,6 @@ populateSeries(); // 최초 세팅
     labelRemainDist: document.getElementById("labelRemainDist"),
     labelGrade: document.getElementById("labelGrade"),
     labelNotch: document.getElementById("labelNotch"),
-    labelControls: document.getElementById("labelControls"),
-    labelStartKey: document.getElementById("labelStartKey"),
-    labelUp: document.getElementById("labelUp"),
-    labelDown: document.getElementById("labelDown"),
-    labelRelease: document.getElementById("labelRelease"),
     subtitleIntro: document.getElementById("subtitleIntro"),
     labelTASC: document.getElementById("labelTASC"),
     labelTrain: document.getElementById("labelTrain"),
@@ -901,85 +902,62 @@ populateSeries(); // 최초 세팅
     labelTrainLength: document.getElementById("labelTrainLength"),
     btnStart: document.getElementById("btnStart"),
     btnMobileRestart: document.getElementById("btnMobileRestart"),
-    mobileGuide: document.getElementById("mobileGuide"),
     fb: document.getElementById("fb")
   };
 
   function setLang(lang){
     const d = dict[lang];
-
     document.documentElement.lang = d.htmlLang;
     document.title = d.docTitle;
 
     [
       "labelRemainTime","labelSpeed","labelRemainDist","labelGrade","labelNotch",
-      "labelControls","labelStartKey","labelUp","labelDown","labelRelease",
+      "labelStartKey","labelUp","labelDown","labelRelease",
       "labelTASC","labelTrain","labelSeries","labelInitSpeed","labelInitDist",
       "labelGradeInput","labelWeather","labelLoadRate","labelTrainLength"
     ].forEach(k => { if(nodes[k]) nodes[k].innerText = d[k]; });
 
     if(nodes.subtitleIntro) nodes.subtitleIntro.innerHTML = d.subtitleIntro;
-    if(nodes.mobileGuide)   nodes.mobileGuide.innerHTML   = d.mobileGuide;
+    if(nodes.btnStart) nodes.btnStart.textContent = d.btnStart;
+    if(nodes.btnMobileRestart) nodes.btnMobileRestart.textContent = d.btnMobileRestart;
 
-    if(nodes.btnStart){ nodes.btnStart.textContent = d.btnStart; nodes.btnStart.setAttribute("aria-label", d.btnStart); }
-    if(nodes.btnMobileRestart){ nodes.btnMobileRestart.textContent = d.btnMobileRestart; nodes.btnMobileRestart.setAttribute("aria-label", d.btnMobileRestart); }
+    // ---- 피드백 번역 ----
+    if (nodes.fb) {
+      const fbd = d.feedback;
+      const st = window.st;
+      if (st && st.finished) {
+        const issues = st.issues ?? {};
+        let rows = [];
+        rows.push({ bad: !!issues.early_brake_too_short, goodText: fbd.early_good, badText: fbd.early_bad });
+        rows.push({ bad: !!issues.stop_not_b1,           goodText: fbd.stop_good,  badText: fbd.stop_bad  });
+        rows.push({ bad: !!issues.step_brake_incomplete, goodText: fbd.step_good,  badText: fbd.step_bad  });
+        rows.push({ bad: !!issues.unnecessary_eb_usage,  goodText: fbd.eb_good,    badText: fbd.eb_bad    });
 
-// ---- 피드백 번역 (상태 기반으로 재렌더링) ----
-// ---- 피드백 번역 (상태 기반으로 재렌더링) ----
-if (nodes.fb) {
-  const fbd = d.feedback;
-  const issues  = window.st?.issues ?? {};
+        let html = rows.map(r =>
+          `<div class="${r.bad ? "bad" : "ok"}">${r.bad ? r.badText : r.goodText}</div>`
+        ).join("");
 
-  const rows = [];
-  rows.push({
-    bad: !!issues.early_brake_too_short,
-    goodText: fbd.early_good,
-    badText:  fbd.early_bad
-  });
-  rows.push({
-    bad: !!issues.stop_not_b1,
-    goodText: fbd.stop_good,
-    badText:  fbd.stop_bad
-  });
-  rows.push({
-    bad: !!issues.step_brake_incomplete,
-    goodText: fbd.step_good,
-    badText:  fbd.step_bad
-  });
-  rows.push({
-    bad: !!issues.unnecessary_eb_usage,
-    goodText: fbd.eb_good,
-    badText:  fbd.eb_bad
-  });
+        const stopErr = Number(st.stop_error_m ?? 0);
+        const score   = Number(st.score ?? 0);
+        const goodErr = Math.abs(stopErr) <= 2;
 
-  let html = rows.map(r =>
-    `<div class="${r.bad ? "bad" : "ok"}">${r.bad ? r.badText : r.goodText}</div>`
-  ).join("");
-
-  const stopErr = Number(window.st?.stop_error_m ?? 0);
-  const score   = Number(window.st?.score ?? 0);
-  const goodErr = Math.abs(stopErr) <= 2;
-
-  // 정차 완료 후에만 유효한 값, 아니면 hintIdle만
-  if (window.st && window.st.finished) {
-    html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.stopErr(stopErr)}</div>`;
-    html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.score(score)}</div>`;
-    html += `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">${fbd.hintAgain}</div>`;
-  } else {
-    html = `<div class="warn">${fbd.hintIdle}</div>`;
+        html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.stopErr(stopErr)}</div>`;
+        html += `<div class="${goodErr ? "ok" : "warn"}">${fbd.score(score)}</div>`;
+        html += `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">${fbd.hintAgain}</div>`;
+        nodes.fb.innerHTML = html;
+      } else {
+        nodes.fb.textContent = fbd.hintIdle;
+      }
+    }
   }
 
-  nodes.fb.innerHTML = html;
-}
-
-// 최초 한국어 → 5초마다 토글
-let current = "ko";
-setLang(current);
-setInterval(()=>{
-  current = (current==="ko") ? "en" : "ko";
+  // ===== 5초마다 토글 =====
+  let current = "ko";
   setLang(current);
-}, 5000);
-
+  setInterval(()=>{
+    current = (current==="ko") ? "en" : "ko";
+    setLang(current);
+  }, 5000);
 })();
 
 </script>
