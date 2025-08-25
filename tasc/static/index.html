@@ -91,11 +91,17 @@ body{overflow-x:hidden;overflow-y:auto}
 }
 .line .value {
   text-align: right;
+  padding-right: 40px;  /* 👈 오른쪽에 여백 주기 (라더캔버스+간격) */
+  min-width: 100px;     /* 👈 숫자 칸 최소 너비 잡아주면 더 안정적 */
 }
 .line .unit {
   margin-left: 4px;
   opacity: 0.8;
   font-size: 14px;
+}
+
+@media (max-width:768px){
+  .line .value { padding-right: 50px; }
 }
 </style>
 </head>
