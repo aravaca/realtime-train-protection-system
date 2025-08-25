@@ -87,7 +87,7 @@ body{overflow-x:hidden;overflow-y:auto}
 <body>
 <div id="wrap" class="row" style="flex-direction:column">
   <div class="row" style="gap:16px;flex-wrap:wrap">
-    <div class="mobile-control-guide">
+    <div class="mobile-control-guide" id="mobileGuide">
       📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>
       위쪽 터치 → 브레이크 강화 🔼 / 아래쪽 터치 → 완화 🔽<br>
       정차 후 아래 화면에서 피드백을 확인하세요.
@@ -96,19 +96,25 @@ body{overflow-x:hidden;overflow-y:auto}
     <div class="card" style="flex:1 1 260px; position: relative">
       <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal;" class="stat">차량 로딩 중...</div>
 
-      <div>남은시간 <span class="stat" id="timer">0 s</span></div>
-      <div>속도 <span class="stat" id="spd">—</span> km/h</div>
-      <div>정차 <span class="stat" id="rem">—</span></div>
-      <div>구배 <span class="stat" id="grade_percent">—</span> ‰</div>
-      <div>제동 <span class="stat" id="notch">-</span></div>    
+      <div><span id="labelRemainTime">남은시간</span> <span class="stat" id="timer">0 s</span></div>
+      <div><span id="labelSpeed">속도</span> <span class="stat" id="spd">—</span> km/h</div>
+      <div><span id="labelRemainDist">정차</span> <span class="stat" id="rem">—</span></div>
+      <div><span id="labelGrade">구배</span> <span class="stat" id="grade_percent">—</span> ‰</div>
+      <div><span id="labelNotch">제동</span> <span class="stat" id="notch">-</span></div>    
 
-      <div style="margin-top:8px">조작: <span class="kbd">Space</span> 시작 · <span class="kbd">W</span> 강화 · <span class="kbd">S</span> 완화 · <span class="kbd">N</span> 해방</div>
+      <div style="margin-top:8px">
+        <span id="labelControls">조작:</span>
+        <span class="kbd">Space</span> <span id="labelStartKey">시작</span> ·
+        <span class="kbd">W</span> <span id="labelUp">강화</span> ·
+        <span class="kbd">S</span> <span id="labelDown">완화</span> ·
+        <span class="kbd">N</span> <span id="labelRelease">해방</span>
+      </div>
 
       <canvas id="brakeLadder" style="position:absolute; right:10px; top:30px; width:28px; height:70%;"></canvas>
     </div>
 
     <div class="card" style="flex:2 1 520px"><canvas id="hud"></canvas></div>
-    <div class="card" style="flex:1 1 240px"><div><b>피드백</b></div><div id="fb">Space를 눌러 시작하세요.</div></div>
+    <div class="card" style="flex:1 1 240px"><div><b>피드백</b></div><div id="fb">Space로 시작. W/S로 브레이크 조절하세요.</div></div>
   </div>
 </div>
 
@@ -120,17 +126,17 @@ body{overflow-x:hidden;overflow-y:auto}
       JR TASC Simulator
     </h2>
 
-    <p class="subtitle">초기값 입력 후 <b>TASC(자동정차)</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요. TASC가 활성화된 상태에서도, 운전자는 수동 조작으로 운전에 개입할 수 있습니다.</p>
+    <p class="subtitle" id="subtitleIntro">초기값 입력 후 <b>TASC(자동정차)</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요. TASC가 활성화된 상태에서도, 운전자는 수동 조작으로 운전에 개입할 수 있습니다.</p>
 
     <!-- TASC -->
     <div class="tasc-toggle">
       <input type="checkbox" id="tascToggle" />
       <label for="tascToggle" class="slider"></label>
-      <span class="tasc-label" style="font-weight:700">TASC</span>
+      <span class="tasc-label" id="labelTASC" style="font-weight:700">TASC</span>
     </div>
 
     <!-- 전동차 / 시리즈 -->
-    <label class="form-label">전동차
+    <label class="form-label" id="labelTrain">전동차
       <select id="trainFamily" class="form-input">
         <option value="E233" selected>E233계</option>
         <option value="E235">E235계</option>
@@ -141,33 +147,33 @@ body{overflow-x:hidden;overflow-y:auto}
         <option value="JRW323">323계</option>
       </select>
     </label>
-    <label class="form-label">시리즈
+    <label class="form-label" id="labelSeries">시리즈
       <select id="trainSeries" class="form-input"></select>
     </label>
 
     <!-- ✅ 속도/거리 입력 범위 갱신: 속도 40~130, 거리 150~900 -->
-    <label class="form-label">초기 속도 (km/h)
+    <label class="form-label" id="labelInitSpeed">초기 속도 (km/h)
       <input id="inputSpeed" type="number" value="70" min="40" max="130" step="1" class="form-input">
     </label>
-    <label class="form-label">거리 (m)
+    <label class="form-label" id="labelInitDist">거리 (m)
       <input id="inputDist" type="number" value="300" min="150" max="900" step="1" class="form-input">
     </label>
-    <label class="form-label">경사도 (‰)
+    <label class="form-label" id="labelGradeInput">경사도 (‰)
       <input id="inputGrade" type="number" value="0.0" min="-10" max="10" step="0.1" class="form-input">
     </label>
 
-    <label class="form-label">날씨
+    <label class="form-label" id="labelWeather">날씨
       <select id="weatherSelect" class="form-input">
         <option value="맑음">맑음</option><option value="비옴">비옴</option><option value="눈옴">눈옴</option>
       </select>
     </label>
-    <label class="form-label">승객 탑승률 (%)
+    <label class="form-label" id="labelLoadRate">승객 탑승률 (%)
       <input id="inputLoadRate" type="number" value="70" min="0" max="120" step="1" class="form-input">
     </label>
 
     <!-- 편성 (시리즈별로만 고정 노출) -->
-    <label class="form-label">편성
-      <select class="form-input" id="trainLength" onchange="updateTrainLength()"></select>
+    <label class="form-label" id="labelTrainLength">편성
+      <select class="form-input" id="trainLength" onchange="updateTrainLength"></select>
     </label>
 
     <div class="game-background"></div>
@@ -341,7 +347,6 @@ function applySpeedDistanceRule() {
   const absoluteMin = 150, absoluteMax = 900;
   const newMin = Math.max(absoluteMin, requiredMin);
 
-  // HTML min도 동적으로 반영 (사용자에게 즉시 보임)
   inputDist.min = String(newMin);
 
   if (isNaN(d) || d < newMin) {
@@ -371,12 +376,10 @@ updateWeatherUI();
 
 /* ===== 시작/재시작 ===== */
 function startRun(){
-  // 입력 정규화
   inputSpeed.dispatchEvent(new Event('change'));
   inputDist.dispatchEvent(new Event('change'));
   inputGrade.dispatchEvent(new Event('change'));
 
-  // ✅ 속도-거리 규칙 최종 강제
   applySpeedDistanceRule();
 
   const speed=Number(inputSpeed.value),
@@ -385,7 +388,6 @@ function startRun(){
         mu=muFromWeather(weatherSelect.value);
 
   if(ws.readyState===WebSocket.OPEN){
-    // 타이머 보장(중복 전송 무해)
     ws.send(JSON.stringify({ type:"cmd", payload:{ name:"toggleTimer", enabled:true }}));
     ws.send(JSON.stringify({type:"cmd",payload:{name:"setInitial",speed,dist,grade,mu}}));
     ws.send(JSON.stringify({type:"cmd",payload:{name:"start"}}));
@@ -462,49 +464,28 @@ ws.onmessage=(ev)=>{
     notchEl.textContent = st.lever_notch === 0 ? "N" : (st.lever_notch === maxIdx ? "EB" : `B${st.lever_notch}`);
     grade_percentEl.textContent = (10* st.grade_percent).toFixed(1);
 
- /* ✅ 타이머 표기: 시작 전엔 budget, 시작하면 카운트다운, 오버런 음수(빨간색) */
-/* ✅ 타이머 표기(견고 버전): 
-   - 대기중: time_budget_s(반올림) 
-   - 실행중: time_remaining_int(카운트다운)
-   - 타이머 미사용/오작동: 가능한 값으로 최대한 보여줌(디버그용)
-*/
-const running  = !!st.running;
-const finished = !!st.finished;
-const budget   = Number(st.time_budget_s ?? 0);
-const remainI  = Number(st.time_remaining_int ?? 0);
-const overI    = Number(st.time_overrun_int ?? 0);
-const timerOn  = !!st.timer_enabled;
+    const running  = !!st.running;
+    const finished = !!st.finished;
+    const budget   = Number(st.time_budget_s ?? 0);
+    const remainI  = Number(st.time_remaining_int ?? 0);
 
-// 시작 전에는 budget을, 시작하면 카운트다운을, 오버런은 음수로 표시
-let toShowInt;
-if (running || finished) {
-  // 실행 중/종료: 남은시간(정수), 음수면 타임오버
-  toShowInt = remainI;
-} else {
-  // 대기 중: budget이 있으면 그걸 보여줌
-  toShowInt = Math.round(budget);
-}
+    let toShowInt;
+    if (running || finished) toShowInt = remainI;
+    else toShowInt = Math.round(budget);
 
-// 타이머가 꺼져 있어도(=timerOn=false) 최소한 숫자는 보이게 함
-if (!Number.isFinite(toShowInt)) {
-  // 최후의 보강: time_remaining_s 또는 경과시간으로라도 표시
-  const remainF = Number(st.time_remaining_s);
-  if (Number.isFinite(remainF)) {
-    toShowInt = Math.floor(remainF);
-  } else {
-    toShowInt = Math.floor(Number(st.t) || 0); // 디버그용
-  }
-}
+    if (!Number.isFinite(toShowInt)) {
+      const remainF = Number(st.time_remaining_s);
+      toShowInt = Number.isFinite(remainF) ? Math.floor(remainF) : Math.floor(Number(st.t) || 0);
+    }
 
+    if (toShowInt >= 0) {
+      timerEl.textContent = formatTimeSec(toShowInt);
+      timerEl.classList.remove('bad');
+    } else {
+      timerEl.textContent = formatTimeSec(toShowInt);
+      timerEl.classList.add('bad');
+    }
 
-// 출력 (MM:SS 포맷)
-if (toShowInt >= 0) {
-  timerEl.textContent = formatTimeSec(toShowInt);   // 00:12 …
-  timerEl.classList.remove('bad');
-} else {
-  timerEl.textContent = formatTimeSec(toShowInt);   // -00:02 …
-  timerEl.classList.add('bad');
-}
     drawHUD(st);
     drawBrakeLadderMini(st);
 
@@ -765,6 +746,186 @@ trainSeriesEl.addEventListener('change',(e)=>{
   loadVehicleFile(opt.value);
 });
 populateSeries(); // 최초 세팅
+</script>
+
+<!-- ===== 10s 언어 토글 (ko <-> en), 피드백 포함 ===== -->
+<script>
+(function(){
+  const dict = {
+    ko: {
+      htmlLang: "ko",
+      docTitle: "TASC Simulator",
+      labelRemainTime: "남은시간",
+      labelSpeed: "속도",
+      labelRemainDist: "정차",
+      labelGrade: "구배",
+      labelNotch: "제동",
+      labelControls: "조작:",
+      labelStartKey: "시작",
+      labelUp: "강화",
+      labelDown: "완화",
+      labelRelease: "해방",
+      subtitleIntro:
+        "초기값 입력 후 <b>TASC(자동정차)</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요. TASC가 활성화된 상태에서도, 운전자는 수동 조작으로 운전에 개입할 수 있습니다.",
+      labelTASC: "TASC",
+      labelTrain: "전동차",
+      labelSeries: "시리즈",
+      labelInitSpeed: "초기 속도 (km/h)",
+      labelInitDist: "거리 (m)",
+      labelGradeInput: "경사도 (‰)",
+      labelWeather: "날씨",
+      labelLoadRate: "승객 탑승률 (%)",
+      labelTrainLength: "편성",
+      btnStart: "Start (Space)",
+      btnMobileRestart: "재시작",
+      mobileGuide:
+        "📱 <b>모바일 조작 안내:</b> 캔버스(그래프) 위를 터치하세요.<br>위쪽 터치 → 브레이크 강화 🔼 / 아래쪽 터치 → 완화 🔽<br>정차 후 아래 화면에서 피드백을 확인하세요.",
+      feedback: {
+        early_good: "초기 제동을 수행함 — 승차감 양호",
+        early_bad: "초기 제동을 게을리함 — 승차감 불쾌",
+        stop_good: "정차 시 B1로 정차함 — 승차감 양호",
+        stop_bad: "정차 시 B1로 정차하지 않음",
+        step_good: "기본제동 (계단제동/완해) 수행함",
+        step_bad: "기본제동 (계단제동/완해) 미흡 — 단속적 제동으로 승객 쏠림/진동",
+        eb_good: "영업 안전 제동범위 준수",
+        eb_bad: "불필요한 비상제동(EB) 사용 — 급감속 충격",
+        score: n=>`최종 점수: ${n}점`,
+        stopErr: m=>`정지 오차: ${m.toFixed(2)} m`,
+        hintIdle: "Space로 시작. W/S로 브레이크 조절하세요.",
+        hintAgain: "Space로 다시 시작 · N 해방 · W/S로 조작"
+      }
+    },
+    en: {
+      htmlLang: "en",
+      docTitle: "TASC Simulator",
+      labelRemainTime: "Time Left",
+      labelSpeed: "Speed",
+      labelRemainDist: "Remain",
+      labelGrade: "Grade",
+      labelNotch: "Brake",
+      labelControls: "Controls:",
+      labelStartKey: "Start",
+      labelUp: "Apply",
+      labelDown: "Ease",
+      labelRelease: "Release",
+      subtitleIntro:
+        "Enter initial values, set <b>TASC (Auto-Stop)</b>, then press <b>Space</b> or the button below to start. Even with TASC enabled, the driver can intervene manually.",
+      labelTASC: "TASC",
+      labelTrain: "Train",
+      labelSeries: "Series",
+      labelInitSpeed: "Initial Speed (km/h)",
+      labelInitDist: "Distance (m)",
+      labelGradeInput: "Grade (‰)",
+      labelWeather: "Weather",
+      labelLoadRate: "Passenger Load (%)",
+      labelTrainLength: "Formation",
+      btnStart: "Start (Space)",
+      btnMobileRestart: "Restart",
+      mobileGuide:
+        "📱 <b>Mobile Controls:</b> Tap on the canvas (graph).<br>Upper half → increase brake 🔼 / Lower half → ease brake 🔽<br>Check feedback below after stopping.",
+      feedback: {
+        early_good: "Early brake applied — smooth ride",
+        early_bad: "Early brake neglected — uncomfortable ride",
+        stop_good: "Stopped at B1 — smooth ride",
+        stop_bad: "Not stopped at B1",
+        step_good: "Step braking performed properly",
+        step_bad: "Poor step braking — passenger sway/vibration",
+        eb_good: "Safe braking range observed (no unnecessary EB)",
+        eb_bad: "Unnecessary EB used — harsh deceleration",
+        score: n=>`Final Score: ${n}`,
+        stopErr: m=>`Stop Error: ${m.toFixed(2)} m`,
+        hintIdle: "Press Space to start. Use W/S to adjust brake.",
+        hintAgain: "Press Space to restart · N to release · W/S to operate"
+      }
+    }
+  };
+
+  const nodes = {
+    labelRemainTime: document.getElementById("labelRemainTime"),
+    labelSpeed: document.getElementById("labelSpeed"),
+    labelRemainDist: document.getElementById("labelRemainDist"),
+    labelGrade: document.getElementById("labelGrade"),
+    labelNotch: document.getElementById("labelNotch"),
+    labelControls: document.getElementById("labelControls"),
+    labelStartKey: document.getElementById("labelStartKey"),
+    labelUp: document.getElementById("labelUp"),
+    labelDown: document.getElementById("labelDown"),
+    labelRelease: document.getElementById("labelRelease"),
+    subtitleIntro: document.getElementById("subtitleIntro"),
+    labelTASC: document.getElementById("labelTASC"),
+    labelTrain: document.getElementById("labelTrain"),
+    labelSeries: document.getElementById("labelSeries"),
+    labelInitSpeed: document.getElementById("labelInitSpeed"),
+    labelInitDist: document.getElementById("labelInitDist"),
+    labelGradeInput: document.getElementById("labelGradeInput"),
+    labelWeather: document.getElementById("labelWeather"),
+    labelLoadRate: document.getElementById("labelLoadRate"),
+    labelTrainLength: document.getElementById("labelTrainLength"),
+    btnStart: document.getElementById("btnStart"),
+    btnMobileRestart: document.getElementById("btnMobileRestart"),
+    mobileGuide: document.getElementById("mobileGuide"),
+    fb: document.getElementById("fb")
+  };
+
+  function setLang(lang){
+    const d = dict[lang];
+
+    document.documentElement.lang = d.htmlLang;
+    document.title = d.docTitle;
+
+    [
+      "labelRemainTime","labelSpeed","labelRemainDist","labelGrade","labelNotch",
+      "labelControls","labelStartKey","labelUp","labelDown","labelRelease",
+      "labelTASC","labelTrain","labelSeries","labelInitSpeed","labelInitDist",
+      "labelGradeInput","labelWeather","labelLoadRate","labelTrainLength"
+    ].forEach(k => { if(nodes[k]) nodes[k].innerText = d[k]; });
+
+    if(nodes.subtitleIntro) nodes.subtitleIntro.innerHTML = d.subtitleIntro;
+    if(nodes.mobileGuide)   nodes.mobileGuide.innerHTML   = d.mobileGuide;
+
+    if(nodes.btnStart){ nodes.btnStart.textContent = d.btnStart; nodes.btnStart.setAttribute("aria-label", d.btnStart); }
+    if(nodes.btnMobileRestart){ nodes.btnMobileRestart.textContent = d.btnMobileRestart; nodes.btnMobileRestart.setAttribute("aria-label", d.btnMobileRestart); }
+
+    // ---- 피드백 번역 (현재 fb.innerHTML 내용을 정규식으로 치환) ----
+    if(nodes.fb && nodes.fb.innerHTML){
+      const fbd = d.feedback;
+      let raw = nodes.fb.innerHTML;
+
+      // 힌트 문구
+      raw = raw
+        .replace(/Space로 시작\. W\/S로 브레이크 조절하세요\./, fbd.hintIdle)
+        .replace(/Space로 다시 시작 · N 해방 · W\/S로 조작/, fbd.hintAgain)
+        .replace(/Press Space to start\. Use W\/S to adjust brake\./, fbd.hintIdle)
+        .replace(/Press Space to restart · N to release · W\/S to operate/, fbd.hintAgain);
+
+      // 평가 문구
+      raw = raw
+        .replace(/초기 제동을 수행함 — 승차감 양호|초기 제동을 수행함 - 승차감 양호/, fbd.early_good)
+        .replace(/초기 제동을 게을리함 — 승차감 불쾌|초기 제동을 게을리함 - 승차감 불쾌/, fbd.early_bad)
+        .replace(/정차 시 B1로 정차함 — 승차감 양호|정차 시 B1로 정차함 - 승차감 양호/, fbd.stop_good)
+        .replace(/정차 시 B1로 정차하지 않음/, fbd.stop_bad)
+        .replace(/기본제동 \(계단제동\/완해\) 수행함/, fbd.step_good)
+        .replace(/기본제동 \(계단제동\/완해\) 미흡 — 단속적 제동으로 승객 쏠림\/진동|기본제동 \(계단제동\/완해\) 미흡 - 단속적인 제동으로 인한 승객 쏠림 및 차량 진동 발생/, fbd.step_bad)
+        .replace(/영업 안전 제동범위 준수/, fbd.eb_good)
+        .replace(/불필요한 비상제동\(EB\) 사용 — 급감속 충격|불필요한 비상제동\(EB\) 사용 - 급감속으로 인한 충격 발생/, fbd.eb_bad)
+        // 수치 포함 항목
+        .replace(/최종 점수:\s*(\d+)점/, (_,n)=>fbd.score(Number(n)))
+        .replace(/Final Score:\s*(\d+)/, (_,n)=>fbd.score(Number(n)))
+        .replace(/정지 오차:\s*([\-0-9.]+)\s*m/, (_,m)=>fbd.stopErr(Number(m)))
+        .replace(/Stop Error:\s*([\-0-9.]+)\s*m/,  (_,m)=>fbd.stopErr(Number(m)));
+
+      nodes.fb.innerHTML = raw;
+    }
+  }
+
+  // 최초 한국어 → 10초마다 토글
+  let current = "ko";
+  setLang(current);
+  setInterval(()=>{
+    current = (current==="ko") ? "en" : "ko";
+    setLang(current);
+  }, 10000);
+})();
 </script>
 
 <footer style="text-align:center; font-size:12px; color:#888; padding:8px 0; user-select:none;">
