@@ -820,7 +820,7 @@ populateSeries(); // 최초 세팅
       docTitle: "TASC Simulator",
       labelRemainTime: "STA",
       labelSpeed: "Speed",
-      labelRemainDist: "Dist",
+      labelRemainDist: "Distance",
       labelGrade: "Grade",
       labelNotch: "Brake",
       labelStartKey: "Start",
@@ -841,19 +841,19 @@ populateSeries(); // 최초 세팅
       btnStart: "Start (Space)",
       btnMobileRestart: "Restart",
       feedback: {
-        early_good: "Early brake applied — smooth ride",
-        early_bad: "Early brake neglected — uncomfortable ride",
-        stop_good: "Stopped at B1 — smooth ride",
-        stop_bad: "Not stopped at B1",
-        step_good: "Step braking performed properly",
-        step_bad: "Poor step braking — passenger sway/vibration",
-        eb_good: "Safe braking range observed (no unnecessary EB)",
-        eb_bad: "Unnecessary EB used — harsh deceleration",
-        score: n=>`Final Score: ${n}`,
-        stopErr: m=>`Stop Error: ${m.toFixed(2)} m`,
-        hintIdle: "Press Space to start. Use W/S to adjust brake.",
-        hintAgain: "Press Space to restart · N to release · W/S to operate"
-      }
+  early_good: "You braked early — the ride was smooth.",
+  early_bad: "You braked late — the ride felt rough.",
+  stop_good: "Stopped at B1 — smooth and accurate.",
+  stop_bad: "Failed to stop at B1.",
+  step_good: "Stepwise braking was applied correctly.",
+  step_bad: "Stepwise braking was poor — passengers felt sway and vibration.",
+  eb_good: "Safe braking range observed — no EB applied.",
+  eb_bad: "Unnecessary EB applied — caused a harsh stop.",
+  score: n => `Final score: ${n}`,
+  stopErr: m => `Stopping error: ${m.toFixed(2)} m`,
+  hintIdle: "Press Space to start. Use W/S to brake.",
+  hintAgain: "Press Space to restart, N to release, W/S to brake."
+}
     }
   };
 
