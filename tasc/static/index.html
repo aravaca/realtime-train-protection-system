@@ -571,6 +571,17 @@ if (Math.abs(toShowInt) <= 2) {
   drawBrakeLadderMini(st);
 
   // ⚠ 피드백(fb) UI는 여기서 건드리지 마세요 (언어 토글은 setLang에서 처리)
+
+// ✅ 재시작 FAB 표시/숨김
+if (st.finished) {
+  if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    btnMobileRestart.classList.remove('hide');  // 모바일이면 표시
+  } else {
+    btnMobileRestart.classList.add('hide');     // PC에서는 숨김 유지
+  }
+} else {
+  btnMobileRestart.classList.add('hide');       // 게임 진행 중에는 항상 숨김
+}
 };
 
 /* ===== HUD 그리기 (기존 유지) ===== */
