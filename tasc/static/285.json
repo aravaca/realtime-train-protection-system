@@ -2,9 +2,9 @@
   "name": "JR WEST 285 Series (0/3000)",
   "mass_t": 43.6,
   "a_max": 0.50,
-  "j_max": 0.80,
+  "j_max": 0.30,
   "notches": 9,
   "notch_accels": [-1.44, -1.19, -1.029, -0.914, -0.832, -0.773, -0.730, -0.700, 0.00],
-  "tau_cmd_ms": 180,
-  "tau_brk_ms": 300
+  "tau_cmd_ms": 380,
+  "tau_brk_ms": 900
 }
