@@ -1,0 +1,10 @@
+{
+  "name": "JR East E26 Cassiopeia",
+  "mass_t": 50.0,
+  "a_max": 0.45,
+  "j_max": 0.30,
+  "notches": 9,
+  "notch_accels": [-1.000, -0.800, -0.650, -0.500, -0.350, -0.200, -0.100, -0.050, 0.000],
+  "tau_cmd_ms": 450,
+  "tau_brk_ms": 1200
+}
