@@ -546,13 +546,25 @@ notchEl.style.color = notchColor;
   const finished = !!st.finished;
   const budget   = Number(st.time_budget_s ?? 0);
   const remainI  = Number(st.time_remaining_int ?? 0);
-  let toShowInt = (running || finished) ? remainI : Math.round(budget);
-  if (!Number.isFinite(toShowInt)) {
-    const remainF = Number(st.time_remaining_s);
-    toShowInt = Number.isFinite(remainF) ? Math.floor(remainF) : Math.floor(Number(st.t) || 0);
-  }
-  timerEl.textContent = formatTimeSec(toShowInt);
-  timerEl.classList.toggle('bad', toShowInt < 0);
+let toShowInt = (running || finished) ? remainI : Math.round(budget);
+if (!Number.isFinite(toShowInt)) {
+  const remainF = Number(st.time_remaining_s);
+  toShowInt = Number.isFinite(remainF) ? Math.floor(remainF) : Math.floor(Number(st.t) || 0);
+}
+
+timerEl.textContent = formatTimeSec(toShowInt);
+
+// ✅ 색상 조건 추가
+if (Math.abs(toShowInt) <= 2) {
+  timerEl.style.color = "#9effb5";   // 초록색
+  timerEl.classList.remove('bad');
+} else if (toShowInt < 0) {
+  timerEl.style.color = "";          // 기본 색상 (CSS .stat)
+  timerEl.classList.add('bad');      // 음수면 빨강
+} else {
+  timerEl.style.color = "";          // 기본 색상 (CSS .stat)
+  timerEl.classList.remove('bad');
+}
 
   // 그래프/미니 인디케이터
   drawHUD(st);
