@@ -189,6 +189,7 @@ body{overflow-x:hidden;overflow-y:auto}
         <option value="JR103">103계</option>
         <option value="EF510">EF510+E26/12</option>
         <option value="K3000">Keisei 3000계</option>
+        <option value="T5300">Toei 5300계</option>
       </select>
     </label>
     <label class="form-label"><span id="labelSeries">시리즈</span>
@@ -777,11 +778,18 @@ EF510: [{
   lengths: [13]
 }],
 K3000: [{
-  code: "Keisei 3000 Series",
+  code: "Keisei 3000",
   lines: "케이세이 본선, 나리타 공항선",
   file: "./keisei3000.json",
   lengths: [6, 8]
+}],
+T5300: [{
+  code: "Toei 5300",
+  lines: "도에이 아사쿠사선, 케이세이 본선, 게이큐 본선",
+  file: "./toei5300.json",
+  lengths: [8]
 }]
+
 
 };
 
