@@ -2,7 +2,7 @@
   "name": "JR WEST 223-1000",
   "mass_t": 36.8,
   "a_max": 1.0,
-  "j_max": 0.8,
+  "j_max": 0.3,
   "notches": 10,
   "notch_accels": [
     -1.45,

@@ -2,7 +2,7 @@
   "name": "JR Hokkaido KiHa 261-5000",
   "mass_t": 39.5,
   "a_max": 0.61,
-  "j_max": 0.80,
+  "j_max": 0.3,
   "notches": 9,
   "notch_accels": [-1.60, -1.27, -1.12, -1.00, -0.90, -0.81, -0.74, -0.69, 0.00],
   "tau_cmd_ms": 180,

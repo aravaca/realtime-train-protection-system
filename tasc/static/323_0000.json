@@ -2,7 +2,7 @@
   "name": "JR WEST 323-0",
   "mass_t": 33.5,
   "a_max": 0.95,
-  "j_max": 0.8,
+  "j_max": 0.3,
   "notches": 10,
   "notch_accels": [
   -1.44,   
