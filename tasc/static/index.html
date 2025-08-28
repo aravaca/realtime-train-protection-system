@@ -630,12 +630,40 @@ function drawHUD(st){
   const xRed=X(remaining); ctx.strokeStyle="#f00"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(xRed,Y(0)); ctx.lineTo(xRed,Y(vmax)); ctx.stroke();
   ctx.fillStyle="#f00"; ctx.font=`${14*dpr}px 'Orbitron', sans-serif`; ctx.textAlign="center"; ctx.fillText("남은 거리", xRed, Y(vmax)-18*dpr);
 
-  const ribbonW=16*dpr, ribbonH=h*.9, ribbonX=w-right-ribbonW-10*dpr+20, ribbonY=((h-ribbonH)/2)-32;
-  ctx.fillStyle="rgba(100,100,100,.1)"; ctx.strokeStyle="rgba(100,100,100,.3)"; ctx.lineWidth=1.5*dpr;
-  ctx.beginPath(); ctx.rect(ribbonX,ribbonY,ribbonW,ribbonH); ctx.fill(); ctx.stroke();
+  // const ribbonW=16*dpr, ribbonH=h*.9, ribbonX=w-right-ribbonW-10*dpr+20, ribbonY=((h-ribbonH)/2)-32;
+  // ctx.fillStyle="rgba(100,100,100,.1)"; ctx.strokeStyle="rgba(100,100,100,.3)"; ctx.lineWidth=1.5*dpr;
+  // ctx.beginPath(); ctx.rect(ribbonX,ribbonY,ribbonW,ribbonH); ctx.fill(); ctx.stroke();
 
-  const centerY=(ribbonY+ribbonH/2)-14, barH=12*dpr;
-  ctx.fillStyle="rgba(60,60,60,.9)"; ctx.fillRect(ribbonX+2*dpr, centerY-barH/2, ribbonW-4*dpr, barH);
+  // const centerY=(ribbonY+ribbonH/2)-14, barH=12*dpr;
+  // ctx.fillStyle="rgba(60,60,60,.9)"; ctx.fillRect(ribbonX+2*dpr, centerY-barH/2, ribbonW-4*dpr, barH);
+
+  // PC/모바일 판별
+  const isMobile = window.innerWidth < 768; 
+
+  // 보정값 설정 (원하는 값으로 수정 가능)
+  const offsetRibbonY = isMobile ? -32 : -12; 
+  const offsetCenterY = isMobile ? -14 : -5; 
+
+  // 리본 위치/크기 계산
+  const ribbonW = 16 * dpr, 
+        ribbonH = h * .9, 
+        ribbonX = w - right - ribbonW - 10 * dpr + 20, 
+        ribbonY = ((h - ribbonH) / 2) + offsetRibbonY;
+
+  ctx.fillStyle = "rgba(100,100,100,.1)";
+  ctx.strokeStyle = "rgba(100,100,100,.3)";
+  ctx.lineWidth = 1.5 * dpr;
+  ctx.beginPath();
+  ctx.rect(ribbonX, ribbonY, ribbonW, ribbonH);
+  ctx.fill();
+  ctx.stroke();
+
+  // 중앙 바
+  const centerY = (ribbonY + ribbonH / 2) + offsetCenterY, 
+        barH = 12 * dpr;
+
+  ctx.fillStyle = "rgba(60,60,60,.9)";
+  ctx.fillRect(ribbonX + 2 * dpr, centerY - barH / 2, ribbonW - 4 * dpr, barH);
 
   const rem=Math.min(Math.max(st.remaining_m??st.L,-st.L), st.L);
   const diamondW=16*dpr, diamondH=10*dpr, dX=ribbonX+ribbonW/2;

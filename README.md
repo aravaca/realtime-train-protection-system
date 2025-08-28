@@ -1,4 +1,4 @@
-# JR Trainex — Advanced TASC-based Precision Stop Simulator for JR Series EMUs
+# JR TASC Simulator — Advanced TASC-based Precision Stop Simulator for JR Series EMUs
 **JR East/West 시리즈 전차의 실제 혹은 가상의 TASC 시스템 기반 정차 훈련 시뮬레이터**
 
 이 풀스택 프로젝트는 **JR 시리즈 전동차**를 모델로 한 정차 훈련용 시뮬레이터입니다.  
@@ -38,7 +38,7 @@
   - **브레이크 내비 캔버스**로 “곡선과 빨간선이 만날 때”의 타이밍 감각을 체득
   - **피드백/점수**로 본인의 습관을 정량적으로 점검
 - **교육/검증용**: 시나리오(거리/구배/속도/마찰) 다양화, **승차감(저크)**과 **정차 정밀도**를 같이 평가
-
+- **도입비용/리스크 분산**: ATO(열차자동운전장치) 대비 도입 비용 저렴, TASC는 기계 오작동시 기관사 개입으로 리스크 최소화 가능
 ---
 
 ## ⚙️ Tech Stack
@@ -72,8 +72,6 @@
 - **0cm 정차 보너스**: +100
 - **계단 패턴**:
   - 수동: 계단제동/완해 패턴 충족 시 +500
-  - **TASC ON** & 수동 개입 없음: 점프가 있어도 +500 인정
-  - **TASC ON 중 사람이 패턴을 깨면** 감점(일반 규칙 적용)
 
 ---
 
@@ -84,7 +82,7 @@
 ├── server.py              # FastAPI + WebSocket 서버, TASC 로직 포함
 └── static/
     ├── index.html         # UI (HUD/오버레이/TASC 스위치/애니메이션)
-    └── carName.json       # 차량 이름 표시용
+    └── xxxxx.json       # 차량 이름 표시용
 ```
 
 ---
