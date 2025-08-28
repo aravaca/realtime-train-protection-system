@@ -641,8 +641,9 @@ function drawHUD(st){
   const isMobile = window.innerWidth < 768; 
 
   // 보정값 설정 (원하는 값으로 수정 가능)
-  const offsetRibbonY = isMobile ? -32 : -12; 
-  const offsetCenterY = isMobile ? -14 : -5; 
+  // -32 -14
+  const offsetRibbonY = isMobile ? -27 : -12; 
+  const offsetCenterY = isMobile ? -9 : -5; 
 
   // 리본 위치/크기 계산
   const ribbonW = 16 * dpr, 
