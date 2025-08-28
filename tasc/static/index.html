@@ -704,44 +704,44 @@ function drawBrakeLadderMini(st) {
 /* ===== 전동차/시리즈/편성 ===== */
 const TRAIN_DB={
   E233:[
-    {code:"EAST E233-1000", lines:"게이힌토호쿠·네기시", file:"./e233_1000.json", lengths:[10]},
-    {code:"EAST E233-2000", lines:"조반 각역·쾌속", file:"./e233_2000.json", lengths:[10]},
-    {code:"EAST E233-3000", lines:"도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file:"./e233_3000.json", lengths:[5,10,15]}
+    {code:"JR EAST E233-1000", lines:"게이힌토호쿠·네기시", file:"./e233_1000.json", lengths:[10]},
+    {code:"JR EAST E233-2000", lines:"조반 각역·쾌속", file:"./e233_2000.json", lengths:[10]},
+    {code:"JR EAST E233-3000", lines:"도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file:"./e233_3000.json", lengths:[5,10,15]}
   ],
   E235:[
-    {code:"EAST E235-0", lines:"야마노테", file:"./e235_0.json", lengths:[11]},
-    {code:"EAST E235-1000", lines:"요코스카·소부쾌속", file:"./e235_1000.json", lengths:[4,11,15]}
+    {code:"JR EAST E235-0", lines:"야마노테", file:"./e235_0.json", lengths:[11]},
+    {code:"JR EAST E235-1000", lines:"요코스카·소부쾌속", file:"./e235_1000.json", lengths:[4,11,15]}
   ],
   JRW223: [
-    { code: "WEST 223-0",
+    { code: "JR WEST 223-0",
       lines: "오사카 순환선 · 한와선 · 간사이공항선 직결 · 기노쿠니선",
       file: "./223_0000.json", lengths: [4] },
-    { code: "WEST 223-1000",
+    { code: "JR WEST 223-1000",
       lines: "비와코·JR 교토·JR 고베 라인 등",
       file: "./223_1000.json", lengths: [4,8] }
   ],
   JRW225: [
-    { code: "WEST 225-0",
+    { code: "JR WEST 225-0",
       lines: "비와코·JR 교토·JR 고베 라인 등",
       file: "./225_0000.json", lengths: [4,8] },
-    { code: "WEST 225-5000",
+    { code: "JR WEST 225-5000",
       lines: "오사카 순환선 · 한와선 · 간사이공항선",
       file: "./225_5000.json", lengths: [4] },
-    { code: "WEST 225-6000",
+    { code: "JR WEST 225-6000",
       lines: "JR 고베선 · 후쿠치야마선",
       file: "./225_6000.json", lengths: [4,6] }
   ],
-  JRW323: [{ code: "WEST 323-0", lines: "오사카 순환선 전용", file: "./323_0000.json", lengths: [8] }],
-  JRW285: [{ code: "WEST 285-0/3000", lines: "침대특급 선라이즈 이즈모·세토", file: "./285.json", lengths: [7, 14] }],
-  JRH261: [{ code: "HOKKAIDO KiHa 261-5000", lines: "하마나스·라벤더", file: "./261_5000.json", lengths: [4, 5, 6, 10] }],
+  JRW323: [{ code: "JR WEST 323-0", lines: "오사카 순환선 전용", file: "./323_0000.json", lengths: [8] }],
+  JRW285: [{ code: "JR WEST 285-0/3000", lines: "침대특급 선라이즈 이즈모·세토", file: "./285.json", lengths: [7, 14] }],
+  JRH261: [{ code: "JR HOKKAIDO KiHa 261-5000", lines: "하마나스·라벤더", file: "./261_5000.json", lengths: [4, 5, 6, 10] }],
 JR103: [{
-  code: "/JNR 103-0",
+  code: "JR/JNR 103-0",
   lines: "1960~80년대 일본 통근형 전동차의 상징",
   file: "./103.json",
   lengths: [4,5, 6, 7,8,10, 15]
 }],
 EF510: [{
-  code: "EAST Cassiopeia • 초호화 침대특급",
+  code: "JR EAST Cassiopeia • 초호화 침대특급",
   lines: "우에노↔아오모리",
   file: "./e26.json",
   lengths: [13]
@@ -790,7 +790,7 @@ function populateSeries(){
   list.forEach((s,i)=>{
     const opt=document.createElement('option');
     opt.value=s.file; opt.dataset.lengths=JSON.stringify(s.lengths);
-    opt.textContent=`JR ${s.code} (${s.lines})`;
+    opt.textContent=`${s.code} (${s.lines})`;
     if(i===0) opt.selected=true;
     trainSeriesEl.appendChild(opt);
   });
