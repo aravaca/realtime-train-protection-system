@@ -989,6 +989,8 @@ class StoppingSim:
             "score": getattr(st, "score", 0),
             "issues": getattr(st, "issues", {}),
             "tasc_enabled": getattr(self, "tasc_enabled", False),
+            "tasc_armed": getattr(self, "tasc_armed", False),
+            "tasc_active": getattr(self, "tasc_active", False),
 
             # HUD/디버그용 (업데이트된 Davis 확인 가능)
             "mu": float(self.scn.mu),
