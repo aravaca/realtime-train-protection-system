@@ -731,23 +731,26 @@ function drawBrakeLadderMini(st) {
   ctx2.lineWidth   = 1 * dpr;
   ctx2.strokeRect(x, yEB, bW, bH);
 
-  if (st.tasc_enabled) {
-    const lightR = 8 * dpr;
-    const lightX = w - lightR - 4 * dpr; // 오른쪽 여백
-    const lightY = lightR + 4 * dpr;     // 위쪽 여백
+  if (st.tasc_enabled) /* === TASC 경고등 === */
+  {
+    const lightR = 12 * dpr; // ← 크게
+    const lightX = w - lightR - 6 * dpr; // 오른쪽에서 조금 여유
+    const lightY = lightR + 6 * dpr;     // 위쪽에서 조금 여유
 
-    // 램프 배경 (항상 그림)
+    // 램프 원
     ctx2.beginPath();
     ctx2.arc(lightX, lightY, lightR, 0, Math.PI * 2);
-    ctx2.fillStyle = st.tasc_enabled ? "#ff3b3b" : "rgba(80,0,0,0.5)"; 
+    ctx2.fillStyle = st.tasc_enabled ? "#ff3b3b" : "#222"; 
     ctx2.fill();
+
+    // 테두리
     ctx2.lineWidth = 2 * dpr;
-    ctx2.strokeStyle = "#660000";
+    ctx2.strokeStyle = st.tasc_enabled ? "#660000" : "#aaa"; 
     ctx2.stroke();
 
     // "TASC" 텍스트
-    ctx2.fillStyle = "#fff";
-    ctx2.font = `${8*dpr}px 'Orbitron', sans-serif`;
+    ctx2.fillStyle = st.tasc_enabled ? "#fff" : "#888"; // 꺼지면 흐리게
+    ctx2.font = `${9*dpr}px 'Orbitron', sans-serif`;
     ctx2.textAlign = "center";
     ctx2.textBaseline = "middle";
     ctx2.fillText("TASC", lightX, lightY);
