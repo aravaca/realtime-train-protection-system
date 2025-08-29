@@ -681,7 +681,6 @@ function drawHUD(st){
   const lightX = w - lightR - 20 * dpr;
   const lightY = lightR + 20 * dpr;
 
-  // 깜빡임 제어 (0.5초 간격)
   const blinkOn = Math.floor(Date.now() / 500) % 2 === 0;
 
   ctx.beginPath();
@@ -690,15 +689,15 @@ function drawHUD(st){
   if (st.tasc_active) {
     // 작동 중 → 빨간불 고정
     ctx.fillStyle = "#ff3b3b";
-  } else if (st.tasc_armed && blinkOn) {
+  } else if (st.tasc_armed && !st.tasc_active && blinkOn) {
     // 활성화(대기) 상태 → 노란색 깜빡임
     ctx.fillStyle = "#ffae00";
-  } else if (!st.tasc_enabled
-  ) {
+  } else if (!st.tasc_enabled) {
     // 꺼짐
     ctx.fillStyle = "#222";
   } else {
-    ctx.fillStyle = "#222";
+    // 혹시 다른 상태일 때 대비
+    ctx.fillStyle = "#444";
   }
   ctx.fill();
 
@@ -712,6 +711,7 @@ function drawHUD(st){
   ctx.textBaseline = "middle";
   ctx.fillText("TASC", lightX, lightY);
 }
+
 
 
 
