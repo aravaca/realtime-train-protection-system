@@ -693,7 +693,7 @@ function drawHUD(st){
   } else if (st.tasc_armed && blinkOn) {
     // 활성화(대기) 상태 → 노란색 깜빡임
     ctx.fillStyle = "#ffae00";
-  } else {
+  } else if (!st.tasc_active) {
     // 꺼짐
     ctx.fillStyle = "#222";
   }
