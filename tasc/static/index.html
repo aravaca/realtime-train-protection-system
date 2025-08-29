@@ -682,7 +682,8 @@ function drawHUD(st){
   const textH = 9 * dpr;     
   const radius = 6 * dpr;    // 모서리 반경
 
-  const lightW = textW + pad*2;
+  const lightW = textW + pad*2 + 6*dpr; // 기존보다 6px 더 늘림
+
   const lightH = textH + pad*2;
 
   const isMobile = window.innerWidth < 768;
@@ -695,7 +696,7 @@ function drawHUD(st){
 
   let fillColor = "#444"; 
   if (!st.tasc_armed && !st.tasc_active) fillColor = "#222";
-  else if (st.tasc_active) fillColor = "#ff9750";
+  else if (st.tasc_active) fillColor = "#ff3b3b";
   else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ffae00";
 
   // 둥근 직사각형 그리기
