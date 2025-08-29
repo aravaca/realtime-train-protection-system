@@ -677,41 +677,48 @@ function drawHUD(st){
   ctx.closePath(); ctx.fill(); ctx.stroke();
 /* === TASC 경고등 (HUD 위) === */
 {
-  const lightW = 24 * dpr; // 가로
-  const lightH = 16 * dpr; // 세로
+  const pad = 4 * dpr;       // 텍스트와 테두리 사이 여백
+  const textW = 18 * dpr;    
+  const textH = 9 * dpr;     
+  const radius = 3 * dpr;    // 모서리 반경
+
+  const lightW = textW + pad*2;
+  const lightH = textH + pad*2;
 
   const isMobile = window.innerWidth < 768;
-
-  // 위치
   const lightX = isMobile 
     ? w - lightW - 35 * dpr
     : w - lightW - 30 * dpr;
-  const lightY = isMobile 
-    ? 25 * dpr
-    : 25 * dpr;
+  const lightY = 25 * dpr;
 
   const blinkOn = Math.floor(Date.now() / 250) % 2 === 0;
 
-  // 색상 결정
-  let fillColor = "#444"; // 기본
-  if (!st.tasc_armed && !st.tasc_active) {
-    fillColor = "#222"; // 꺼짐
-  } else if (st.tasc_active) {
-    fillColor = "#ff3b3b"; // 빨간불 고정
-  } else if (st.tasc_armed && !st.tasc_active && blinkOn) {
-    fillColor = "#ffae00"; // 노란 깜빡임
-  }
+  let fillColor = "#444"; 
+  if (!st.tasc_armed && !st.tasc_active) fillColor = "#222";
+  else if (st.tasc_active) fillColor = "#ff3b3b";
+  else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ffae00";
 
-  // 직사각형 그리기
+  // 둥근 직사각형 그리기
+  ctx.beginPath();
+  ctx.moveTo(lightX + radius, lightY);
+  ctx.lineTo(lightX + lightW - radius, lightY);
+  ctx.quadraticCurveTo(lightX + lightW, lightY, lightX + lightW, lightY + radius);
+  ctx.lineTo(lightX + lightW, lightY + lightH - radius);
+  ctx.quadraticCurveTo(lightX + lightW, lightY + lightH, lightX + lightW - radius, lightY + lightH);
+  ctx.lineTo(lightX + radius, lightY + lightH);
+  ctx.quadraticCurveTo(lightX, lightY + lightH, lightX, lightY + lightH - radius);
+  ctx.lineTo(lightX, lightY + radius);
+  ctx.quadraticCurveTo(lightX, lightY, lightX + radius, lightY);
+  ctx.closePath();
+
   ctx.fillStyle = fillColor;
-  ctx.fillRect(lightX, lightY, lightW, lightH);
+  ctx.fill();
 
-  // 테두리
   ctx.lineWidth = 2 * dpr;
   ctx.strokeStyle = (st.tasc_active || st.tasc_armed) ? "#660000" : "#aaa";
-  ctx.strokeRect(lightX, lightY, lightW, lightH);
+  ctx.stroke();
 
-  // 텍스트
+  // 텍스트 중앙 정렬
   ctx.fillStyle = (st.tasc_active || st.tasc_armed) ? "#fff" : "#888";
   ctx.font = `${9*dpr}px 'Eurostile', 'DIN', sans-serif`;
   ctx.textAlign = "center";
