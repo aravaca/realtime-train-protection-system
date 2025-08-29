@@ -685,7 +685,7 @@ function drawHUD(st){
 
   ctx.beginPath();
   ctx.arc(lightX, lightY, lightR, 0, Math.PI * 2);
-  if (!st.tasc_enabled) {
+  if (!st.tasc_armed && !st.tasc_enabled) {
     // 꺼짐
     ctx.fillStyle = "#222";
 
