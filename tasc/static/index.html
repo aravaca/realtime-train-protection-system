@@ -685,10 +685,10 @@ function drawHUD(st){
   // 위치 설정
   const lightX = isMobile 
     ? w - lightR - 35 * dpr   // 모바일: 오른쪽 여백 10px
-    : w - lightR - 25 * dpr;  // PC: 오른쪽 여백 20px
+    : w - lightR - 30 * dpr;  // PC: 오른쪽 여백 20px
   const lightY = isMobile 
     ? 25 * dpr                // 모바일: 위쪽 25px
-    : 20 * dpr;               // PC: 위쪽 30px
+    : 25 * dpr;               // PC: 위쪽 30px
 
   const blinkOn = Math.floor(Date.now() / 250) % 2 === 0;
 
