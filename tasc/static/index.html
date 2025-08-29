@@ -676,54 +676,51 @@ function drawHUD(st){
   ctx.moveTo(dX, adjY-diamondH/2); ctx.lineTo(dX+diamondW/2, adjY); ctx.lineTo(dX, adjY+diamondH/2); ctx.lineTo(dX-diamondW/2, adjY);
   ctx.closePath(); ctx.fill(); ctx.stroke();
 /* === TASC 경고등 (HUD 위) === */
-{
-  const lightR = 12 * dpr;
+  {
+    const lightR = 12 * dpr;
 
-  // 모바일/PC 구분
-  const isMobile = window.innerWidth < 768;
+    // 모바일/PC 구분
+    const isMobile = window.innerWidth < 768;
 
-  // 위치 설정
-  const lightX = isMobile 
-    ? w - lightR - 35 * dpr   // 모바일: 오른쪽 여백 10px
-    : w - lightR - 30 * dpr;  // PC: 오른쪽 여백 20px
-  const lightY = isMobile 
-    ? 25 * dpr                // 모바일: 위쪽 25px
-    : 25 * dpr;               // PC: 위쪽 30px
+    // 위치 설정
+    const lightX = isMobile 
+      ? w - lightR - 35 * dpr   // 모바일: 오른쪽 여백 10px
+      : w - lightR - 30 * dpr;  // PC: 오른쪽 여백 20px
+    const lightY = isMobile 
+      ? 25 * dpr                // 모바일: 위쪽 25px
+      : 25 * dpr;               // PC: 위쪽 30px
 
-  const blinkOn = Math.floor(Date.now() / 250) % 2 === 0;
+    const blinkOn = Math.floor(Date.now() / 250) % 2 === 0;
 
-  ctx.beginPath();
-  ctx.arc(lightX, lightY, lightR, 0, Math.PI * 2);
-  if (!st.tasc_armed && !st.tasc_enabled) {
-    // 꺼짐
-    ctx.fillStyle = "#222";
+    ctx.beginPath();
+    ctx.arc(lightX, lightY, lightR, 0, Math.PI * 2);
+    if (!st.tasc_armed && !st.tasc_enabled) {
+      // 꺼짐
+      ctx.fillStyle = "#222";
 
-  } else if (st.tasc_active) {
-    // 작동 중 → 빨간불 고정
-    ctx.fillStyle = "#ff3b3b";
-  } else if (st.tasc_armed && !st.tasc_active && blinkOn) {
-    // 활성화(대기) 상태 → 노란색 깜빡임
-    ctx.fillStyle = "#ff3b3b";
-  } else {
-    // 혹시 다른 상태일 때 대비
-    ctx.fillStyle = "#444";
+    } else if (st.tasc_active) {
+      // 작동 중 → 빨간불 고정
+      ctx.fillStyle = "#ff3b3b";
+    } else if (st.tasc_armed && !st.tasc_active && blinkOn) {
+      // 활성화(대기) 상태 → 노란색 깜빡임
+      ctx.fillStyle = "#ff3b3b";
+    } else {
+      // 혹시 다른 상태일 때 대비
+      ctx.fillStyle = "#444";
+    }
+    ctx.fill();
+
+    ctx.lineWidth = 2 * dpr;
+    ctx.strokeStyle = (st.tasc_active || st.tasc_armed) ? "#660000" : "#aaa";
+    ctx.stroke();
+
+    ctx.fillStyle = (st.tasc_active || st.tasc_armed) ? "#fff" : "#888";
+    ctx.font = `${9*dpr}px 'Eurostile', 'DIN', sans-serif`;
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("TASC", lightX, lightY);
   }
-  ctx.fill();
-
-  ctx.lineWidth = 2 * dpr;
-  ctx.strokeStyle = (st.tasc_active || st.tasc_armed) ? "#660000" : "#aaa";
-  ctx.stroke();
-
-  ctx.fillStyle = (st.tasc_active || st.tasc_armed) ? "#fff" : "#888";
-  ctx.font = `${9*dpr}px 'Orbitron', sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("TASC", lightX, lightY);
-}
-
-
-
-
 }
 
 /* ===== 브레이크 미니 인디케이터 ===== */
