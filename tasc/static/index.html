@@ -716,7 +716,7 @@ function drawHUD(st){
   ctx.fill();
 
   ctx.lineWidth = 2 * dpr;
-  ctx.strokeStyle = "#ff3b3b";
+  ctx.strokeStyle = (st.tasc_active || st.tasc_armed) ? "#660000" : "#aaa";
   ctx.stroke();
 
   // 텍스트 중앙 정렬
