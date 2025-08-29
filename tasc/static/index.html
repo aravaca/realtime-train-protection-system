@@ -730,6 +730,28 @@ function drawBrakeLadderMini(st) {
   ctx2.strokeStyle = "rgba(20,30,45,0.6)";
   ctx2.lineWidth   = 1 * dpr;
   ctx2.strokeRect(x, yEB, bW, bH);
+
+  if (st.tasc_enabled) {
+    const lightR = 8 * dpr;
+    const lightX = w - lightR - 4 * dpr; // 오른쪽 여백
+    const lightY = lightR + 4 * dpr;     // 위쪽 여백
+
+    // 원형 경고등
+    ctx2.beginPath();
+    ctx2.arc(lightX, lightY, lightR, 0, Math.PI * 2);
+    ctx2.fillStyle = "#ff3b3b";   // 빨간불
+    ctx2.fill();
+    ctx2.lineWidth = 2 * dpr;
+    ctx2.strokeStyle = "#660000";
+    ctx2.stroke();
+
+    // "TASC" 텍스트
+    ctx2.fillStyle = "#fff";
+    ctx2.font = `${8*dpr}px 'Orbitron', sans-serif`;
+    ctx2.textAlign = "center";
+    ctx2.textBaseline = "middle";
+    ctx2.fillText("TASC", lightX, lightY);
+  }
 }
 
 /* ===== 전동차/시리즈/편성 ===== */
