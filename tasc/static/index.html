@@ -736,10 +736,10 @@ function drawBrakeLadderMini(st) {
     const lightX = w - lightR - 4 * dpr; // 오른쪽 여백
     const lightY = lightR + 4 * dpr;     // 위쪽 여백
 
-    // 원형 경고등
+    // 램프 배경 (항상 그림)
     ctx2.beginPath();
     ctx2.arc(lightX, lightY, lightR, 0, Math.PI * 2);
-    ctx2.fillStyle = "#ff3b3b";   // 빨간불
+    ctx2.fillStyle = st.tasc_enabled ? "#ff3b3b" : "rgba(80,0,0,0.5)"; 
     ctx2.fill();
     ctx2.lineWidth = 2 * dpr;
     ctx2.strokeStyle = "#660000";
@@ -752,6 +752,7 @@ function drawBrakeLadderMini(st) {
     ctx2.textBaseline = "middle";
     ctx2.fillText("TASC", lightX, lightY);
   }
+
 }
 
 /* ===== 전동차/시리즈/편성 ===== */
