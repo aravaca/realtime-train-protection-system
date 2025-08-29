@@ -675,7 +675,7 @@ function drawHUD(st){
   ctx.fillStyle="#444"; ctx.strokeStyle="#222"; ctx.lineWidth=2*dpr; ctx.beginPath();
   ctx.moveTo(dX, adjY-diamondH/2); ctx.lineTo(dX+diamondW/2, adjY); ctx.lineTo(dX, adjY+diamondH/2); ctx.lineTo(dX-diamondW/2, adjY);
   ctx.closePath(); ctx.fill(); ctx.stroke();
- /* === TASC 경고등 (HUD 위) === */
+/* === TASC 경고등 (HUD 위) === */
 {
   const lightR = 12 * dpr;
   const lightX = w - lightR - 20 * dpr;
@@ -687,28 +687,29 @@ function drawHUD(st){
   ctx.beginPath();
   ctx.arc(lightX, lightY, lightR, 0, Math.PI * 2);
 
-  if (st.tasc_enabled) {
-    // 활성 상태 → 빨간불 고정
+  if (st.tasc_active) {
+    // 작동 중 → 빨간불 고정
     ctx.fillStyle = "#ff3b3b";
   } else if (st.tasc_armed && blinkOn) {
-    // 준비 상태 → 깜빡임
-    ctx.fillStyle = "#ffae00"; // 주황/노란 톤 추천
+    // 활성화(대기) 상태 → 노란색 깜빡임
+    ctx.fillStyle = "#ffae00";
   } else {
-    // 꺼진 상태
+    // 꺼짐
     ctx.fillStyle = "#222";
   }
   ctx.fill();
 
   ctx.lineWidth = 2 * dpr;
-  ctx.strokeStyle = (st.tasc_enabled || st.tasc_armed) ? "#660000" : "#aaa";
+  ctx.strokeStyle = (st.tasc_active || st.tasc_armed) ? "#660000" : "#aaa";
   ctx.stroke();
 
-  ctx.fillStyle = (st.tasc_enabled || st.tasc_armed) ? "#fff" : "#888";
+  ctx.fillStyle = (st.tasc_active || st.tasc_armed) ? "#fff" : "#888";
   ctx.font = `${9*dpr}px 'Orbitron', sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("TASC", lightX, lightY);
 }
+
 
 
 }
