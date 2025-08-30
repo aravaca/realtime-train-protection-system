@@ -812,14 +812,14 @@ lines.forEach((line, index) => {
   });
 
   /* === 정위치 정차 버튼 (초록색) === */
-  const stopBtnX = lightX - lightW - 20 * dpr;  // 정위치 정차 버튼의 X 위치
+  const stopBtnX = lightX - lightW - 15 * dpr;  // 정위치 정차 버튼의 X 위치
   const stopBtnY = lightY;  // Y 위치는 TASC 경고등과 동일하게
 
   const stopBtnW = textW + pad * 2 + 8 * dpr; // 정위치 정차 버튼의 너비
   const stopBtnH = textH + pad * 2 - 2 * dpr; // 정위치 정차 버튼의 높이
 
   let stopBtnColor = "#444"; // 기본 회색
-  if (st.tasc_finished) {
+  if (st.tasc_enabled && st.v == 0) {
     stopBtnColor = "#28a745";  // 초록색 (정위치 정차 완료 상태)
   }
 
