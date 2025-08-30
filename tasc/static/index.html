@@ -677,6 +677,7 @@ function drawHUD(st){
   ctx.closePath(); ctx.fill(); ctx.stroke();
 
 /* === TASC 경고등 (HUD 위) === */
+/* === TASC 경고등 (HUD 위) === */
 {
   const pad = 8 * dpr;       // 텍스트와 테두리 사이 여백
   const textW = 18 * dpr;    
@@ -751,8 +752,9 @@ function drawHUD(st){
   const stopBtnH = textH + pad * 2 - 2 * dpr; // 정위치 정차 버튼의 높이
 
   let stopBtnColor = "#444"; // 기본 회색
-  let stopTextColor = "#fff"; // 기본 텍스트 색상
+  let stopTextColor = "#fff"; // 기본 텍스트 색상 (흰색)
 
+  // Check if the button should be green (정위치 정차 완료 상태)
   if (st.tasc_enabled && st.v == 0) {
     stopBtnColor = "#9be071";  // 초록색 (정위치 정차 완료 상태)
     stopTextColor = "#000";  // 초록색일 때 텍스트 색상 검은색
@@ -801,6 +803,7 @@ function drawHUD(st){
     ctx.fillText(line, stopBtnX + stopBtnW / 2, stopBtnY + stopBtnH / 2 + index * stopLineHeight);
   });
 }
+
 }
 
 
