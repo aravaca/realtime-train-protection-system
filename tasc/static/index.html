@@ -695,7 +695,7 @@ function drawHUD(st){
   const blinkOn = Math.floor(Date.now() / 250) % 2 === 0;
 
   let fillColor = "#444"; 
-  if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#222";
+  if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#444";
   else if (st.tasc_active) fillColor = "#ff3b3b";
   else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ff3b3b";
 
