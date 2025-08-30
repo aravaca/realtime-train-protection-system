@@ -720,7 +720,7 @@ function drawHUD(st){
   ctx.stroke();
 
   // 텍스트 중앙 정렬
-  ctx.fillStyle = (st.tasc_enabled) ? "#fff" : "#888";
+  ctx.fillStyle = (st.tasc_enabled && st.tasc_active) ? "#fff" : "#888";
   ctx.font = `${9*dpr}px 'Eurostile', 'DIN', sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
