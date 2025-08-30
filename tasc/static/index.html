@@ -693,39 +693,33 @@ function drawHUD(st){
   const lightY = 15 * dpr;
 
   const blinkOn = Math.floor(Date.now() / 250) % 2 === 0;
-// Set the fill color based on the state
-let fillColor = "#444"; 
-if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#444";
-else if (st.tasc_active) fillColor = "#ff3b3b";
-else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ff3b3b";
 
-// Draw rounded rectangle
-ctx.beginPath();
-ctx.moveTo(lightX + radius, lightY);
-ctx.lineTo(lightX + lightW - radius, lightY);
-ctx.quadraticCurveTo(lightX + lightW, lightY, lightX + lightW, lightY + radius);
-ctx.lineTo(lightX + lightW, lightY + lightH - radius);
-ctx.quadraticCurveTo(lightX + lightW, lightY + lightH, lightX + lightW - radius, lightY + lightH);
-ctx.lineTo(lightX + radius, lightY + lightH);
-ctx.quadraticCurveTo(lightX, lightY + lightH, lightX, lightY + lightH - radius);
-ctx.lineTo(lightX, lightY + radius);
-ctx.quadraticCurveTo(lightX, lightY, lightX + radius, lightY);
-ctx.closePath();
+  let fillColor = "#444"; 
+  if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#444";
+  else if (st.tasc_active) fillColor = "#ff3b3b";
+  else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ff3b3b";
 
-// Fill the rectangle with the color
-ctx.fillStyle = fillColor;
-ctx.fill();
+  // 둥근 직사각형 그리기
+  ctx.beginPath();
+  ctx.moveTo(lightX + radius, lightY);
+  ctx.lineTo(lightX + lightW - radius, lightY);
+  ctx.quadraticCurveTo(lightX + lightW, lightY, lightX + lightW, lightY + radius);
+  ctx.lineTo(lightX + lightW, lightY + lightH - radius);
+  ctx.quadraticCurveTo(lightX + lightW, lightY + lightH, lightX + lightW - radius, lightY + lightH);
+  ctx.lineTo(lightX + radius, lightY + lightH);
+  ctx.quadraticCurveTo(lightX, lightY + lightH, lightX, lightY + lightH - radius);
+  ctx.lineTo(lightX, lightY + radius);
+  ctx.quadraticCurveTo(lightX, lightY, lightX + radius, lightY);
+  ctx.closePath();
 
-// Apply gradient stroke for a 3D effect
-const gradient = ctx.createLinearGradient(lightX, lightY, lightX, lightY + lightH);
-gradient.addColorStop(0, "#999");  // Lighter gray at the top
-gradient.addColorStop(1, "#444");  // Darker gray at the bottom
+  ctx.fillStyle = fillColor;
+  ctx.fill();
 
-// Set stroke style to the gradient
-ctx.lineWidth = 2 * dpr;
-ctx.strokeStyle = gradient;
-ctx.stroke();
+  ctx.lineWidth = 2 * dpr;
+  ctx.strokeStyle = (st.tasc_active || st.tasc_armed) ? "#ff3b3b" : "#aaa";
+  ctx.stroke();
 
+  // 텍스트 중앙 정렬
 // Set text style and alignment
 ctx.fillStyle = (st.tasc_enabled && st.tasc_active) ? "#fff" : "#888";
 ctx.font = `${7 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
@@ -741,7 +735,6 @@ const lineHeight = 10 * dpr; // Adjust this value for spacing between lines
 lines.forEach((line, index) => {
   ctx.fillText(line, lightX + lightW / 2, lightY + lightH / 2 + index * lineHeight);
 });
-
 
 }
 
@@ -776,20 +769,18 @@ function drawBrakeLadderMini(st) {
     ctx2.fillStyle = "rgba(60,80,100,0.35)";
     ctx2.fillRect(x, y, bW, bH);
 
-    // 각 박스 안에 숫자 그리기 (하얀색으로 표시)
-    ctx2.fillStyle = "#ffffff"; // 숫자 색깔
+    // 각 박스 안에 숫자 표시
+    ctx2.fillStyle = "#ffffff"; // 하얀색
     ctx2.font = `${Math.max(10, bH / 3)}px sans-serif`; // 폰트 크기 설정
     ctx2.textAlign = "center";
     ctx2.textBaseline = "middle";
 
-    // 각 단계마다 숫자 표시
+    // 해당 단계에 맞는 숫자 표시 (1, 1 2, 1 2 3 ... 형식)
     let text = "";
     for (let n = 1; n <= k; n++) {
-      text += n + " "; // 숫자를 추가하고 공백을 넣음
+      text += n + " "; // 숫자 추가
     }
-
-    // 텍스트를 박스에 맞춰 그리기
-    ctx2.fillText(text.trim(), x + bW / 2, y + bH / 2); // 중앙에 숫자 표시
+    ctx2.fillText(text.trim(), x + bW / 2, y + bH / 2); // 박스 중앙에 숫자 그리기
 
     if (cur !== ebIdx && k <= cur) { 
       ctx2.fillStyle = "#ffd34d"; 
@@ -810,8 +801,6 @@ function drawBrakeLadderMini(st) {
   ctx2.strokeStyle = "rgba(20,30,45,0.6)";
   ctx2.lineWidth   = 1 * dpr;
   ctx2.strokeRect(x, yEB, bW, bH);
-
-  // 맨 위 박스는 숫자 표시가 없으므로 처리하지 않음
 }
 
 
