@@ -693,33 +693,39 @@ function drawHUD(st){
   const lightY = 15 * dpr;
 
   const blinkOn = Math.floor(Date.now() / 250) % 2 === 0;
+// Set the fill color based on the state
+let fillColor = "#444"; 
+if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#444";
+else if (st.tasc_active) fillColor = "#ff3b3b";
+else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ff3b3b";
 
-  let fillColor = "#444"; 
-  if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#444";
-  else if (st.tasc_active) fillColor = "#ff3b3b";
-  else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ff3b3b";
+// Draw rounded rectangle
+ctx.beginPath();
+ctx.moveTo(lightX + radius, lightY);
+ctx.lineTo(lightX + lightW - radius, lightY);
+ctx.quadraticCurveTo(lightX + lightW, lightY, lightX + lightW, lightY + radius);
+ctx.lineTo(lightX + lightW, lightY + lightH - radius);
+ctx.quadraticCurveTo(lightX + lightW, lightY + lightH, lightX + lightW - radius, lightY + lightH);
+ctx.lineTo(lightX + radius, lightY + lightH);
+ctx.quadraticCurveTo(lightX, lightY + lightH, lightX, lightY + lightH - radius);
+ctx.lineTo(lightX, lightY + radius);
+ctx.quadraticCurveTo(lightX, lightY, lightX + radius, lightY);
+ctx.closePath();
 
-  // 둥근 직사각형 그리기
-  ctx.beginPath();
-  ctx.moveTo(lightX + radius, lightY);
-  ctx.lineTo(lightX + lightW - radius, lightY);
-  ctx.quadraticCurveTo(lightX + lightW, lightY, lightX + lightW, lightY + radius);
-  ctx.lineTo(lightX + lightW, lightY + lightH - radius);
-  ctx.quadraticCurveTo(lightX + lightW, lightY + lightH, lightX + lightW - radius, lightY + lightH);
-  ctx.lineTo(lightX + radius, lightY + lightH);
-  ctx.quadraticCurveTo(lightX, lightY + lightH, lightX, lightY + lightH - radius);
-  ctx.lineTo(lightX, lightY + radius);
-  ctx.quadraticCurveTo(lightX, lightY, lightX + radius, lightY);
-  ctx.closePath();
+// Fill the rectangle with the color
+ctx.fillStyle = fillColor;
+ctx.fill();
 
-  ctx.fillStyle = fillColor;
-  ctx.fill();
+// Apply gradient stroke for a 3D effect
+const gradient = ctx.createLinearGradient(lightX, lightY, lightX, lightY + lightH);
+gradient.addColorStop(0, "#999");  // Lighter gray at the top
+gradient.addColorStop(1, "#444");  // Darker gray at the bottom
 
-  ctx.lineWidth = 2 * dpr;
-  ctx.strokeStyle = (st.tasc_active || st.tasc_armed) ? "#ff3b3b" : "#aaa";
-  ctx.stroke();
+// Set stroke style to the gradient
+ctx.lineWidth = 2 * dpr;
+ctx.strokeStyle = gradient;
+ctx.stroke();
 
-  // 텍스트 중앙 정렬
 // Set text style and alignment
 ctx.fillStyle = (st.tasc_enabled && st.tasc_active) ? "#fff" : "#888";
 ctx.font = `${7 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
@@ -735,6 +741,7 @@ const lineHeight = 10 * dpr; // Adjust this value for spacing between lines
 lines.forEach((line, index) => {
   ctx.fillText(line, lightX + lightW / 2, lightY + lightH / 2 + index * lineHeight);
 });
+
 
 }
 
