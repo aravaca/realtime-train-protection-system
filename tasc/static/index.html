@@ -720,11 +720,22 @@ function drawHUD(st){
   ctx.stroke();
 
   // 텍스트 중앙 정렬
-  ctx.fillStyle = (st.tasc_enabled && st.tasc_active) ? "#fff" : "#888";
-  ctx.font = `${7*dpr}px 'A-OTF Shin Go Pro', sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("TASC\n切", lightX + lightW/2, lightY + lightH/2);
+// Set text style and alignment
+ctx.fillStyle = (st.tasc_enabled && st.tasc_active) ? "#fff" : "#888";
+ctx.font = `${7 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+
+// Split text by newline and position each line
+const text = "TASC\n자동";
+const lines = text.split("\n");
+const lineHeight = 10 * dpr; // Adjust this value for spacing between lines
+
+// Draw each line at the center position
+lines.forEach((line, index) => {
+  ctx.fillText(line, lightX + lightW / 2, lightY + lightH / 2 + index * lineHeight);
+});
+
 }
 
 }
