@@ -765,8 +765,8 @@ lines.forEach((line, index) => {
   // Set the fill color based on the state
   let fillColor = "#444"; 
   if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#444";
-  else if (st.tasc_active) fillColor = "#ff3b3b";
-  else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ff3b3b";
+  else if (st.tasc_active) fillColor = "#deb374";
+  else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#deb374";
 
   // Draw rounded rectangle for TASC light
   ctx.beginPath();
@@ -820,7 +820,7 @@ lines.forEach((line, index) => {
 
   let stopBtnColor = "#444"; // 기본 회색
   if (st.tasc_enabled && st.v == 0) {
-    stopBtnColor = "#28a745";  // 초록색 (정위치 정차 완료 상태)
+    stopBtnColor = "#9be071";  // 초록색 (정위치 정차 완료 상태)
   }
 
   // Draw rounded rectangle for Stop Button
