@@ -683,6 +683,7 @@ function drawHUD(st){
   const radius = 2 * dpr;    // 모서리 반경
 
   const lightW = textW + pad*2 + 8*dpr; // 기존보다 6px 더 늘림
+
   const lightH = textH + pad*2 - 2*dpr; // 기존보다 2px 줄임
 
   const isMobile = window.innerWidth < 768;
@@ -694,108 +695,56 @@ function drawHUD(st){
   const blinkOn = Math.floor(Date.now() / 250) % 2 === 0;
 
   // Set the fill color based on the state
-  let fillColor = "#444"; 
-  if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#444";
-  else if (st.tasc_active) fillColor = "#ff3b3b";
-  else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ff3b3b";
+let fillColor = "#444"; 
+if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#444";
+else if (st.tasc_active) fillColor = "#ff3b3b";
+else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ff3b3b";
 
-  // Draw rounded rectangle for TASC light
-  ctx.beginPath();
-  ctx.moveTo(lightX + radius, lightY);
-  ctx.lineTo(lightX + lightW - radius, lightY);
-  ctx.quadraticCurveTo(lightX + lightW, lightY, lightX + lightW, lightY + radius);
-  ctx.lineTo(lightX + lightW, lightY + lightH - radius);
-  ctx.quadraticCurveTo(lightX + lightW, lightY + lightH, lightX + lightW - radius, lightY + lightH);
-  ctx.lineTo(lightX + radius, lightY + lightH);
-  ctx.quadraticCurveTo(lightX, lightY + lightH, lightX, lightY + lightH - radius);
-  ctx.lineTo(lightX, lightY + radius);
-  ctx.quadraticCurveTo(lightX, lightY, lightX + radius, lightY);
-  ctx.closePath();
+// Draw rounded rectangle
+ctx.beginPath();
+ctx.moveTo(lightX + radius, lightY);
+ctx.lineTo(lightX + lightW - radius, lightY);
+ctx.quadraticCurveTo(lightX + lightW, lightY, lightX + lightW, lightY + radius);
+ctx.lineTo(lightX + lightW, lightY + lightH - radius);
+ctx.quadraticCurveTo(lightX + lightW, lightY + lightH, lightX + lightW - radius, lightY + lightH);
+ctx.lineTo(lightX + radius, lightY + lightH);
+ctx.quadraticCurveTo(lightX, lightY + lightH, lightX, lightY + lightH - radius);
+ctx.lineTo(lightX, lightY + radius);
+ctx.quadraticCurveTo(lightX, lightY, lightX + radius, lightY);
+ctx.closePath();
 
-  // Fill the rectangle with the color
-  ctx.fillStyle = fillColor;
-  ctx.fill();
+// Fill the rectangle with the color
+ctx.fillStyle = fillColor;
+ctx.fill();
 
-  // Apply gradient stroke for a 3D effect
-  const gradient = ctx.createLinearGradient(lightX, lightY, lightX, lightY + lightH);
-  gradient.addColorStop(0, "#999");  // Lighter gray at the top
-  gradient.addColorStop(1, "#444");  // Darker gray at the bottom
+// Apply gradient stroke for a 3D effect
+const gradient = ctx.createLinearGradient(lightX, lightY, lightX, lightY + lightH);
+gradient.addColorStop(0, "#999");  // Lighter gray at the top
+gradient.addColorStop(1, "#444");  // Darker gray at the bottom
 
-  // Set stroke style to the gradient
-  ctx.lineWidth = 2 * dpr;
-  ctx.strokeStyle = gradient;
-  ctx.stroke();
+// Set stroke style to the gradient
+ctx.lineWidth = 2 * dpr;
+ctx.strokeStyle = gradient;
+ctx.stroke();
 
-  // Set text style and alignment for TASC text
-  ctx.fillStyle = (st.tasc_enabled && st.tasc_active) ? "#fff" : "#888";
-  ctx.font = `${7 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "bottom";
+// Set text style and alignment
+ctx.fillStyle = (st.tasc_enabled && st.tasc_active) ? "#fff" : "#888";
+ctx.font = `${7 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
+ctx.textAlign = "center";
+ctx.textBaseline = "bottom";
 
-  // Split text by newline and position each line
-  const text = "TASC\n자동";
-  const lines = text.split("\n");
-  const lineHeight = 10 * dpr; // Adjust this value for spacing between lines
+// Split text by newline and position each line
+const text = "TASC\n자동";
+const lines = text.split("\n");
+const lineHeight = 10 * dpr; // Adjust this value for spacing between lines
 
-  // Draw each line at the center position
-  lines.forEach((line, index) => {
-    ctx.fillText(line, lightX + lightW / 2, lightY + lightH / 2 + index * lineHeight);
-  });
-
-  /* === 시계 (왼쪽 작은 회중시계) === */
-  const clockRadius = 20 * dpr;  // 시계 크기 (반지름)
-  const clockX = lightX - clockRadius - 12 * dpr;  // 시계의 X 위치
-  const clockY = lightY + lightH / 2;  // 시계의 Y 위치 (TASC 경고등의 가운데)
-
-  // Draw the clock background (white)
-  ctx.beginPath();
-  ctx.arc(clockX, clockY, clockRadius, 0, Math.PI * 2);
-  ctx.fillStyle = "#fff";  // 배경 흰색
-  ctx.fill();
-
-  // Draw the clock border (black)
-  ctx.lineWidth = 2 * dpr;
-  ctx.strokeStyle = "#000";  // 시계 테두리 색상
-  ctx.stroke();
-
-  // Get the current time
-  const now = new Date();
-  const hours = now.getHours() % 12;  // 12시간제로
-  const minutes = now.getMinutes();
-  const seconds = now.getSeconds();
-
-  // Calculate the angle for each hand
-  const hourAngle = (Math.PI / 6) * (hours + minutes / 60);  // 시침 (360° / 12)
-  const minuteAngle = (Math.PI / 30) * minutes;  // 분침 (360° / 60)
-  const secondAngle = (Math.PI / 30) * seconds;  // 초침 (360° / 60)
-
-  // Draw hour hand (black)
-  ctx.beginPath();
-  ctx.moveTo(clockX, clockY);
-  ctx.lineTo(clockX + (clockRadius * 0.5) * Math.cos(hourAngle - Math.PI / 2), clockY + (clockRadius * 0.5) * Math.sin(hourAngle - Math.PI / 2));
-  ctx.lineWidth = 4 * dpr;
-  ctx.strokeStyle = "#000";  // 시침 색상 (검은색)
-  ctx.stroke();
-
-  // Draw minute hand (gray)
-  ctx.beginPath();
-  ctx.moveTo(clockX, clockY);
-  ctx.lineTo(clockX + (clockRadius * 0.7) * Math.cos(minuteAngle - Math.PI / 2), clockY + (clockRadius * 0.7) * Math.sin(minuteAngle - Math.PI / 2));
-  ctx.lineWidth = 3 * dpr;
-  ctx.strokeStyle = "#555";  // 분침 색상 (회색)
-  ctx.stroke();
-
-  // Draw second hand (red)
-  ctx.beginPath();
-  ctx.moveTo(clockX, clockY);
-  ctx.lineTo(clockX + (clockRadius * 0.8) * Math.cos(secondAngle - Math.PI / 2), clockY + (clockRadius * 0.8) * Math.sin(secondAngle - Math.PI / 2));
-  ctx.lineWidth = 2 * dpr;
-  ctx.strokeStyle = "#ff0000";  // 초침 색상 (빨간색)
-  ctx.stroke();
-}
+// Draw each line at the center position
+lines.forEach((line, index) => {
+  ctx.fillText(line, lightX + lightW / 2, lightY + lightH / 2 + index * lineHeight);
+});
 
 }
-
+}
 
 
 /* ===== 브레이크 미니 인디케이터 ===== */
