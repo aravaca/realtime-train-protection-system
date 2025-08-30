@@ -675,7 +675,8 @@ function drawHUD(st){
   ctx.fillStyle="#444"; ctx.strokeStyle="#222"; ctx.lineWidth=2*dpr; ctx.beginPath();
   ctx.moveTo(dX, adjY-diamondH/2); ctx.lineTo(dX+diamondW/2, adjY); ctx.lineTo(dX, adjY+diamondH/2); ctx.lineTo(dX-diamondW/2, adjY);
   ctx.closePath(); ctx.fill(); ctx.stroke();
-/* === TASC 경고등 (HUD 위) === */
+
+  /* === TASC 경고등 (HUD 위) === */
 {
   const pad = 8 * dpr;       // 텍스트와 테두리 사이 여백
   const textW = 18 * dpr;    
@@ -742,6 +743,129 @@ const lineHeight = 10 * dpr; // Adjust this value for spacing between lines
 lines.forEach((line, index) => {
   ctx.fillText(line, lightX + lightW / 2, lightY + lightH / 2 + index * lineHeight);
 });
+
+/* === TASC 경고등 (HUD 위) === */
+{
+  const pad = 8 * dpr;       // 텍스트와 테두리 사이 여백
+  const textW = 18 * dpr;    
+  const textH = 9 * dpr;     
+  const radius = 2 * dpr;    // 모서리 반경
+
+  const lightW = textW + pad*2 + 8*dpr; // 기존보다 6px 더 늘림
+  const lightH = textH + pad*2 - 2*dpr; // 기존보다 2px 줄임
+
+  const isMobile = window.innerWidth < 768;
+  const lightX = isMobile 
+    ? w - lightW - 35 * dpr
+    : w - lightW - 30 * dpr;
+  const lightY = 15 * dpr;
+
+  const blinkOn = Math.floor(Date.now() / 250) % 2 === 0;
+
+  // Set the fill color based on the state
+  let fillColor = "#444"; 
+  if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#444";
+  else if (st.tasc_active) fillColor = "#ff3b3b";
+  else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ff3b3b";
+
+  // Draw rounded rectangle for TASC light
+  ctx.beginPath();
+  ctx.moveTo(lightX + radius, lightY);
+  ctx.lineTo(lightX + lightW - radius, lightY);
+  ctx.quadraticCurveTo(lightX + lightW, lightY, lightX + lightW, lightY + radius);
+  ctx.lineTo(lightX + lightW, lightY + lightH - radius);
+  ctx.quadraticCurveTo(lightX + lightW, lightY + lightH, lightX + lightW - radius, lightY + lightH);
+  ctx.lineTo(lightX + radius, lightY + lightH);
+  ctx.quadraticCurveTo(lightX, lightY + lightH, lightX, lightY + lightH - radius);
+  ctx.lineTo(lightX, lightY + radius);
+  ctx.quadraticCurveTo(lightX, lightY, lightX + radius, lightY);
+  ctx.closePath();
+
+  // Fill the rectangle with the color
+  ctx.fillStyle = fillColor;
+  ctx.fill();
+
+  // Apply gradient stroke for a 3D effect
+  const gradient = ctx.createLinearGradient(lightX, lightY, lightX, lightY + lightH);
+  gradient.addColorStop(0, "#999");  // Lighter gray at the top
+  gradient.addColorStop(1, "#444");  // Darker gray at the bottom
+
+  // Set stroke style to the gradient
+  ctx.lineWidth = 2 * dpr;
+  ctx.strokeStyle = gradient;
+  ctx.stroke();
+
+  // Set text style and alignment for TASC text
+  ctx.fillStyle = (st.tasc_enabled && st.tasc_active) ? "#fff" : "#888";
+  ctx.font = `${7 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+
+  // Split text by newline and position each line
+  const text = "TASC\n자동";
+  const lines = text.split("\n");
+  const lineHeight = 10 * dpr; // Adjust this value for spacing between lines
+
+  // Draw each line at the center position
+  lines.forEach((line, index) => {
+    ctx.fillText(line, lightX + lightW / 2, lightY + lightH / 2 + index * lineHeight);
+  });
+
+  /* === 정위치 정차 버튼 (초록색) === */
+  const stopBtnX = lightX - lightW - 20 * dpr;  // 정위치 정차 버튼의 X 위치
+  const stopBtnY = lightY;  // Y 위치는 TASC 경고등과 동일하게
+
+  const stopBtnW = textW + pad * 2 + 8 * dpr; // 정위치 정차 버튼의 너비
+  const stopBtnH = textH + pad * 2 - 2 * dpr; // 정위치 정차 버튼의 높이
+
+  let stopBtnColor = "#444"; // 기본 회색
+  if (st.tasc_finished) {
+    stopBtnColor = "#28a745";  // 초록색 (정위치 정차 완료 상태)
+  }
+
+  // Draw rounded rectangle for Stop Button
+  ctx.beginPath();
+  ctx.moveTo(stopBtnX + radius, stopBtnY);
+  ctx.lineTo(stopBtnX + stopBtnW - radius, stopBtnY);
+  ctx.quadraticCurveTo(stopBtnX + stopBtnW, stopBtnY, stopBtnX + stopBtnW, stopBtnY + radius);
+  ctx.lineTo(stopBtnX + stopBtnW, stopBtnY + stopBtnH - radius);
+  ctx.quadraticCurveTo(stopBtnX + stopBtnW, stopBtnY + stopBtnH, stopBtnX + stopBtnW - radius, stopBtnY + stopBtnH);
+  ctx.lineTo(stopBtnX + radius, stopBtnY + stopBtnH);
+  ctx.quadraticCurveTo(stopBtnX, stopBtnY + stopBtnH, stopBtnX, stopBtnY + stopBtnH - radius);
+  ctx.lineTo(stopBtnX, stopBtnY + radius);
+  ctx.quadraticCurveTo(stopBtnX, stopBtnY, stopBtnX + radius, stopBtnY);
+  ctx.closePath();
+
+  // Fill the button with the color
+  ctx.fillStyle = stopBtnColor;
+  ctx.fill();
+
+  // Apply gradient stroke for a 3D effect
+  const stopBtnGradient = ctx.createLinearGradient(stopBtnX, stopBtnY, stopBtnX, stopBtnY + stopBtnH);
+  stopBtnGradient.addColorStop(0, "#999");  // Lighter gray at the top
+  stopBtnGradient.addColorStop(1, "#444");  // Darker gray at the bottom
+
+  // Set stroke style to the gradient
+  ctx.lineWidth = 2 * dpr;
+  ctx.strokeStyle = stopBtnGradient;
+  ctx.stroke();
+
+  // Set text style and alignment for Stop Button text
+  ctx.fillStyle = "#fff";  // 텍스트 색상은 흰색
+  ctx.font = `${7 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+
+  // Draw text for the Stop Button
+  const stopText = "TASC\n정위치";
+  const stopLines = stopText.split("\n");
+  const stopLineHeight = 10 * dpr;  // Adjust this value for spacing between lines
+
+  // Draw each line of text at the center position
+  stopLines.forEach((line, index) => {
+    ctx.fillText(line, stopBtnX + stopBtnW / 2, stopBtnY + stopBtnH / 2 + index * stopLineHeight);
+  });
+
 
 }
 }
