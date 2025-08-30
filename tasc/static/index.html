@@ -698,8 +698,8 @@ function drawHUD(st){
   // Set the fill color based on the state
 let fillColor = "#444"; 
 if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#444";
-else if (st.tasc_active) fillColor = "#ff3b3b";
-else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#ff3b3b";
+else if (st.tasc_active) fillColor = "#fec670";
+else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#fec670";
 
 // Draw rounded rectangle
 ctx.beginPath();
@@ -765,8 +765,8 @@ lines.forEach((line, index) => {
   // Set the fill color based on the state
   let fillColor = "#444"; 
   if (!st.tasc_armed && !st.tasc_enabled) fillColor = "#444";
-  else if (st.tasc_active) fillColor = "#deb374";
-  else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#deb374";
+  else if (st.tasc_active) fillColor = "#fec670";
+  else if (st.tasc_armed && !st.tasc_active && blinkOn) fillColor = "#fec670";
 
   // Draw rounded rectangle for TASC light
   ctx.beginPath();
