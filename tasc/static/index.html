@@ -796,7 +796,7 @@ lines.forEach((line, index) => {
   ctx.stroke();
 
   // Set text style and alignment for TASC text
-  ctx.fillStyle = (st.tasc_enabled && st.tasc_active) ? "#fff" : "#888";
+  ctx.fillStyle = (st.tasc_enabled && st.tasc_active) ? "#000000" : "#888";
   ctx.font = `${7 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "bottom";
@@ -851,7 +851,7 @@ lines.forEach((line, index) => {
   ctx.stroke();
 
   // Set text style and alignment for Stop Button text
-  ctx.fillStyle = "#fff";  // 텍스트 색상은 흰색
+  ctx.fillStyle = "#00000";  // 텍스트 색상은 흰색
   ctx.font = `${7 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "bottom";
