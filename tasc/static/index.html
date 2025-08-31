@@ -493,14 +493,34 @@ if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
 }
 
 /* ===== 키보드 ===== */
-addEventListener("keydown",(e)=>{
-  if([" ","w","W","s","S","n","N"].includes(e.key)) e.preventDefault();
+addEventListener("keydown", (e) => {
+  if([" ","w","W","s","S","n","N","q","Q","e","E","d","D"].includes(e.key)) e.preventDefault();
   if(e.repeat) return;
-  // forceManualOverride();
-  if(e.key===" "){ if(ws.readyState!==WebSocket.OPEN) return; startRun(); }
-  else if(e.key==="w"||e.key==="W"){ sendCmd("applyNotch",+1); }
-  else if(e.key==="s"||e.key==="S"){ sendCmd("applyNotch",-1); }
-  else if(e.key==="n"||e.key==="N"){ sendCmd("release",0); }
+
+  if(e.key === " "){ 
+    if(ws.readyState !== WebSocket.OPEN) return; 
+    startRun(); 
+  }
+  else if(e.key === "w" || e.key === "W"){ 
+    sendCmd("applyNotch", +1); 
+  }
+  else if(e.key === "s" || e.key === "S"){ 
+    sendCmd("applyNotch", -1); 
+  }
+  else if(e.key === "n" || e.key === "N"){ 
+    sendCmd("release", 0); 
+  }
+  else if(e.key === "q" || e.key === "Q"){ 
+    // 두 번째로 강력한 제동 (예시로 -7)
+    sendCmd("setNotch", -7);  
+  }
+  else if(e.key === "e" || e.key === "E"){ 
+    sendCmd("emergencyBrake", 0);  
+  }
+  else if(e.key === "d" || e.key === "D"){ 
+    // 제동 1단
+    sendCmd("setNotch", -2);  
+  }
 });
 
 /* ===== HUD & 상태 ===== */
