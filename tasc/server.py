@@ -482,13 +482,33 @@ class StoppingSim:
         name = cmd["name"]
         val = cmd["val"]
 
-        if name == "stepNotch":
-            self._manual_desired_notch = self._clamp_notch(self._manual_desired_notch + val)
+        # ▼ 수동 개입이면서, TASC가 'active'면 즉시 끈다(armed일 때는 끄지 않음)
+        manual_cmd = name in ("stepNotch", "applyNotch", "release", "emergencyBrake")
+        if manual_cmd and self.tasc_enabled and self.tasc_active:
+            # TASC OFF
+            self.tasc_enabled = False
+            self.tasc_active = False
+            self.tasc_armed = False
+            self._tasc_desired_notch = 0
+            if DEBUG:
+                print("[TASC] manual intervention during ACTIVE -> TASC OFF")
+
+        # ▼ 그 다음 수동 의도 반영(일관되게)
+        if name in ("stepNotch", "applyNotch"):
+            self._manual_desired_notch = self._clamp_notch(self._manual_desired_notch + int(val))
+            if DEBUG:
+                print(f"[MANUAL] step/apply -> {self._manual_desired_notch}")
+
         elif name == "release":
             self._manual_desired_notch = 0
+            if DEBUG:
+                print("[MANUAL] release -> 0")
+
         elif name == "emergencyBrake":
             self._manual_desired_notch = self.veh.notches - 1
             self.eb_used = True
+            if DEBUG:
+                print(f"[MANUAL] EB -> {self._manual_desired_notch}")
 
     # ----------------- Lifecycle -----------------
 
@@ -776,11 +796,9 @@ class StoppingSim:
             dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
             rem_now = self.scn.L - st.s
 
-            # standby -> active : 남은 거리 기반 + 급박 상황 보조(선택)
+            # standby -> active : 남은 거리 기반만 (히스테리시스 포함)
             if self.tasc_armed and not self.tasc_active:
-                takeover_on = self.tasc_takeover_rem_m
-                hyst = self.tasc_takeover_hyst_m
-                if rem_now <= (takeover_on + hyst):
+                if (self.scn.L - st.s) <= (self.tasc_takeover_rem_m + self.tasc_takeover_hyst_m):
                     self.tasc_active = True
                     self.tasc_armed = False
                     self._tasc_last_change_t = st.t
@@ -1169,13 +1187,11 @@ async def ws_endpoint(ws: WebSocket):
 
                 elif name == "setTASC":
                     enabled = bool(payload.get("enabled", False))
-                    sim.tasc_enabled = enabled
                     sim.tasc_armed = enabled
                     sim.tasc_active = False
                     sim._tasc_desired_notch = 0
                     sim._tasc_became_active_t = -1.0
                     if enabled:
-                        sim.manual_override = False
                         sim._tasc_last_change_t = sim.state.t
                         sim._tasc_phase = "build"
                         sim._tasc_peak_notch = 1
