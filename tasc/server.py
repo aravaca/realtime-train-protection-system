@@ -498,11 +498,6 @@ class StoppingSim:
             st.lever_notch = self.veh.notches - 1
             self.eb_used = True
         elif name == "setNotch":
-            old_notch = st.lever_notch
-            st.lever_notch = self._clamp_notch(val)
-            if DEBUG:
-                print(f"Applied setNotch: {old_notch} -> {st.lever_notch}")
-        elif name == "applyNotch":
             st.lever_notch = self._clamp_notch(val)
 
 
