@@ -129,8 +129,8 @@ body{overflow-x:hidden;overflow-y:auto}
   letter-spacing:-2px;
 }
 
-#timer {
-  letter-spacing: 2px; /* 숫자 간격 약간 넓히기 */
+#timer .sep {
+  margin: 0 2px; /* 콜론 좌우 간격만 조정 */
 }
 
 @media (max-width:768px){
@@ -151,10 +151,13 @@ body{overflow-x:hidden;overflow-y:auto}
 <div class="card" style="flex:1 1 260px; position: relative">
   <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal;" class="stat">차량 로딩 중...</div>
 
- <div class="line">
+<div class="line">
   <span id="labelRemainTime">남은시간</span>
-  <span class="stat value" id="timer">0 s</span>
+  <span class="stat value" id="timer">
+    <span class="min">00</span><span class="sep">:</span><span class="sec">00</span>
+  </span>
 </div>
+
 <div class="line">
   <span id="labelSpeed">속도</span>
   <span class="stat value"><span id="spd">—</span><span class="unit"> km/h</span></span>
@@ -531,16 +534,14 @@ let isFinished=false, overlayShowingResult=false, st=null, lastTimestamp=0, prev
 function loop(ts){ if(!lastTimestamp) lastTimestamp=ts; lastTimestamp=ts; if(st) drawHUD(st); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 
-// 헬퍼: 정수를 MM:SS 형식으로 바꾸기
 function formatTimeSec(secInt) {
   const sign = secInt < 0 ? "+" : "";
   const s = Math.abs(secInt);
   const m = Math.floor(s / 60);
   const s2 = s % 60;
-  return sign
-    + (m < 10 ? "0" : "") + m + ":"   // 콜론 앞뒤에 공백 추가
-    + (s2 < 10 ? "0" : "") + s2;
+  return `${sign}<span class="min">${m < 10 ? "0" : ""}${m}</span><span class="sep">:</span><span class="sec">${s2 < 10 ? "0" : ""}${s2}</span>`;
 }
+
 
 // ===== WebSocket (단일 핸들러로 교체) =====
 ws.onmessage = (ev) => {
