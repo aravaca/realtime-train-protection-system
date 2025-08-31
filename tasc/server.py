@@ -194,7 +194,7 @@ class StoppingSim:
         # ---------- TASC ----------
         self.tasc_enabled = False
         self.manual_override = False
-        self.tasc_deadband_m = 0.05
+        self.tasc_deadband_m = 0.1
         self.tasc_hold_min_s = 0.05
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"  # "build" → "relax"
@@ -638,7 +638,7 @@ class StoppingSim:
             if v_kmh <= 5.0:
                 alpha = max(0.0, min(1.0, v_kmh / 5.0))
                 # -0.08 -> -0.15
-                a_soft = (-0.30) * alpha + (-0.20) * (1.0 - alpha)
+                a_soft = (-0.30) * alpha + (-0.15) * (1.0 - alpha)
                 w_soft = 1.0 - alpha
                 a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
 
