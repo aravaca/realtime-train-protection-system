@@ -1061,6 +1061,8 @@ async def ws_endpoint(ws: WebSocket):
 
     sim = StoppingSim(vehicle, scenario)
     sim.reset()   # ✅ 시작 시 start() 대신 reset()
+    sim.running = False  # 반드시 시뮬이 자동으로 돌지 않도록 초기화
+
 
     # 전송 속도: 30Hz
     send_interval = 1.0 / 30.0
