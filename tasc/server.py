@@ -521,9 +521,8 @@ class StoppingSim:
 
         # self.manual_override = False
         self._tasc_last_change_t = 0.0
-        if not self.tasc_active:
-            self._tasc_phase = "build"
-            self._tasc_peak_notch = 1
+        self._tasc_phase = "build"
+        self._tasc_peak_notch = 1
 
         self.tasc_active = False
         self.tasc_armed = bool(self.tasc_enabled)
@@ -753,7 +752,7 @@ class StoppingSim:
         self.time_history.append(st.t)
         if not self.first_brake_done:
             if st.lever_notch in (1, 2):
-                if self.first_brake_start is None and not self.tasc_active:
+                if self.first_brake_start is None:
                     self.first_brake_start = self.state.t
 
                 elif (st.t - self.first_brake_start) >= 1.0:
