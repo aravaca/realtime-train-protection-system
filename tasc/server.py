@@ -1289,8 +1289,12 @@ async def ws_endpoint(ws: WebSocket):
     async def sim_loop():
         try:
             dt = sim.scn.dt  # 0.05 등 시뮬레이션 스텝
-            t_start = time.time()  # 절대 기준 시간
+            # WebSocket 연결 초기화
+            sim.reset()
             step_count = 0
+            t_start = time.time()
+            sim.running = False  # 다시 한 번 안전하게
+
             while True:
                 if sim.running:
                     t_now = time.time()
