@@ -2,7 +2,7 @@
   "name": "JR WEST 225-0",
   "mass_t": 35.5,
   "a_max": 1.0,
-  "j_max": 0.3,
+  "j_max": 0.4,
   "notches": 10,
   "notch_accels": [
 -1.44,
