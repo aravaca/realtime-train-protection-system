@@ -939,34 +939,33 @@ class StoppingSim:
             if DEBUG:
                 print(f"Avg jerk: {avg_jerk:.4f}, jerk_score: {jerk_score:.2f}, final score: {score}")
                 print(f"Simulation finished: stop_error={st.stop_error_m:.3f} m, score={score}")
-
     def is_stair_pattern(self, notches: List[int]) -> bool:
         if len(notches) < 3:
             return False
-        first_brake_notch = None
-        for n in notches:
-            if n > 0:
-                first_brake_notch = n
-                break
+
+        # 첫 브레이크가 1 또는 2인지 확인
+        first_brake_notch = next((n for n in notches if n > 0), None)
         if first_brake_notch not in (1, 2):
             return False
+
         peak_reached = False
         prev = notches[0]
-        for i in range(1, len(notches)):
-            cur = notches[i]
-            diff = cur - prev
-            if abs(diff) > 1:
-                return False
+
+        for cur in notches[1:]:
             if not peak_reached:
-                if cur < prev:
+                if cur < prev:  # 내려가기 시작하면 피크 도달
                     peak_reached = True
             else:
-                if cur > prev:
+                if cur > prev:  # 피크 이후 다시 올라가면 실패
                     return False
             prev = cur
+
+        # 마지막은 1로 끝나야 함
         if notches[-1] != 1:
             return False
+
         return True
+
 
     def compute_jerk_score(self):
         dt = self.scn.dt
