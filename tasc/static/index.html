@@ -294,7 +294,7 @@ ws.addEventListener('open', () => {
     }
   }));
   // 타이머 활성화
-  ws.send(JSON.stringify({ type: "cmd", payload: { name: "toggleTimer", enabled: true } }));
+  // ws.send(JSON.stringify({ type: "cmd", payload: { name: "toggleTimer", enabled: true } }));
 });
 
 const tascToggle = document.getElementById("tascToggle");
