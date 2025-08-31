@@ -169,6 +169,11 @@ def build_vref(L: float, a_ref: float):
 
 class StoppingSim:
     def __init__(self, veh: Vehicle, scn: Scenario):
+
+        # --- 인계 지점(남은거리) & 히스테리시스 설정 ---
+        self.tasc_takeover_rem_m = 150.0 # 인계 거리 (m)
+        self.tasc_takeover_hyst_m = 5.0 # ± 오차 완충 (경계 튐 방지)
+
         self.veh = veh
         self.scn = scn
         self.state = State(t=0.0, s=0.0, v=scn.v0, a=0.0, lever_notch=0, finished=False)
@@ -472,6 +477,16 @@ class StoppingSim:
         st = self.state
         name = cmd["name"]
         val = cmd["val"]
+
+        # ▼ TASC가 'active'인 상태에서 수동 개입이 들어오면 즉시 TASC를 OFF
+        if self.tasc_enabled and self.tasc_active and name in ("stepNotch", "applyNotch", "release", "emergencyBrake"):
+            self.tasc_enabled = False
+            self.tasc_active = False
+            self.tasc_armed = False
+            if DEBUG:
+                print("[TASC] manual intervention while ACTIVE -> TASC OFF")
+
+        # ▼ 이하 기존 로직(lever_notch 직접 조작) 유지
         if name == "stepNotch":
             old_notch = st.lever_notch
             st.lever_notch = self._clamp_notch(st.lever_notch + val)
@@ -504,7 +519,7 @@ class StoppingSim:
         self.prev_a = 0.0
         self.jerk_history = []
 
-        self.manual_override = False
+        # self.manual_override = False
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
@@ -759,14 +774,16 @@ class StoppingSim:
                 st.time_overrun_int = 0
 
         # ---------- TASC ----------
-        if self.tasc_enabled and not self.manual_override and not st.finished:
+        if self.tasc_enabled and not st.finished:
             dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
             rem_now = self.scn.L - st.s
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2
 
             if self.tasc_armed and not self.tasc_active:
-                if self._need_B5_now(st.v, rem_now):
+                takeover_on = self.tasc_takeover_rem_m
+                hyst = self.tasc_takeover_hyst_m
+                if rem_now <= (takeover_on + hyst):
                     self.tasc_active = True
                     self.tasc_armed = False
                     self._tasc_last_change_t = st.t
@@ -1100,18 +1117,12 @@ async def ws_endpoint(ws: WebSocket):
 
                 elif name in ("stepNotch", "applyNotch"):
                     delta = int(payload.get("delta", 0))
-                    sim.manual_override = True
-                    sim.tasc_enabled = False
                     sim.queue_command("stepNotch", delta)
 
                 elif name == "release":
-                    sim.manual_override = True
-                    sim.tasc_enabled = False
                     sim.queue_command("release", 0)
 
                 elif name == "emergencyBrake":
-                    sim.manual_override = True
-                    sim.tasc_enabled = False
                     sim.queue_command("emergencyBrake", 0)
 
                 elif name == "setTrainLength":
