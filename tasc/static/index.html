@@ -609,7 +609,7 @@ if (!Number.isFinite(toShowInt)) {
   toShowInt = Number.isFinite(remainF) ? Math.floor(remainF) : Math.floor(Number(st.t) || 0);
 }
 
-timerEl.textContent = formatTimeSec(toShowInt);
+timerEl.innerHTML = formatTimeSec(toShowInt);
 
 // ✅ 색상 조건 추가
 if (Math.abs(toShowInt) <= 2) {
