@@ -15,6 +15,6 @@
 -0.30,
 0.00
 ],
-  "tau_cmd_ms": 400,
-  "tau_brk_ms": 750
+  "tau_cmd_ms": 150,
+  "tau_brk_ms":1000
 }
