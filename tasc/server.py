@@ -638,7 +638,7 @@ class StoppingSim:
             if v_kmh <= 5.0:
                 alpha = max(0.0, min(1.0, v_kmh / 5.0))
                 # -0.08
-                a_soft = (-0.30) * alpha + (-0.12) * (1.0 - alpha)
+                a_soft = (-0.30) * alpha + (-0.20) * (1.0 - alpha)
                 w_soft = 1.0 - alpha
                 a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
 
