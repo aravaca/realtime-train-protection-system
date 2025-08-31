@@ -193,24 +193,15 @@ class StoppingSim:
 
         # ---------- TASC ----------
         self.tasc_enabled = False
-        # 인계: 남은 거리 기반
-        self.tasc_takeover_rem_m = 150.0 # 인계 거리(남은 거리)
-        self.tasc_takeover_hyst_m = 5.0 # 히스테리시스(±m)
-        self.tasc_min_active_hold_s = 2.0 # 활성 후 최소 유지 시간
-        self._tasc_became_active_t = -1.0
-
-        # 상태
+        self.manual_override = False
         self.tasc_deadband_m = 0.1
         self.tasc_hold_min_s = 0.05
         self._tasc_last_change_t = 0.0
-        self._tasc_phase = "build" # "build" → "relax"
+        self._tasc_phase = "build"  # "build" → "relax"
         self._tasc_peak_notch = 1
+        # 대기/활성 상태
         self.tasc_armed = False
         self.tasc_active = False
-
-        # 병합 소스(강한 쪽 우선)
-        self._manual_desired_notch = 0
-        self._tasc_desired_notch = 0
 
         # μ-저항 분리: rr_factor는 항상 1.0로 고정(μ와 무관)
         self.rr_factor = 1.0
@@ -481,34 +472,16 @@ class StoppingSim:
         st = self.state
         name = cmd["name"]
         val = cmd["val"]
-
-        # ▼ 수동 개입이면서, TASC가 'active'면 즉시 끈다(armed일 때는 끄지 않음)
-        manual_cmd = name in ("stepNotch", "applyNotch", "release", "emergencyBrake")
-        if manual_cmd and self.tasc_enabled and self.tasc_active:
-            # TASC OFF
-            self.tasc_enabled = False
-            self.tasc_active = False
-            self.tasc_armed = False
-            self._tasc_desired_notch = 0
+        if name == "stepNotch":
+            old_notch = st.lever_notch
+            st.lever_notch = self._clamp_notch(st.lever_notch + val)
             if DEBUG:
-                print("[TASC] manual intervention during ACTIVE -> TASC OFF")
-
-        # ▼ 그 다음 수동 의도 반영(일관되게)
-        if name in ("stepNotch", "applyNotch"):
-            self._manual_desired_notch = self._clamp_notch(self._manual_desired_notch + int(val))
-            if DEBUG:
-                print(f"[MANUAL] step/apply -> {self._manual_desired_notch}")
-
+                print(f"Applied stepNotch: {old_notch} -> {st.lever_notch}")
         elif name == "release":
-            self._manual_desired_notch = 0
-            if DEBUG:
-                print("[MANUAL] release -> 0")
-
+            st.lever_notch = 0
         elif name == "emergencyBrake":
-            self._manual_desired_notch = self.veh.notches - 1
+            st.lever_notch = self.veh.notches - 1
             self.eb_used = True
-            if DEBUG:
-                print(f"[MANUAL] EB -> {self._manual_desired_notch}")
 
     # ----------------- Lifecycle -----------------
 
@@ -531,18 +504,12 @@ class StoppingSim:
         self.prev_a = 0.0
         self.jerk_history = []
 
-    # TASC 상태 초기화
+        self.manual_override = False
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"
         self._tasc_peak_notch = 1
         self.tasc_active = False
         self.tasc_armed = bool(self.tasc_enabled)
-        self._tasc_became_active_t = -1.0
-
-        # 병합 소스 초기화
-        self._manual_desired_notch = 0
-        self._tasc_desired_notch = 0
-        self.state.lever_notch = 0
 
         self._tasc_pred_cache.update({
             "t": -1.0, "v": -1.0, "notch": -1,
@@ -792,32 +759,25 @@ class StoppingSim:
                 st.time_overrun_int = 0
 
         # ---------- TASC ----------
-        if self.tasc_enabled and not st.finished:
+        if self.tasc_enabled and not self.manual_override and not st.finished:
             dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
             rem_now = self.scn.L - st.s
+            cur = st.lever_notch
+            max_normal_notch = self.veh.notches - 2
 
-            # standby -> active : 남은 거리 기반만 (히스테리시스 포함)
             if self.tasc_armed and not self.tasc_active:
-                if (self.scn.L - st.s) <= (self.tasc_takeover_rem_m + self.tasc_takeover_hyst_m):
+                if self._need_B5_now(st.v, rem_now):
                     self.tasc_active = True
                     self.tasc_armed = False
                     self._tasc_last_change_t = st.t
-                    self._tasc_became_active_t = st.t
-                    self._tasc_phase = "build"
-                    self._tasc_peak_notch = 1
-                    self._tasc_desired_notch = max(1, self._tasc_desired_notch)
 
-            # active 상태에서만 자동 의도 생성
             if self.tasc_active:
-                cur = self._tasc_desired_notch
-                max_normal_notch = self.veh.notches - 2
-
                 if not self.first_brake_done:
-                    v0_kmh_init = self.scn.v0 * 3.6
-                    desired = 2 if v0_kmh_init >= 75.0 else 1
+                    v0_kmh = self.scn.v0 * 3.6
+                    desired = 2 if v0_kmh >= 75.0 else 1
                     if dwell_ok and cur != desired:
                         stepv = 1 if desired > cur else -1
-                        self._tasc_desired_notch = self._clamp_notch(cur + stepv)
+                        st.lever_notch = self._clamp_notch(cur + stepv)
                         self._tasc_last_change_t = st.t
                 else:
                     s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
@@ -825,22 +785,18 @@ class StoppingSim:
                     if self._tasc_phase == "build":
                         if cur < max_normal_notch and s_cur > (rem_now - self.tasc_deadband_m):
                             if dwell_ok:
-                                self._tasc_desired_notch = self._clamp_notch(cur + 1)
+                                st.lever_notch = self._clamp_notch(cur + 1)
                                 self._tasc_last_change_t = st.t
-                                self._tasc_peak_notch = max(self._tasc_peak_notch, self._tasc_desired_notch)
+                                self._tasc_peak_notch = max(self._tasc_peak_notch, st.lever_notch)
                                 changed = True
                         else:
                             self._tasc_phase = "relax"
                     if self._tasc_phase == "relax" and not changed:
                         if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
                             if dwell_ok:
-                                self._tasc_desired_notch = self._clamp_notch(cur - 1)
+                                st.lever_notch = self._clamp_notch(cur - 1)
                                 self._tasc_last_change_t = st.t
 
-        # ---------- 병합(강한 쪽 우선) ----------
-        st.lever_notch = self._clamp_notch(
-            max(self._tasc_desired_notch, self._manual_desired_notch)
-        )
         # ---------- Dynamics ----------
         a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v)
         is_eb = (st.lever_notch == self.veh.notches - 1)
@@ -1144,14 +1100,19 @@ async def ws_endpoint(ws: WebSocket):
 
                 elif name in ("stepNotch", "applyNotch"):
                     delta = int(payload.get("delta", 0))
+                    sim.manual_override = True
+                    sim.tasc_enabled = False
                     sim.queue_command("stepNotch", delta)
 
                 elif name == "release":
+                    sim.manual_override = True
+                    sim.tasc_enabled = False
                     sim.queue_command("release", 0)
 
                 elif name == "emergencyBrake":
+                    sim.manual_override = True
+                    sim.tasc_enabled = False
                     sim.queue_command("emergencyBrake", 0)
-
 
                 elif name == "setTrainLength":
                     length = int(payload.get("length", 8))
@@ -1187,11 +1148,9 @@ async def ws_endpoint(ws: WebSocket):
 
                 elif name == "setTASC":
                     enabled = bool(payload.get("enabled", False))
-                    sim.tasc_armed = enabled
-                    sim.tasc_active = False
-                    sim._tasc_desired_notch = 0
-                    sim._tasc_became_active_t = -1.0
+                    sim.tasc_enabled = enabled
                     if enabled:
+                        sim.manual_override = False
                         sim._tasc_last_change_t = sim.state.t
                         sim._tasc_phase = "build"
                         sim._tasc_peak_notch = 1
@@ -1199,12 +1158,7 @@ async def ws_endpoint(ws: WebSocket):
                         sim.tasc_active = False
                     if DEBUG:
                         print(f"TASC set to {enabled}")
-                elif name == "setTASCTakeover":
-                    # payload 예: {"remain_m":150, "hyst_m":5}
-                    rem = float(payload.get("remain_m", getattr(sim, "tasc_takeover_rem_m", 150.0)))
-                    hyst = float(payload.get("hyst_m", getattr(sim, "tasc_takeover_hyst_m", 5.0)))
-                    sim.tasc_takeover_rem_m = rem
-                    sim.tasc_takeover_hyst_m = hyst
+
                 elif name == "setMu":
                     value = float(payload.get("value", 1.0))
                     sim.scn.mu = value
