@@ -1282,15 +1282,26 @@ async def ws_endpoint(ws: WebSocket):
             if DEBUG:
                 print(f"Error during receive: {e}")
 
+    import time
+
     async def sim_loop():
         try:
-            dt = sim.scn.dt
+            dt = sim.scn.dt  # 0.05 등 시뮬레이션 스텝
+            t_start = time.time()  # 절대 기준 시간
+            step_count = 0
             while True:
                 if sim.running:
-                    sim.step()
-                await asyncio.sleep(dt)
+                    t_now = time.time()
+                    # 현재까지 몇 스텝을 진행해야 하는지 계산
+                    expected_steps = int((t_now - t_start) / dt)
+                    # 아직 진행 안한 스텝 실행
+                    for _ in range(step_count, expected_steps):
+                        sim.step()
+                    step_count = expected_steps
+                await asyncio.sleep(dt / 2)  # 조금 짧게 대기
         except asyncio.CancelledError:
             pass
+
 
     async def send_loop():
         try:
