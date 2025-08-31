@@ -6,12 +6,7 @@
 
 ---
 
-## ⚙️ Tech Stack
-- **Backend**: Python 3.12, FastAPI, WebSocket
-- **Frontend**: HTML, CSS, JavaScript (Canvas 기반 HUD)
-- **Deploy**: AWS EC2 (Amazon Linux), Nginx, Route53
 
----
 ## ✨ What’s New (주요 업데이트 2025.08.31)
 - 차량군 확대: JR East (E233, E235) 등 통근열차 뿐만 아니라 제동감이 상이한 특급열차, 침대열차, 퇴역열차 등 추가
 
@@ -35,6 +30,12 @@
   - **저크(Jerk)** 기반 승차감 점수 반영
   - TASC ON 시 초제동 미실시 허용
 - **환경 요소**: 눈/비 애니메이션, 구배/마찰계수(날씨) 반영, 탑승률에 따른 총중량 반영
+
+---
+## ⚙️ Tech Stack
+- **Backend**: Python 3.12, FastAPI, WebSocket
+- **Frontend**: HTML, CSS, JavaScript (Canvas 기반 HUD)
+- **Deploy**: AWS EC2 (Amazon Linux), Nginx, Route53
 
 ---
 
