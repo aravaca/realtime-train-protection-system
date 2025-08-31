@@ -574,20 +574,29 @@ if (Math.abs(rem) <= 0.35) {
   spdEl.textContent = (st.v * 3.6).toFixed(1);
 
 
-  const maxIdx = (vehicle?.notches ?? 10) - 1; // EB 인덱스
+const maxIdx = (vehicle?.notches ?? 10) - 1; // EB 인덱스
+const forwardAccels = vehicle?.forward_notch_accels ?? [0.139, 0.278, 0.417, 0.556, 0.694];
+
 let notchText = "N";
-let notchColor = "";
+let notchColor = "#9effb5"; // 기본 초록
 
 if (st.lever_notch === 0) {
   notchText = "N";
   notchColor = "#9effb5";     // 초록
+} else if (st.lever_notch < 0) {
+  const idx = -st.lever_notch - 1; // -1 → 0, -2 → 1
+  notchText = `P${idx + 1}`;
+  notchColor = "#ADD8E6";        // 주황
+  const accel = forwardAccels[idx] ?? forwardAccels[forwardAccels.length - 1];
+  // 필요하면 accel 변수로 가속도 제어 가능
 } else if (st.lever_notch === maxIdx) {
   notchText = "EB";
   notchColor = "#ff5757";     // 빨강
 } else {
   notchText = `B${st.lever_notch}`;
-  notchColor = "#ed9a09";     // 어두운 주황/황토색
+  notchColor = "#ed9a09";     // 기존 주황/황토색
 }
+
 
 notchEl.textContent = notchText;
 notchEl.style.color = notchColor;

@@ -32,6 +32,10 @@ class Vehicle:
     tau_cmd: float = 0.150
     tau_brk: float = 0.250
     mass_kg: float = 200000.0
+    # Vehicle 클래스 내
+    forward_notches: int = 5
+    forward_notch_accels: list = None  # [-1.5, -1.1] 등
+
 
     # Davis 계수 (열차 전체) : F = A0 + B1 * v + C2 * v^2 [N], v[m/s]
     A0: float = 1200.0
@@ -225,10 +229,16 @@ class StoppingSim:
         self._need_b5_last = False
         self._need_b5_interval = 0.05
 
+        
+        # -------------------- 동력/응답/상태 --------------------
+        self.pwr_accel = 0.0   # 동력 가속도 (forward_notch_accels 반영)
+        
         # -------------------- 제동/응답/상태 --------------------
         self.brk_accel = 0.0
         self.brk_elec = 0.0
         self.brk_air  = 0.0
+
+
 
         self.tau_apply = 0.25
         self.tau_release = 0.8
@@ -384,7 +394,11 @@ class StoppingSim:
     def _effective_brake_accel(self, notch: int, v: float) -> float:
         if notch >= len(self.veh.notch_accels):
             return 0.0
-        base = float(self.veh.notch_accels[notch])  # 음수(0은 N)
+        if notch >= 0:
+            base = float(self.veh.notch_accels[notch])  # 브레이크
+        else:
+            idx = -notch - 1
+            base = float(self.veh.forward_notch_accels[idx])  # 전진 notch
         k_srv = 0.85
         k_eb = 0.98
         is_eb = (notch == (self.veh.notches - 1))
@@ -465,8 +479,11 @@ class StoppingSim:
     # ----------------- Controls -----------------
 
     def _clamp_notch(self, n: int) -> int:
-        max_index = len(self.veh.notch_accels) - 1
-        return max(0, min(max_index, n))
+        # forward_notches 길이만큼 음수 허용
+        min_notch = -len(self.veh.forward_notch_accels)  # 예: -2
+        max_notch = len(self.veh.notch_accels) - 1       # EB 인덱스
+        return max(min_notch, min(max_notch, n))
+
 
     def queue_command(self, name: str, val: int = 0):
         self._cmd_queue.append(
@@ -585,13 +602,24 @@ class StoppingSim:
     # ------ stopping distance helpers ------
 
     def _estimate_stop_distance(self, notch: int, v0: float) -> float:
-        if notch <= 0:
-            return float('inf')
+        # if notch <= 0:
+        #     return float('inf')
+
+                # 동력 가속도 계산 (전진 notch)
+        if notch < 0:  # P1~P5
+            idx = -notch - 1  # -1 → 0, -2 → 1 ...
+            if idx < len(self.veh.forward_notch_accels):
+                pwr_accel = self.veh.forward_notch_accels[idx]
+            else:
+                pwr_accel = self.veh.forward_notch_accels[-1]
+        else:
+            pwr_accel = 0.0
 
         dt = 0.03
         v = max(0.0, v0)
         a = float(self.state.a)
         s = 0.0
+
 
         brk_elec = float(self.brk_elec)
         brk_air  = float(self.brk_air)
@@ -650,7 +678,10 @@ class StoppingSim:
 
             a_grade = self._grade_accel()
             a_davis = self._davis_accel(v)
-            a_target = a_brake + a_grade + a_davis
+            a_target = pwr_accel + a_brake + a_grade + a_davis
+
+            if notch == 0:
+                a_target = self._grade_accel() + self._davis_accel(v)
 
             # (신규) 속도 기반 소프트 스톱
             rem_pred = max(0.0, rem_now - s)
@@ -816,6 +847,19 @@ class StoppingSim:
                                 self._tasc_last_change_t = st.t
 
         # ---------- Dynamics ----------
+
+                
+        # 동력 가속도 계산 (전진 notch)
+        if st.lever_notch < 0:
+            idx = -st.lever_notch - 1  # P1 = -1 → idx 0
+            if idx < len(self.veh.forward_notch_accels):
+                pwr_accel = self.veh.forward_notch_accels[idx]
+            else:
+                pwr_accel = self.veh.forward_notch_accels[-1]
+        else:
+            pwr_accel = 0.0
+
+
         a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v)
         is_eb = (st.lever_notch == self.veh.notches - 1)
         self._update_brake_dyn_split(a_cmd_brake, st.v, is_eb, dt)
@@ -824,7 +868,7 @@ class StoppingSim:
         a_grade = self._grade_accel()
         a_davis = self._davis_accel(st.v)
 
-        a_target = a_brake + a_grade + a_davis
+        a_target = pwr_accel + a_brake + a_grade + a_davis
 
         rem_now = self.scn.L - st.s
         v_kmh = st.v * 3.6
@@ -836,7 +880,7 @@ class StoppingSim:
             w_soft = 1.0 - alpha                         # 속도가 낮을수록 소프트 비중↑
             a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
 
-        if st.lever_notch >= 1 or rem_now <= 0.0:
+        if st.lever_notch >= 1:
             a_target = min(a_target, 0.0)
 
         self._a_cmd_filt += (a_target - self._a_cmd_filt) * (dt / max(1e-6, self.veh.tau_brk))

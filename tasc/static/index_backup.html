@@ -30,10 +30,38 @@ canvas{width:100%;height:320px;background:linear-gradient(#0b0f14,#0a1019);borde
 .ok{color:#9effb5}.warn{color:#ffd18f}.bad{color:#ff9b9b}
 button,.btn-primary{background:linear-gradient(135deg,#00c6ff,#0072ff);color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:15px;font-weight:600;transition:.3s background,.1s transform}
 button:hover,.btn-primary:hover{background:linear-gradient(135deg,#0072ff,#00c6ff);transform:translateY(-1px)}
-#overlay{
-  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);
-  backdrop-filter:blur(8px);z-index:9999;overflow-y:auto;-webkit-overflow-scrolling:touch
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
+
+/* 💻 데스크탑 전용 (768px 초과 시) */
+@media (min-width: 769px) {
+  #overlay {
+    inset: auto;       /* 전체 덮는 대신 */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 40px; /* 살짝 여백 */
+  }
+  #overlay .card {
+    width: 720px;      /* 원하는 fixed width */
+    max-height: 90vh;  /* 세로는 스크롤 허용 */
+  }
+}
+
 #overlay.hide{display:none}
 #overlay .card{max-height:90vh;overflow-y:auto}
 .title{font-size:1.4rem;font-weight:600;margin-bottom:4px;color:#00f6ff}
@@ -101,8 +129,8 @@ body{overflow-x:hidden;overflow-y:auto}
   letter-spacing:-2px;
 }
 
-#timer {
-  letter-spacing: 2.5px; /* 숫자 간격 약간 넓히기 */
+#timer .sep {
+  margin: 0 8px; /* 콜론 좌우 간격만 조정 */
 }
 
 @media (max-width:768px){
@@ -123,10 +151,13 @@ body{overflow-x:hidden;overflow-y:auto}
 <div class="card" style="flex:1 1 260px; position: relative">
   <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal;" class="stat">차량 로딩 중...</div>
 
- <div class="line">
+<div class="line">
   <span id="labelRemainTime">남은시간</span>
-  <span class="stat value" id="timer">0 s</span>
+  <span class="stat value" id="timer">
+    <span class="min">00</span><span class="sep">:</span><span class="sec">00</span>
+  </span>
 </div>
+
 <div class="line">
   <span id="labelSpeed">속도</span>
   <span class="stat value"><span id="spd">—</span><span class="unit"> km/h</span></span>
@@ -187,7 +218,7 @@ body{overflow-x:hidden;overflow-y:auto}
         <option value="JRW285">285계</option>
         <option value="JRW323">323계</option>
         <option value="JR103">103계</option>
-        <option value="EF510">EF510+E26/12</option>
+        <option value="EF510">EF510형 전기기관차 + E26계 객차</option>
         <option value="K3000">케이세이 3000계</option>
         <option value="T5300">도쿄도 교통국 5300계</option>
       </select>
@@ -252,7 +283,7 @@ ws.addEventListener('open', () => {
       points: [
         { v: 40, L: 150, t: 27 },
         { v: 60, L: 200, t: 29 },
-        { v: 70, L: 300, t: 34 },
+        { v: 70, L: 300, t: 32 },
         { v: 90, L: 500, t: 40 },
         { v: 130, L: 900, t: 49 }
       ],
@@ -273,14 +304,14 @@ tascToggle.addEventListener("change", () => {
     ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled } }));
   }
 });
-function forceManualOverride(){
-  if (tascToggle.checked){
-    tascToggle.checked=false;
-    if (ws.readyState===WebSocket.OPEN){
-      ws.send(JSON.stringify({type:"cmd",payload:{name:"setTASC",enabled:false}}));
-    }
-  }
-}
+// function forceManualOverride(){
+//   if (tascToggle.checked){
+//     tascToggle.checked=false;
+//     if (ws.readyState===WebSocket.OPEN){
+//       ws.send(JSON.stringify({type:"cmd",payload:{name:"setTASC",enabled:false}}));
+//     }
+//   }
+// }
 
 /* ===== 날씨 이펙트 ===== */
 const snowflakesContainer=document.querySelector('.snowflakes');
@@ -457,7 +488,7 @@ if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
   game.addEventListener("touchstart",(e)=>{
     if(!overlay.classList.contains("hide")) return;
     if(e.touches.length!==1) return;
-    forceManualOverride();
+    // forceManualOverride();
     const r=game.getBoundingClientRect(), y=e.touches[0].clientY-r.top, half=r.height/2;
     if(y<half){ hapticForNotch(+1); sendCmd("applyNotch",+1); }
     else      { hapticForNotch(-1); sendCmd("applyNotch",-1); }
@@ -465,14 +496,36 @@ if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
 }
 
 /* ===== 키보드 ===== */
-addEventListener("keydown",(e)=>{
-  if([" ","w","W","s","S","n","N"].includes(e.key)) e.preventDefault();
+addEventListener("keydown", (e) => {
+  if([" ","w","W","s","S","n","N","e","E","d","D", "a", "A"].includes(e.key)) e.preventDefault();
   if(e.repeat) return;
-  forceManualOverride();
-  if(e.key===" "){ if(ws.readyState!==WebSocket.OPEN) return; startRun(); }
-  else if(e.key==="w"||e.key==="W"){ sendCmd("applyNotch",+1); }
-  else if(e.key==="s"||e.key==="S"){ sendCmd("applyNotch",-1); }
-  else if(e.key==="n"||e.key==="N"){ sendCmd("release",0); }
+
+  if(e.key === " "){ 
+    if(ws.readyState !== WebSocket.OPEN) return; 
+    startRun(); 
+  }
+  else if(e.key === "w" || e.key === "W"){ 
+    sendCmd("applyNotch", +1); 
+  }
+  else if(e.key === "s" || e.key === "S"){ 
+    sendCmd("applyNotch", -1); 
+  }
+  else if(e.key === "n" || e.key === "N"){ 
+    sendCmd("release", 0); 
+  }
+  else if(e.key === "e" || e.key === "E"){ 
+    sendCmd("emergencyBrake", 0);  
+  }
+  else if(e.key === "d" || e.key === "D"){ 
+    // 제동 1단
+    sendCmd("setNotch", 1);  
+  }
+  else if(e.key === "a" || e.key === "A"){
+    if(vehicle && vehicle.notches){
+      sendCmd("setNotch", vehicle.notches - 2); // EB 직전 notch
+    }
+  }
+
 });
 
 /* ===== HUD & 상태 ===== */
@@ -481,14 +534,14 @@ let isFinished=false, overlayShowingResult=false, st=null, lastTimestamp=0, prev
 function loop(ts){ if(!lastTimestamp) lastTimestamp=ts; lastTimestamp=ts; if(st) drawHUD(st); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 
-// 헬퍼: 정수를 MM:SS 형식으로 바꾸기
 function formatTimeSec(secInt) {
-  const sign = secInt < 0 ? "-" : "";
+  const sign = secInt < 0 ? "+" : "";
   const s = Math.abs(secInt);
   const m = Math.floor(s / 60);
   const s2 = s % 60;
-  return sign + (m < 10 ? "0" : "") + m + ":" + (s2 < 10 ? "0" : "") + s2;
+  return `${sign}<span class="min">${m < 10 ? "0" : ""}${m}</span><span class="sep">:</span><span class="sec">${s2 < 10 ? "0" : ""}${s2}</span>`;
 }
+
 
 // ===== WebSocket (단일 핸들러로 교체) =====
 ws.onmessage = (ev) => {
@@ -556,7 +609,7 @@ if (!Number.isFinite(toShowInt)) {
   toShowInt = Number.isFinite(remainF) ? Math.floor(remainF) : Math.floor(Number(st.t) || 0);
 }
 
-timerEl.textContent = formatTimeSec(toShowInt);
+timerEl.innerHTML = formatTimeSec(toShowInt);
 
 // ✅ 색상 조건 추가
 if (Math.abs(toShowInt) <= 2) {
@@ -568,7 +621,7 @@ if (Math.abs(toShowInt) <= 2) {
 } else {
   timerEl.style.color = "";          // 기본 색상 (CSS .stat)
   timerEl.classList.remove('bad');
-}
+} 
 
   // 그래프/미니 인디케이터
   drawHUD(st);
@@ -904,13 +957,13 @@ const TRAIN_DB={
       file: "./225_6000.json", lengths: [4,6] }
   ],
   JRW323: [{ code: "JR WEST 323-0", lines: "오사카 순환선 전용", file: "./323_0000.json", lengths: [8] }],
-  JRW285: [{ code: "JR WEST 285-0/3000", lines: "침대특급 선라이즈 이즈모·세토", file: "./285.json", lengths: [7, 14] }],
-  JRH261: [{ code: "JR HOKKAIDO KiHa 261-5000", lines: "하마나스·라벤더", file: "./261_5000.json", lengths: [4, 5, 6, 10] }],
+  JRW285: [{ code: "JR WEST 285-0/3000", lines: "일반 침대특급 선라이즈 이즈모·세토", file: "./285.json", lengths: [7, 14] }],
+  JRH261: [{ code: "JR HOKKAIDO KiHa 261-5000", lines: "북해도의 혹한에 최적화된 특급 디젤동차", file: "./261_5000.json", lengths: [4, 5, 6, 10] }],
 JR103: [{
   code: "JR/JNR 103-0",
   lines: "1960~80년대 일본 통근형 전동차의 상징",
   file: "./103.json",
-  lengths: [4,5, 6, 7,8,10, 15]
+  lengths: [4, 6, 8, 10, 15]
 }],
 EF510: [{
   code: "JR EAST Cassiopeia • 초호화 침대특급",
@@ -1010,8 +1063,9 @@ populateSeries(); // 최초 세팅
       labelUp: "강화",
       labelDown: "완화",
       labelRelease: "해방",
-      subtitleIntro:
-        "초기값 입력 후 <b>TASC(자동정차)</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요. TASC가 활성화된 상태에서도, 운전자는 수동 조작으로 운전에 개입할 수 있습니다.",
+      subtitleIntro: 
+  "B1/B2단으로 제동을 시작해 남은거리 <b>150m</b> (P3 TASC 지상자) 지점까지 속도를 <b>60km/h</b> 이하로 낮추세요. 그 이후에는 <b>TASC(자동정차)</b>가 자동으로 제동을 이어받습니다.",
+
       labelTASC: "TASC",
       labelTrain: "전동차",
       labelSeries: "시리즈",
@@ -1034,7 +1088,19 @@ populateSeries(); // 최초 세팅
         eb_bad: "불필요한 비상제동(EB) 사용 — 급감속 충격",
         score: n=>`최종 점수: ${n}점`,
         stopErr: m=>`정지 오차: ${m.toFixed(2)} m`,
-        hintIdle: "Space로 시작. W/S로 브레이크 조절하세요.",
+         hintIdle: () => {
+          const tips = [
+            "팁: B1/B2로 속도를 60 km/h 이하로 낮춘 뒤 해방(N단)하지 말고 마스콘을 그대로 유지하세요.",
+            "팁: TASC 정차 표시등이 켜지면 TASC가 자동 제동을 시작했음을 의미합니다.",
+            "팁: TASC 정차 표시등이 깜빡이면, TASC 개입 전에 수동 조작이 가능하다는 뜻입니다.",
+            "팁: 열차가 정위치에 도달하면 TASC 정위치 표시등이 켜집니다.",
+            "팁: 남은 거리를 확인하며 여유 있게 B1으로 정차하여 승차감을 확보하세요.",
+            "팁: A키는 최대 상용 제동, D키는 B1 제동, E키는 비상제동을 발동시킵니다.",
+            "팁: 정차 직전 마스콘을 풀었다 다시 조작하는 일명 \"톱질\" 행위는 승차감을 크게 저하시킵니다.",
+          ];
+
+          return tips[Math.floor(Math.random() * tips.length)];
+        },
         hintAgain: "Space로 다시 시작 · N 해방 · W/S로 조작"
       }
     },
@@ -1050,8 +1116,10 @@ populateSeries(); // 최초 세팅
       labelUp: "B+",
       labelDown: "B-",
       labelRelease: "Release",
-      subtitleIntro:
-        "Enter initial values, set <b>TASC (Auto-Stop)</b>, then press <b>Space</b> or the button below to start. Even with TASC enabled, the driver can intervene manually.",
+      subtitleIntro: 
+  "Begin braking with B1/B2 and reduce speed to below <b>60km/h</b> by <b>150m</b> remaining (P3 TASC beacon). After that, <b>TASC (Autopilot)</b> takes over brake control.",
+
+
       labelTASC: "TASC",
       labelTrain: "Train",
       labelSeries: "Series",
@@ -1074,7 +1142,21 @@ populateSeries(); // 최초 세팅
   eb_bad: "Unnecessary EB applied, causing a harsh jolt",
   score: n => `Final score: ${n}`,
   stopErr: m => `Stopping error: ${m.toFixed(2)} m`,
-  hintIdle: "Press Space to start. Use W/S to brake.",
+  hintIdle: () => {
+    const tips = [
+      "Tip: Reduce speed below 60 km/h with B1/B2 and keep the master controller in place (do not release with N).",
+      "Tip: If the TASC stop indicator lights up, it means TASC has started automatic braking.",
+      "Tip: If the TASC stop indicator flashes, you can manually intervene before TASC takes over.",
+      "Tip: When the train reaches the exact stop position, the TASC stop-position indicator will light up.",
+      "Tip: Press A for maximum service brake, D for B1 brake, and E for emergency brake.",
+      "Tip: Check the remaining distance and stop gently with B1 to ensure a smooth ride.",
+      "Tip: Reapplying and releasing the master controller just before stopping can severely affect ride comfort."
+
+    ];
+
+    return tips[Math.floor(Math.random() * tips.length)];
+  },
+
   hintAgain: "Press Space to restart, N to release, W/S to brake."
 }
     }
@@ -1142,7 +1224,7 @@ populateSeries(); // 최초 세팅
         html += `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">${fbd.hintAgain}</div>`;
         nodes.fb.innerHTML = html;
       } else {
-        nodes.fb.textContent = fbd.hintIdle;
+        nodes.fb.textContent = fbd.hintIdle();
       }
     }
   }
@@ -1153,7 +1235,7 @@ populateSeries(); // 최초 세팅
   setInterval(()=>{
     current = (current==="ko") ? "en" : "ko";
     setLang(current);
-  }, 5000);
+  }, 7000);
 })();
 
 </script>

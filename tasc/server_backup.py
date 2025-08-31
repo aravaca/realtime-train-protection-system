@@ -169,6 +169,11 @@ def build_vref(L: float, a_ref: float):
 
 class StoppingSim:
     def __init__(self, veh: Vehicle, scn: Scenario):
+
+        # --- 인계 지점(남은거리) & 히스테리시스 설정 ---
+        self.tasc_takeover_rem_m = 150.0 # 인계 거리 (m)
+        self.tasc_takeover_hyst_m = 2 # ± 오차 완충 (경계 튐 방지)
+
         self.veh = veh
         self.scn = scn
         self.state = State(t=0.0, s=0.0, v=scn.v0, a=0.0, lever_notch=0, finished=False)
@@ -194,7 +199,7 @@ class StoppingSim:
         # ---------- TASC ----------
         self.tasc_enabled = False
         self.manual_override = False
-        self.tasc_deadband_m = 0.1
+        self.tasc_deadband_m = 0.05
         self.tasc_hold_min_s = 0.05
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"  # "build" → "relax"
@@ -249,7 +254,7 @@ class StoppingSim:
         self.timer_calib: List[dict] = [
             {"v": 40, "L": 150, "t": 27},
             {"v": 60, "L": 200, "t": 28},
-            {"v": 70, "L": 300, "t": 34},
+            {"v": 70, "L": 300, "t": 32},
             {"v": 90, "L": 500, "t": 40},
             {"v": 130, "L": 900, "t": 49}
         ]
@@ -472,6 +477,16 @@ class StoppingSim:
         st = self.state
         name = cmd["name"]
         val = cmd["val"]
+
+        # ▼ TASC가 'active'인 상태에서 수동 개입이 들어오면 즉시 TASC를 OFF
+        if self.tasc_enabled and self.tasc_active and name in ("stepNotch", "applyNotch", "release", "emergencyBrake"):
+            self.tasc_enabled = False
+            self.tasc_active = False
+            self.tasc_armed = False
+            if DEBUG:
+                print("[TASC] manual intervention while ACTIVE -> TASC OFF")
+
+        # ▼ 이하 기존 로직(lever_notch 직접 조작) 유지
         if name == "stepNotch":
             old_notch = st.lever_notch
             st.lever_notch = self._clamp_notch(st.lever_notch + val)
@@ -482,6 +497,9 @@ class StoppingSim:
         elif name == "emergencyBrake":
             st.lever_notch = self.veh.notches - 1
             self.eb_used = True
+        elif name == "setNotch":
+            st.lever_notch = self._clamp_notch(val)
+
 
     # ----------------- Lifecycle -----------------
 
@@ -504,10 +522,12 @@ class StoppingSim:
         self.prev_a = 0.0
         self.jerk_history = []
 
-        self.manual_override = False
+        # self.manual_override = False
         self._tasc_last_change_t = 0.0
-        self._tasc_phase = "build"
-        self._tasc_peak_notch = 1
+        if not self.tasc_active:
+            self._tasc_phase = "build"
+            self._tasc_peak_notch = 1
+
         self.tasc_active = False
         self.tasc_armed = bool(self.tasc_enabled)
 
@@ -553,9 +573,9 @@ class StoppingSim:
                   f"| budget={self.state.time_budget_s:.2f}s | L={self.scn.L} v0={self.scn.v0*3.6:.1f}km/h")
 
     def start(self):
-        # reset()은 timer_enabled 보존 로직 포함
         self.reset()
         self.running = True
+        self._t_start = time.time()  # sim_loop에서 참조 가능
         if DEBUG:
             print("Simulation started")
 
@@ -638,7 +658,7 @@ class StoppingSim:
             if v_kmh <= 5.0:
                 alpha = max(0.0, min(1.0, v_kmh / 5.0))
                 # -0.08
-                a_soft = (-0.30) * alpha + (-0.15) * (1.0 - alpha)
+                a_soft = (-0.30) * alpha + (-0.12) * (1.0 - alpha)
                 w_soft = 1.0 - alpha
                 a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
 
@@ -736,8 +756,9 @@ class StoppingSim:
         self.time_history.append(st.t)
         if not self.first_brake_done:
             if st.lever_notch in (1, 2):
-                if self.first_brake_start is None:
-                    self.first_brake_start = st.t
+                if self.first_brake_start is None and not self.tasc_active:
+                    self.first_brake_start = self.state.t
+
                 elif (st.t - self.first_brake_start) >= 1.0:
                     self.first_brake_done = True
             else:
@@ -759,26 +780,23 @@ class StoppingSim:
                 st.time_overrun_int = 0
 
         # ---------- TASC ----------
-        if self.tasc_enabled and not self.manual_override and not st.finished:
+        if self.tasc_enabled and not st.finished:
             dwell_ok = (st.t - self._tasc_last_change_t) >= self.tasc_hold_min_s
             rem_now = self.scn.L - st.s
             cur = st.lever_notch
             max_normal_notch = self.veh.notches - 2
 
             if self.tasc_armed and not self.tasc_active:
-                if self._need_B5_now(st.v, rem_now):
+                takeover_on = self.tasc_takeover_rem_m
+                hyst = self.tasc_takeover_hyst_m
+                if rem_now <= (takeover_on + hyst):
                     self.tasc_active = True
                     self.tasc_armed = False
                     self._tasc_last_change_t = st.t
 
             if self.tasc_active:
                 if not self.first_brake_done:
-                    v0_kmh = self.scn.v0 * 3.6
-                    desired = 2 if v0_kmh >= 75.0 else 1
-                    if dwell_ok and cur != desired:
-                        stepv = 1 if desired > cur else -1
-                        st.lever_notch = self._clamp_notch(cur + stepv)
-                        self._tasc_last_change_t = st.t
+                    self.first_brake_done = True
                 else:
                     s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
                     changed = False
@@ -814,7 +832,7 @@ class StoppingSim:
         if v_kmh <= 5.0:
             alpha = max(0.0, min(1.0, v_kmh / 5.0))     # 5km/h→1, 0km/h→0
             # -0.08
-            a_soft = (-0.30) * alpha + (-0.15) * (1.0 - alpha)
+            a_soft = (-0.30) * alpha + (-0.12) * (1.0 - alpha)
             w_soft = 1.0 - alpha                         # 속도가 낮을수록 소프트 비중↑
             a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
 
@@ -921,34 +939,33 @@ class StoppingSim:
             if DEBUG:
                 print(f"Avg jerk: {avg_jerk:.4f}, jerk_score: {jerk_score:.2f}, final score: {score}")
                 print(f"Simulation finished: stop_error={st.stop_error_m:.3f} m, score={score}")
-
     def is_stair_pattern(self, notches: List[int]) -> bool:
         if len(notches) < 3:
             return False
-        first_brake_notch = None
-        for n in notches:
-            if n > 0:
-                first_brake_notch = n
-                break
-        if first_brake_notch not in (1, 2):
-            return False
+
+        # # 첫 브레이크가 1 또는 2인지 확인
+        # first_brake_notch = next((n for n in notches if n > 0), None)
+        # if first_brake_notch not in (1, 2):
+        #     return False
+
         peak_reached = False
         prev = notches[0]
-        for i in range(1, len(notches)):
-            cur = notches[i]
-            diff = cur - prev
-            if abs(diff) > 1:
-                return False
+
+        for cur in notches[1:]:
             if not peak_reached:
-                if cur < prev:
+                if cur < prev:  # 내려가기 시작하면 피크 도달
                     peak_reached = True
             else:
-                if cur > prev:
+                if cur > prev:  # 피크 이후 다시 올라가면 실패
                     return False
             prev = cur
+
+        # 마지막은 1로 끝나야 함
         if notches[-1] != 1:
             return False
+
         return True
+
 
     def compute_jerk_score(self):
         dt = self.scn.dt
@@ -1044,6 +1061,8 @@ async def ws_endpoint(ws: WebSocket):
 
     sim = StoppingSim(vehicle, scenario)
     sim.reset()   # ✅ 시작 시 start() 대신 reset()
+    sim.running = False  # 반드시 시뮬이 자동으로 돌지 않도록 초기화
+
 
     # 전송 속도: 30Hz
     send_interval = 1.0 / 30.0
@@ -1100,19 +1119,19 @@ async def ws_endpoint(ws: WebSocket):
 
                 elif name in ("stepNotch", "applyNotch"):
                     delta = int(payload.get("delta", 0))
-                    sim.manual_override = True
-                    sim.tasc_enabled = False
                     sim.queue_command("stepNotch", delta)
 
                 elif name == "release":
-                    sim.manual_override = True
-                    sim.tasc_enabled = False
                     sim.queue_command("release", 0)
 
                 elif name == "emergencyBrake":
-                    sim.manual_override = True
-                    sim.tasc_enabled = False
                     sim.queue_command("emergencyBrake", 0)
+                elif name == "setNotch":
+    # 'val'이나 'delta'에 상관없이 value가 있다면 우선
+                    val = payload.get("val", payload.get("delta", payload.get("value", 0)))
+                    sim.queue_command("setNotch", val)
+
+
 
                 elif name == "setTrainLength":
                     length = int(payload.get("length", 8))
@@ -1250,6 +1269,11 @@ async def ws_endpoint(ws: WebSocket):
                     # 자동 산출이 적용되도록 리셋
                     sim.state.timer_enabled = True
                     sim.reset()
+                
+                else:
+                     cmd_val = payload.get("val", payload.get("delta", 0))
+                     sim.queue_command(name, cmd_val)    
+                
 
         except WebSocketDisconnect:
             if DEBUG:
@@ -1260,15 +1284,27 @@ async def ws_endpoint(ws: WebSocket):
             if DEBUG:
                 print(f"Error during receive: {e}")
 
+    import time
+
     async def sim_loop():
-        try:
-            dt = sim.scn.dt
-            while True:
-                if sim.running:
+        dt = sim.scn.dt
+        step_count = 0
+        t_start = None  # 시작 시점은 start() 눌렀을 때 설정
+
+        while True:
+            if sim.running:
+                if t_start is None:
+                    t_start = time.time()
+                    step_count = 0
+
+                t_now = time.time()
+                expected_steps = int((t_now - t_start) / dt)
+                for _ in range(step_count, expected_steps):
                     sim.step()
-                await asyncio.sleep(dt)
-        except asyncio.CancelledError:
-            pass
+                step_count = expected_steps
+            await asyncio.sleep(dt / 2)
+
+
 
     async def send_loop():
         try:

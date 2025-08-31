@@ -91,7 +91,7 @@
 
 ---
 
-### 2. 브레이크 내비게이션 캔버스
+### 2. 브레이크 커브 캔버스
 - **X축**: 거리, **Y축**: 속도  
 - 노치별 제동 곡선과 **빨간 세로선(남은 거리)**의 교차점을 통해 **제동/완해 타이밍** 직관적 확인 가능  
 - 곡선 색상으로 현재 노치 강조:  
@@ -291,7 +291,7 @@ Frontend (HTML/CSS/JS) + Backend (FastAPI WebSocket) integration provides **brak
 
 ---
 
-### 2. Brake Navigation Canvas
+### 2. Brake Curve Canvas
 - **X-axis**: distance, **Y-axis**: speed  
 - Intersection of notch brake curves and **red vertical line (remaining distance)** shows **brake/relax timing** intuitively.  
 - Curve colors highlight current notch:
