@@ -1269,6 +1269,11 @@ async def ws_endpoint(ws: WebSocket):
                     sim.state.timer_enabled = True
                     sim.reset()
 
+                else:
+                     cmd_val = payload.get("val", payload.get("delta", 0))
+                     sim.queue_command(name, cmd_val)    
+                
+
         except WebSocketDisconnect:
             if DEBUG:
                 print("WebSocket disconnected (recv_loop).")

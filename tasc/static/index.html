@@ -365,7 +365,7 @@ function getEbIdx(){
 }
 function sendCmd(name, delta){
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({type:"cmd", payload:{name, val}}));
+    ws.send(JSON.stringify({type:"cmd", payload:{name, delta}}));
   }
 }
 
