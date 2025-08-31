@@ -537,7 +537,9 @@ function formatTimeSec(secInt) {
   const s = Math.abs(secInt);
   const m = Math.floor(s / 60);
   const s2 = s % 60;
-  return sign + (m < 10 ? "0" : "") + m + ":" + (s2 < 10 ? "0" : "") + s2;
+  return sign
+    + (m < 10 ? "0" : "") + m + " : "   // 콜론 앞뒤에 공백 추가
+    + (s2 < 10 ? "0" : "") + s2;
 }
 
 // ===== WebSocket (단일 핸들러로 교체) =====
@@ -618,7 +620,7 @@ if (Math.abs(toShowInt) <= 2) {
 } else {
   timerEl.style.color = "";          // 기본 색상 (CSS .stat)
   timerEl.classList.remove('bad');
-}
+} 
 
   // 그래프/미니 인디케이터
   drawHUD(st);
