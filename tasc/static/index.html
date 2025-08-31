@@ -1063,7 +1063,17 @@ populateSeries(); // 최초 세팅
         eb_bad: "불필요한 비상제동(EB) 사용 — 급감속 충격",
         score: n=>`최종 점수: ${n}점`,
         stopErr: m=>`정지 오차: ${m.toFixed(2)} m`,
-        hintIdle: "Space로 시작. W/S로 브레이크 조절하세요.",
+         hintIdle: () => {
+          const tips = [
+            "팁: B1/B2로 속도를 60 km/h 이하로 낮춘 뒤 해방(N단)하지 말고 마스콘을 그대로 유지하세요.",
+            "팁: TASC 정차 표시등이 켜지면 TASC가 자동 제동을 시작했음을 의미합니다.",
+            "팁: TASC 정차 표시등이 깜빡이면, TASC 개입 전에 수동 조작이 가능하다는 뜻입니다.",
+            "팁: 열차가 정위치에 도달하면 TASC 정위치 표시등이 켜집니다.",
+            "팁: 남은 거리를 확인하며 여유 있게 B1으로 정차하여 승차감을 확보하세요."
+          ];
+
+          return tips[Math.floor(Math.random() * tips.length)];
+        },
         hintAgain: "Space로 다시 시작 · N 해방 · W/S로 조작"
       }
     },
@@ -1105,7 +1115,18 @@ populateSeries(); // 최초 세팅
   eb_bad: "Unnecessary EB applied, causing a harsh jolt",
   score: n => `Final score: ${n}`,
   stopErr: m => `Stopping error: ${m.toFixed(2)} m`,
-  hintIdle: "Press Space to start. Use W/S to brake.",
+  hintIdle: () => {
+    const tips = [
+      "Tip: Reduce speed below 60 km/h with B1/B2 and keep the master controller in place (do not release with N).",
+      "Tip: If the TASC stop indicator lights up, it means TASC has started automatic braking.",
+      "Tip: If the TASC stop indicator flashes, you can manually intervene before TASC takes over.",
+      "Tip: When the train reaches the exact stop position, the TASC stop-position indicator will light up.",
+      "Tip: Check the remaining distance and stop gently with B1 to ensure a smooth ride."
+    ];
+
+    return tips[Math.floor(Math.random() * tips.length)];
+  },
+
   hintAgain: "Press Space to restart, N to release, W/S to brake."
 }
     }
@@ -1173,7 +1194,7 @@ populateSeries(); // 최초 세팅
         html += `<div style="margin-top:8px;font-size:12px;color:#a6b7d1">${fbd.hintAgain}</div>`;
         nodes.fb.innerHTML = html;
       } else {
-        nodes.fb.textContent = fbd.hintIdle;
+        nodes.fb.textContent = fbd.hintIdle();
       }
     }
   }
