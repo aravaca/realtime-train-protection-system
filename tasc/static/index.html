@@ -511,7 +511,7 @@ requestAnimationFrame(loop);
 
 // 헬퍼: 정수를 MM:SS 형식으로 바꾸기
 function formatTimeSec(secInt) {
-  const sign = secInt < 0 ? "-" : "";
+  const sign = secInt < 0 ? "+" : "";
   const s = Math.abs(secInt);
   const m = Math.floor(s / 60);
   const s2 = s % 60;
