@@ -172,7 +172,7 @@ class StoppingSim:
 
         # --- 인계 지점(남은거리) & 히스테리시스 설정 ---
         self.tasc_takeover_rem_m = 150.0 # 인계 거리 (m)
-        self.tasc_takeover_hyst_m = 5.0 # ± 오차 완충 (경계 튐 방지)
+        self.tasc_takeover_hyst_m = 2 # ± 오차 완충 (경계 튐 방지)
 
         self.veh = veh
         self.scn = scn
