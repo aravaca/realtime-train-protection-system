@@ -573,9 +573,9 @@ class StoppingSim:
                   f"| budget={self.state.time_budget_s:.2f}s | L={self.scn.L} v0={self.scn.v0*3.6:.1f}km/h")
 
     def start(self):
-        # reset()은 timer_enabled 보존 로직 포함
         self.reset()
         self.running = True
+        self._t_start = time.time()  # sim_loop에서 참조 가능
         if DEBUG:
             print("Simulation started")
 
@@ -1287,26 +1287,23 @@ async def ws_endpoint(ws: WebSocket):
     import time
 
     async def sim_loop():
-        try:
-            dt = sim.scn.dt  # 0.05 등 시뮬레이션 스텝
-            # WebSocket 연결 초기화
-            sim.reset()
-            step_count = 0
-            t_start = time.time()
-            sim.running = False  # 다시 한 번 안전하게
+        dt = sim.scn.dt
+        step_count = 0
+        t_start = None  # 시작 시점은 start() 눌렀을 때 설정
 
-            while True:
-                if sim.running:
-                    t_now = time.time()
-                    # 현재까지 몇 스텝을 진행해야 하는지 계산
-                    expected_steps = int((t_now - t_start) / dt)
-                    # 아직 진행 안한 스텝 실행
-                    for _ in range(step_count, expected_steps):
-                        sim.step()
-                    step_count = expected_steps
-                await asyncio.sleep(dt / 2)  # 조금 짧게 대기
-        except asyncio.CancelledError:
-            pass
+        while True:
+            if sim.running:
+                if t_start is None:
+                    t_start = time.time()
+                    step_count = 0
+
+                t_now = time.time()
+                expected_steps = int((t_now - t_start) / dt)
+                for _ in range(step_count, expected_steps):
+                    sim.step()
+                step_count = expected_steps
+            await asyncio.sleep(dt / 2)
+
 
 
     async def send_loop():
