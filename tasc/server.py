@@ -943,10 +943,10 @@ class StoppingSim:
         if len(notches) < 3:
             return False
 
-        # 첫 브레이크가 1 또는 2인지 확인
-        first_brake_notch = next((n for n in notches if n > 0), None)
-        if first_brake_notch not in (1, 2):
-            return False
+        # # 첫 브레이크가 1 또는 2인지 확인
+        # first_brake_notch = next((n for n in notches if n > 0), None)
+        # if first_brake_notch not in (1, 2):
+        #     return False
 
         peak_reached = False
         prev = notches[0]
