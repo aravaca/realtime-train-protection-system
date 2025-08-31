@@ -502,6 +502,9 @@ class StoppingSim:
             st.lever_notch = self._clamp_notch(val)
             if DEBUG:
                 print(f"Applied setNotch: {old_notch} -> {st.lever_notch}")
+        elif name == "applyNotch":
+            st.lever_notch = self._clamp_notch(val)
+
 
     # ----------------- Lifecycle -----------------
 
@@ -1268,9 +1271,7 @@ async def ws_endpoint(ws: WebSocket):
                     # 자동 산출이 적용되도록 리셋
                     sim.state.timer_enabled = True
                     sim.reset()
-                elif name == "applyNotch":
-                    st.lever_notch = self._clamp_notch(val)
-
+                
                 else:
                      cmd_val = payload.get("val", payload.get("delta", 0))
                      sim.queue_command(name, cmd_val)    
