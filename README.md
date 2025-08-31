@@ -6,6 +6,12 @@
 
 ---
 
+## ⚙️ Tech Stack
+- **Backend**: Python 3.12, FastAPI, WebSocket
+- **Frontend**: HTML, CSS, JavaScript (Canvas 기반 HUD)
+- **Deploy**: AWS EC2 (Amazon Linux), Nginx, Route53
+
+---
 ## ✨ What’s New (주요 업데이트 2025.08.31)
 - 차량군 확대: JR East (E233, E235) 등 통근열차 뿐만 아니라 제동감이 상이한 특급열차, 침대열차, 퇴역열차 등 추가
 
@@ -42,12 +48,7 @@
 - **도입비용/리스크 분산**: ATO(열차자동운전장치) 대비 도입 비용 저렴, TASC는 기계 오작동시 기관사 개입으로 리스크 최소화 가능
 ---
 
-## ⚙️ Tech Stack
-- **Backend**: Python 3.12, FastAPI, WebSocket
-- **Frontend**: HTML, CSS, JavaScript (Canvas 기반 HUD)
-- **Deploy**: AWS EC2 (Amazon Linux), Nginx, Route53
 
----
 
 ## 🧪 How TASC Works (알고리즘 요약)
 
