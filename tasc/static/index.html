@@ -538,7 +538,7 @@ function formatTimeSec(secInt) {
   const m = Math.floor(s / 60);
   const s2 = s % 60;
   return sign
-    + (m < 10 ? "0" : "") + m + " : "   // 콜론 앞뒤에 공백 추가
+    + (m < 10 ? "0" : "") + m + ": "   // 콜론 앞뒤에 공백 추가
     + (s2 < 10 ? "0" : "") + s2;
 }
 
