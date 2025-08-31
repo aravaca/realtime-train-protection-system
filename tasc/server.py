@@ -1126,8 +1126,10 @@ async def ws_endpoint(ws: WebSocket):
                 elif name == "emergencyBrake":
                     sim.queue_command("emergencyBrake", 0)
                 elif name == "setNotch":
-                    target = int(payload.get("value", 0))
-                    sim.queue_command("setNotch", target)
+    # 'val'이나 'delta'에 상관없이 value가 있다면 우선
+                    val = payload.get("val", payload.get("delta", payload.get("value", 0)))
+                    sim.queue_command("setNotch", val)
+
 
 
                 elif name == "setTrainLength":
