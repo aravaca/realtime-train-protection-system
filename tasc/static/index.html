@@ -494,7 +494,7 @@ if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
 
 /* ===== 키보드 ===== */
 addEventListener("keydown", (e) => {
-  if([" ","w","W","s","S","n","N","q","Q","e","E","d","D"].includes(e.key)) e.preventDefault();
+  if([" ","w","W","s","S","n","N","e","E","d","D"].includes(e.key)) e.preventDefault();
   if(e.repeat) return;
 
   if(e.key === " "){ 
@@ -509,10 +509,6 @@ addEventListener("keydown", (e) => {
   }
   else if(e.key === "n" || e.key === "N"){ 
     sendCmd("release", 0); 
-  }
-  else if(e.key === "q" || e.key === "Q"){ 
-    // 두 번째로 강력한 제동 (예시로 -7)
-    sendCmd("setNotch", -7);  
   }
   else if(e.key === "e" || e.key === "E"){ 
     sendCmd("emergencyBrake", 0);  
