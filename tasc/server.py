@@ -790,9 +790,14 @@ class StoppingSim:
                     self.tasc_armed = False
                     self._tasc_last_change_t = st.t
 
-            if self.tasc_active:
-                if not self.first_brake_done:
-                    self.first_brake_done = True
+                if self.tasc_active:
+                    if not self.first_brake_done:
+                        v0_kmh = self.scn.v0 * 3.6
+                        desired = 2 if v0_kmh >= 75.0 else 1
+                        if dwell_ok and cur != desired:
+                            stepv = 1 if desired > cur else -1
+                            st.lever_notch = self._clamp_notch(cur + stepv)
+                            self._tasc_last_change_t = st.t
                 else:
                     s_cur, s_up, s_dn = self._tasc_predict(cur, st.v)
                     changed = False
