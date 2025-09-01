@@ -884,41 +884,44 @@ function drawHUD(st){
 
 
 
-  // 🚆 편성수 표시
-const trainLengthEl = document.getElementById("trainLength");
-const trainLength = parseInt(trainLengthEl.value) || 8;
 
-const ctx = canvas.getContext("2d");
-const dpr = devicePixelRatio;
 
-// 위치 & 크기
-const boxW = 40 * dpr;
-const boxH = 24 * dpr;
-const boxX = 10 * dpr;  // 좌측 여백
-const boxY = 10 * dpr;  // 상단 여백
-const radius = 4 * dpr;
+  
+}
 
-// 빨간색 배경 박스
-ctx.fillStyle = "#ff5757";
-ctx.beginPath();
-ctx.moveTo(boxX + radius, boxY);
-ctx.lineTo(boxX + boxW - radius, boxY);
-ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
-ctx.lineTo(boxX + boxW, boxY + boxH - radius);
-ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
-ctx.lineTo(boxX + radius, boxY + boxH);
-ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
-ctx.lineTo(boxX, boxY + radius);
-ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
-ctx.closePath();
-ctx.fill();
+/* === 편성수 표시 (정위치 버튼 왼쪽) === */
+{
+  const trainLength = st.train_length ?? 8; // 차량 수, st에서 가져오거나 기본 8
+  const pad = 6 * dpr;
+  const boxW = 32 * dpr;
+  const boxH = 20 * dpr;
+  const radius = 4 * dpr;
 
-// 편성수 텍스트
-ctx.fillStyle = "#fff"; 
-ctx.font = `${14 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
-ctx.textAlign = "center";
-ctx.textBaseline = "middle";
-ctx.fillText(trainLength, boxX + boxW / 2, boxY + boxH / 2);
+  // 정위치 버튼 위치 참고
+  const boxX = stopBtnX - boxW - 4*dpr; // 정위치 버튼 왼쪽에 4px 간격
+  const boxY = stopBtnY;                // Y 위치 맞춤
+
+  // 박스 그리기
+  ctx.fillStyle = "#ff5757";
+  ctx.beginPath();
+  ctx.moveTo(boxX + radius, boxY);
+  ctx.lineTo(boxX + boxW - radius, boxY);
+  ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
+  ctx.lineTo(boxX + boxW, boxY + boxH - radius);
+  ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
+  ctx.lineTo(boxX + radius, boxY + boxH);
+  ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
+  ctx.lineTo(boxX, boxY + radius);
+  ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+  ctx.closePath();
+  ctx.fill();
+
+  // 숫자 표시
+  ctx.fillStyle = "#000"; // 숫자 색상
+  ctx.font = `${12*dpr}px 'A-OTF Shin Go Pro', sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(trainLength, boxX + boxW/2, boxY + boxH/2);
 }
 
 
