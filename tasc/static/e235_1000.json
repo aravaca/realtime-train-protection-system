@@ -5,6 +5,9 @@
   "j_max": 0.5,
   "notches": 10,
   "notch_accels" : [-1.528, -1.250, -1.160, -1.080, -0.980, -0.880, -0.720, -0.560, -0.400, 0.000],
+    "maxSpeed_kmh": 140,
+"forward_notches": 5,
+"forward_notch_accels":[ 0.350, 0.381, 0.421, 0.466, 0.514 ],
   "tau_cmd_ms": 150,
   "tau_brk_ms": 250
 }
