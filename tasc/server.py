@@ -599,32 +599,36 @@ class StoppingSim:
         self._t_start = time.time()  # sim_loop에서 참조 가능
         if DEBUG:
             print("Simulation started")
-                
-    def compute_power_accel(self, lever_notch: int, v: float, alpha: float = 1.5) -> float:
-        
+                    
+    def compute_power_accel(self, lever_notch: int, v: float) -> float:
         """
-        Compute forward acceleration for a given forward lever notch and speed.
-        Nonlinear fade-out applied per notch.
+        Realistic forward acceleration for commuter EMU (P1~P5).
+        - lever_notch < 0 : forward notch
+        - v : current speed in m/s
+        - Linear fade-out per notch (v=0 -> full accel, v>=v_cap -> 0)
         """
-        if lever_notch >= 0 or v <= 0.0:
-            return 0.0  # Not a forward notch or non-positive speed
 
-        # Clamp idx to valid range
+        if lever_notch >= 0 or v <= 0.0:
+            return 0.0  # Not a forward notch or stopped
+
+        # --- Notch index ---
         n_notches = len(self.veh.forward_notch_accels)
         idx = max(0, min(-lever_notch - 1, n_notches - 1))  # P1=-1 -> idx 0
 
-        base_accel = self.veh.forward_notch_accels[idx]
+        # --- Base acceleration per notch (m/s^2) ---
+        # 예: P1~P5 약간씩 감소/증가 조정
+        base_accels = self.veh.forward_notch_accels  # [0.08, 0.22, 0.42, 0.56, 0.69] m/s²
+        base_accel = base_accels[idx]
 
-        # max speed per notch
-        v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)  # avoid division by zero
-        v_cap = v_max_total * (idx + 1) / n_notches
+        # --- Max speed per notch ---
+        v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)  # km/h -> m/s
+        v_cap = v_max_total * (idx + 1) / n_notches      # P1:1/5, P5:5/5
 
-        if v >= v_cap or v <= 0.0:
-            return 0.0
+        if v >= v_cap:
+            return 0.0  # Cap reached
 
-
-        # Nonlinear fade factor (v=0 -> 1, v>=v_cap -> 0)
-        factor = max(0.0, (1.0 - (v / v_cap))**alpha)
+        # --- Linear fade factor ---
+        factor = 1.0 - (v / v_cap)
 
         return base_accel * factor
 
