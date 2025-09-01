@@ -397,7 +397,7 @@ function enforceInt(el,min,max){ el.addEventListener('input',()=>{ el.value=el.v
 function enforceFloat(el,min,max,d=1){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^0-9.\-]/g,'');}); el.addEventListener('change',()=>{let v=parseFloat(el.value); if(isNaN(v)){el.value='';return;} v=clamp(v,min,max); el.value=v.toFixed(d);});}
 
 /* ✅ 범위 갱신: 속도 40~130 / 거리 150~900 */
-enforceInt(inputSpeed,40,130);
+enforceInt(inputSpeed,10,130);
 enforceInt(inputDist,150,900);
 enforceInt(inputLoadRate,0,120);
 enforceFloat(inputGrade,-10,10,1);
