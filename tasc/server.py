@@ -1279,17 +1279,21 @@ async def ws_endpoint(ws: WebSocket):
                             path = os.path.join(STATIC_DIR, rel.lstrip("./"))
                             if not os.path.isfile(path):
                                 raise FileNotFoundError(path)
+
+                            # 새 Vehicle 객체 생성
                             newv = Vehicle.from_json(path)
 
+                            # notch_accels 역전 + 안전하게 복사
                             newv.notch_accels = list(reversed(newv.notch_accels))
                             newv.notches = len(newv.notch_accels)
 
-                            # 교체
-                            vehicle.__dict__.update(newv.__dict__)
-                            # 안전하게 한 번 더 Davis 재계산(파일 값 + 질량 확인)
-                            vehicle.recompute_davis(vehicle.mass_kg)
+                            # Davis 재계산 (파일 값 + 질량 확인)
+                            newv.recompute_davis(newv.mass_kg)
 
-                            sim.veh = vehicle
+                            # sim에 교체
+                            sim.veh = newv
+
+                            # 시뮬레이션 상태 초기화
                             sim.reset()
 
                             if DEBUG:
