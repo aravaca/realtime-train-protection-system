@@ -626,23 +626,24 @@ class StoppingSim:
 
         n_notches = len(self.veh.forward_notch_accels)
         idx = max(0, min(-lever_notch - 1, n_notches - 1))
-
         base_accel = self.veh.forward_notch_accels[idx]
 
         v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
         v_cap = v_max_total * (idx + 1) / n_notches
 
-        # if v >= v_cap:
-        #     return 0.0
-
-        # 비선형 fade-out: 노치 최대 속도 대비 80% 이상부터 지수적으로 줄어들게
         fade_start = 0.6 * v_cap
+
         if v <= fade_start:
             factor = 1.0
         else:
-            factor = math.exp(-5 * (v - fade_start) / (v_cap - fade_start))
+            # v_cap 근처에서는 사실상 0
+            x = (v - fade_start) / (v_cap - fade_start)
+            factor = 1 / (1 + 10 * x**4)  # 0.99~0.01 구간을 부드럽게
+            if factor < 0.01:
+                factor = 0.0
 
         return base_accel * factor
+
 
 
     def eb_used_from_history(self) -> bool:
