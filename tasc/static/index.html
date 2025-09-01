@@ -885,7 +885,8 @@ function drawHUD(st){
 
 /* === 편성수 표시 (정위치 버튼 왼쪽) === */
 {
-  const trainLength = st.train_length ?? 8; // 차량 수, st에서 가져오거나 기본 8
+  // st에서 가져오지 않고 UI에서 직접 읽기
+  const trainLength = parseInt(document.getElementById("trainLength").value) || 8; 
   const pad = 6 * dpr;
   const boxW = 32 * dpr;
   const boxH = 20 * dpr;
@@ -917,6 +918,7 @@ function drawHUD(st){
   ctx.textBaseline = "middle";
   ctx.fillText(trainLength, boxX + boxW/2, boxY + boxH/2);
 }
+
 
 
 
