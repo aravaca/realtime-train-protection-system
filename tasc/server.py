@@ -615,7 +615,7 @@ class StoppingSim:
 
         # 노치별 최대 속도
         v_max_total = self.veh.maxSpeed_kmh / 3.6
-        v_cap = v_max_total * (idx) / n_notches  # P1~P5 비례 cap
+        v_cap = v_max_total * (idx + 1) / n_notches  # P1~P5 비례 cap
 
         if v >= v_cap:
             return 0.0  # 현재 속도가 노치별 cap 이상이면 가속도 0
