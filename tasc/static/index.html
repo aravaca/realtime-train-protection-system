@@ -883,12 +883,6 @@ function drawHUD(st){
   });
 
 
-
-
-
-  
-}
-
 /* === 편성수 표시 (정위치 버튼 왼쪽) === */
 {
   const trainLength = st.train_length ?? 8; // 차량 수, st에서 가져오거나 기본 8
@@ -923,6 +917,12 @@ function drawHUD(st){
   ctx.textBaseline = "middle";
   ctx.fillText(trainLength, boxX + boxW/2, boxY + boxH/2);
 }
+
+
+
+  
+}
+
 
 
 }
