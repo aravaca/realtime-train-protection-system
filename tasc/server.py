@@ -33,6 +33,7 @@ class Vehicle:
     tau_brk: float = 0.250
     mass_kg: float = 200000.0
     # Vehicle 클래스 내
+    maxSpeed_kmh: float = 140.0
     forward_notches: int = 5
     forward_notch_accels: list = None  # [-1.5, -1.1] 등
 
@@ -85,14 +86,9 @@ class Vehicle:
                 "notch_accels",
                 [-1.5, -1.10, -0.95, -0.80, -0.65, -0.50, -0.35, -0.20, 0.0],
             ),
+            maxSpeed_kmh=data.get("maxSpeed_kmh", 140.0),
             forward_notches=data.get("forward_notches", 5),
-            forward_notch_accels=data.get("forward_notch_accels", [
-  0.139,
-  0.278,
-  0.417,
-  0.556,
-  0.694
-],),
+            forward_notch_accels=data.get("forward_notch_accels", [-0.139, -0.278, -0.417, -0.556, -0.694]),
             tau_cmd=data.get("tau_cmd_ms", 150) / 1000.0,
             tau_brk=data.get("tau_brk_ms", 250) / 1000.0,
             mass_t=mass_t,
@@ -352,7 +348,7 @@ class StoppingSim:
         return float(L_m / v_ms + self.timer_buffer_s)
 
     def _compute_time_budget_auto(self, v_kmh: float, L_m: float) -> float:
-        # 1) 보정 표(IDW)
+        # 1) 보정 표(IDW)ㅋ
         t_idw, min_d = self._idw_predict_time(v_kmh, L_m)
 
         # 2) 강화된 공식 기반
@@ -604,6 +600,21 @@ class StoppingSim:
         if DEBUG:
             print("Simulation started")
 
+    def compute_power_accel(self, lever_notch: int, v: float) -> float:
+        if lever_notch >= 0:
+            return 0.0  # 전진이 아님
+
+        idx = -lever_notch - 1  # P1=-1 → idx 0
+        if idx < len(self.veh.forward_notch_accels):
+            base_accel = self.veh.forward_notch_accels[idx]
+        else:
+            base_accel = self.veh.forward_notch_accels[-1]
+
+        # 속도 감속 factor: 0~1, v=0 → factor=1, v=v_max → factor=0
+        v_max = self.veh.maxSpeed_kmh / 3.6  # m/s
+        factor = max(0.0, 1.0 - v / v_max)
+        return base_accel * factor
+
     def eb_used_from_history(self) -> bool:
         return any(n == self.veh.notches - 1 for n in self.notch_history)
 
@@ -613,21 +624,18 @@ class StoppingSim:
         # if notch <= 0:
         #     return float('inf')
 
-                # 동력 가속도 계산 (전진 notch)
-        if notch < 0:  # P1~P5
-            idx = -notch - 1  # -1 → 0, -2 → 1 ...
-            if idx < len(self.veh.forward_notch_accels):
-                pwr_accel = self.veh.forward_notch_accels[idx]
-            else:
-                pwr_accel = self.veh.forward_notch_accels[-1]
-        else:
-            pwr_accel = 0.0
+
 
         dt = 0.03
         v = max(0.0, v0)
         a = float(self.state.a)
         s = 0.0
 
+                # 동력 가속도 계산 (전진 notch)
+        if notch < 0:  # P1~P5
+            pwr_accel = self.compute_power_accel(notch, v)
+        else:
+            pwr_accel = 0.0
 
         brk_elec = float(self.brk_elec)
         brk_air  = float(self.brk_air)
@@ -857,15 +865,7 @@ class StoppingSim:
         # ---------- Dynamics ----------
 
                 
-        # 동력 가속도 계산 (전진 notch)
-        if st.lever_notch < 0:
-            idx = -st.lever_notch - 1  # P1 = -1 → idx 0
-            if idx < len(self.veh.forward_notch_accels):
-                pwr_accel = self.veh.forward_notch_accels[idx]
-            else:
-                pwr_accel = self.veh.forward_notch_accels[-1]
-        else:
-            pwr_accel = 0.0
+        pwr_accel = self.compute_power_accel(st.lever_notch, st.v)
 
 
         a_cmd_brake = self._effective_brake_accel(st.lever_notch, st.v)

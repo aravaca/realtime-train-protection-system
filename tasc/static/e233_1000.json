@@ -16,6 +16,7 @@
 -0.40,
 0.00
 ],
+"maxSpeed_kmh": 140,
 "forward_notches": 5,
 "forward_notch_accels": [
   0.139,
