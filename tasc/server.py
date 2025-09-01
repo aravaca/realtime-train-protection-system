@@ -88,7 +88,7 @@ class Vehicle:
             ),
             maxSpeed_kmh=data.get("maxSpeed_kmh", 140.0),
             forward_notches=data.get("forward_notches", 5),
-            forward_notch_accels=data.get("forward_notch_accels", [-0.139, -0.278, -0.417, -0.556, -0.694]),
+            forward_notch_accels=data.get("forward_notch_accels", [ 0.250, 0.287, 0.378, 0.515, 0.694 ]),
             tau_cmd=data.get("tau_cmd_ms", 150) / 1000.0,
             tau_brk=data.get("tau_brk_ms", 250) / 1000.0,
             mass_t=mass_t,
