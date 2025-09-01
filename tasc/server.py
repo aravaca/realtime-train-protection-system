@@ -623,6 +623,7 @@ class StoppingSim:
 
     def start(self):
         self.reset()
+        self.state.v = float(self._planned_v0) 
         self.running = True
         self._t_start = time.time()  # sim_loop에서 참조 가능
         if DEBUG:
