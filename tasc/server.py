@@ -620,28 +620,41 @@ class StoppingSim:
         self._t_start = time.time()  # sim_loop에서 참조 가능
         if DEBUG:
             print("Simulation started")
-
     def compute_power_accel(self, lever_notch: int, v: float) -> float:
         """
-        Forward acceleration for commuter EMU (linear fade-out).
-        - lever_notch < 0 : forward notch (P1~P5)
-        - v : current speed in m/s
-        - Linear fade-out from 0 -> maxSpeed
+        Forward acceleration for commuter EMU with:
+        - per-notch max speed (1/n of total max speed)
+        - nonlinear fade-out per notch
+        - tau_cmd-based smoothing for realistic acceleration build-up
         """
         if lever_notch >= 0 or v <= 0.0:
             return 0.0  # Not a forward notch or stopped
 
-        # 기본 전진 가속 (노치별)
         n_notches = len(self.veh.forward_notch_accels)
-        idx = max(0, min(-lever_notch - 1, n_notches - 1))
+        idx = max(0, min(-lever_notch - 1, n_notches - 1))  # P1=-1 -> idx 0
+
         base_accel = self.veh.forward_notch_accels[idx]
 
-        # 전체 최대 속도 기준 선형 fade-out
-        v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)  # m/s
-        factor = 1.0 - (v / v_max_total)
-        factor = max(0.0, factor)
+        # 노치별 최대 속도
+        v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
+        v_cap = v_max_total * (idx + 1) / n_notches
 
-        return base_accel * factor
+        if v >= v_cap:
+            return 0.0
+
+        # 비선형 fade-out (exponential)
+        factor = math.exp(-4 * v / v_cap)
+        target_accel = base_accel * factor
+
+        # tau_cmd 기반 smoothing
+        dt = self.scn.dt  # 시뮬레이터 시간 간격
+        tau_cmd_s = self.veh.tau_cmd_ms / 1000.0  # ms -> s
+        smoothed_accel = self._a_cmd_filt + (target_accel - self._a_cmd_filt) * (dt / max(dt, tau_cmd_s))
+
+        # 내부 필터 값 업데이트
+        self._a_cmd_filt = smoothed_accel
+
+        return smoothed_accel
 
 
 
