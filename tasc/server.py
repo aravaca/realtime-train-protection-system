@@ -636,7 +636,7 @@ class StoppingSim:
             return 0.0
 
         # 비선형 fade-out: 노치 최대 속도 대비 80% 이상부터 지수적으로 줄어들게
-        fade_start = 0.8 * v_cap
+        fade_start = 0.6 * v_cap
         if v <= fade_start:
             factor = 1.0
         else:
