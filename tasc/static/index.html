@@ -171,7 +171,7 @@ body{overflow-x:hidden;overflow-y:auto}
   <span class="stat value"><span id="grade_percent">—</span><span class="unit"> ‰</span></span>
 </div>
 <div class="line">
-  <span id="labelNotch">제동</span>
+  <span id="labelNotch">노치</span>
   <span class="stat value" id="notch">-</span>
 </div>
   <div style="margin-top:8px">
@@ -229,7 +229,7 @@ body{overflow-x:hidden;overflow-y:auto}
 
     <!-- ✅ 속도/거리 입력 범위 갱신: 속도 40~130, 거리 150~900 -->
     <label class="form-label"><span id="labelInitSpeed">초기 속도 (km/h)</span>
-      <input id="inputSpeed" type="number" value="70" min="10" max="130" step="1" class="form-input">
+      <input id="inputSpeed" type="number" value="70" min="40" max="130" step="1" class="form-input">
     </label>
     <label class="form-label"><span id="labelInitDist">거리 (m)</span>
       <input id="inputDist" type="number" value="300" min="150" max="900" step="1" class="form-input">
@@ -399,7 +399,7 @@ function enforceInt(el,min,max){ el.addEventListener('input',()=>{ el.value=el.v
 function enforceFloat(el,min,max,d=1){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^0-9.\-]/g,'');}); el.addEventListener('change',()=>{let v=parseFloat(el.value); if(isNaN(v)){el.value='';return;} v=clamp(v,min,max); el.value=v.toFixed(d);});}
 
 /* ✅ 범위 갱신: 속도 40~130 / 거리 150~900 */
-enforceInt(inputSpeed,10,130);
+enforceInt(inputSpeed,40,130);
 enforceInt(inputDist,150,900);
 enforceInt(inputLoadRate,0,120);
 enforceFloat(inputGrade,-10,10,1);
@@ -1118,7 +1118,7 @@ populateSeries(); // 최초 세팅
       labelSpeed: "속도",
       labelRemainDist: "정차",
       labelGrade: "구배",
-      labelNotch: "제동",
+      labelNotch: "노치",
       labelStartKey: "시작",
       labelUp: "강화",
       labelDown: "완화",
@@ -1172,7 +1172,7 @@ populateSeries(); // 최초 세팅
       labelSpeed: "Speed",
       labelRemainDist: "Distance",
       labelGrade: "Grade",
-      labelNotch: "Brake",
+      labelNotch: "Notch",
       labelStartKey: "Start",
       labelUp: "B+",
       labelDown: "B-",
