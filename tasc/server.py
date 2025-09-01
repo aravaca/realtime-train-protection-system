@@ -606,27 +606,28 @@ class StoppingSim:
         Realistic forward acceleration for commuter EMU (P1~P5).
         - lever_notch < 0 : forward notch
         - v : current speed in m/s
-        - Nonlinear fade-out per notch (v=0 -> full accel, v>=v_cap -> 0)
+        - Linear fade-out per notch (v=0 -> full accel, v>=v_cap -> 0)
         """
-
         if lever_notch >= 0 or v <= 0.0:
             return 0.0  # Not a forward notch or stopped
 
         n_notches = len(self.veh.forward_notch_accels)
         idx = max(0, min(-lever_notch - 1, n_notches - 1))  # P1=-1 -> idx 0
 
-        base_accels = self.veh.forward_notch_accels
-        base_accel = base_accels[idx]
+        base_accel = self.veh.forward_notch_accels[idx]
 
-        v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
-        v_cap = v_max_total * (idx + 1) / n_notches
+        v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)  # m/s
+        v_cap = v_max_total * (idx + 1) / n_notches           # linear cap per notch
 
-        # 비선형 fade-out: exp(-v / v_cap)
-        factor = math.exp(-v / v_cap)
         if v >= v_cap:
             return 0.0  # cap 넘으면 가속도 0
 
+        # 선형 fade-out: 0 -> v_cap
+        factor = 1.0 - (v / v_cap)
+        factor = max(0.0, min(1.0, factor))
+
         return base_accel * factor
+
     def eb_used_from_history(self) -> bool:
         return any(n == self.veh.notches - 1 for n in self.notch_history)
 
