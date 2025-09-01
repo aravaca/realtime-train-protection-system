@@ -1,7 +1,12 @@
 import numpy as np
 
 # 기존 notch 인덱스
-notches = np.array([0,1,2,3,4])
+num_notch = 18
+list = []
+for n in range(num_notch):
+    list.append(n)
+
+notches = np.array(list)
 # 목표 최대값
 max_accel = 0.694
 # 최소값
