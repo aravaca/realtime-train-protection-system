@@ -717,7 +717,7 @@ class StoppingSim:
             # (신규) 속도 기반 소프트 스톱
             rem_pred = max(0.0, rem_now - s)
             v_kmh = v * 3.6
-            if v_kmh <= 5.0:
+            if v_kmh <= 5.0 and notch > 0:
                 alpha = max(0.0, min(1.0, v_kmh / 5.0))
                 # -0.08
                 a_soft = (-0.30) * alpha + (-0.12) * (1.0 - alpha)
@@ -896,7 +896,7 @@ class StoppingSim:
         rem_now = self.scn.L - st.s
         v_kmh = st.v * 3.6
         # --- 속도 기반 소프트 스톱 ---
-        if v_kmh <= 5.0:
+        if v_kmh <= 5.0 and st.lever_notch > 0:
             alpha = max(0.0, min(1.0, v_kmh / 5.0))     # 5km/h→1, 0km/h→0
             # -0.08
             a_soft = (-0.30) * alpha + (-0.12) * (1.0 - alpha)
