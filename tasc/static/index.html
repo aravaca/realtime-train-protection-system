@@ -381,9 +381,11 @@ function updateTrainLength(){
   sendLoadRate();
 }
 function sendLoadRate(){
-  const loadRate=parseFloat(document.getElementById("inputLoadRate").value)||0;
-  const trainLength=parseInt(document.getElementById("trainLength").value)||8;
-  ws.send(JSON.stringify({ type: "cmd", payload: { name: "setLoadRate", loadRate, length: trainLength }}));
+  const loadRate = parseFloat(document.getElementById("inputLoadRate").value) || 0;
+  const trainLength = parseInt(document.getElementById("trainLength").value) || 8;
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setLoadRate", loadRate, length: trainLength }}));
+  }
 }
 
 /* ===== 입력 보정 & 제한 ===== */
