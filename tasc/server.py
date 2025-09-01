@@ -1134,7 +1134,7 @@ async def ws_endpoint(ws: WebSocket):
     await ws.accept()
 
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    vehicle_json_path = os.path.join(BASE_DIR, "e233_1000.json")
+    vehicle_json_path = os.path.join(BASE_DIR, "static/e233_1000.json")
     scenario_json_path = os.path.join(BASE_DIR, "scenario.json")
 
     vehicle = Vehicle.from_json(vehicle_json_path)
