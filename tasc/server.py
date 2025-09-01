@@ -1025,6 +1025,7 @@ class StoppingSim:
             if DEBUG:
                 print(f"Avg jerk: {avg_jerk:.4f}, jerk_score: {jerk_score:.2f}, final score: {score}")
                 print(f"Simulation finished: stop_error={st.stop_error_m:.3f} m, score={score}")
+
     def is_stair_pattern(self, notches: List[int]) -> bool:
         if len(notches) < 3:
             return False
