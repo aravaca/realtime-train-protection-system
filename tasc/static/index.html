@@ -303,18 +303,9 @@ ws.addEventListener('open', () => {
 const tascToggle = document.getElementById("tascToggle");
 tascToggle.addEventListener("change", () => {
   const enabled = tascToggle.checked;
-  if(ws && ws.readyState === WebSocket.OPEN){
-  ws.send(JSON.stringify({
-    type: "cmd",
-    payload: {
-      name: "setVehicleFile",
-      file: filePath
-    }
-  }));
-  } else {
-    console.warn("WebSocket not open yet");
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled } }));
   }
-
 });
 // function forceManualOverride(){
 //   if (tascToggle.checked){
@@ -1072,29 +1063,6 @@ function setTrainLengthOptions(lengths){
   });
   updateTrainLength();
 }
-// function loadVehicleFile(filePath){
-//   fetch(filePath + cacheBust(), { cache: 'no-store' })
-//     .then(res => res.json())
-//     .then(data => {
-//       vehicle = data;
-//       vehicle.notches = (vehicle.notch_accels || []).length;
-//       document.getElementById('carName').textContent = vehicle.name;
-
-//       brakeDecels = {};
-//       if (vehicle.notch_accels && vehicle.notches) {
-//         for (let i = 0; i < vehicle.notches; i++) {
-//           brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches - 1 - i] ?? 0);
-//         }
-//       }
-
-//       if (ws.readyState === WebSocket.OPEN) {
-//         ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: filePath } }));
-//       }
-//       sendLoadRate();
-//     })
-//     .catch(console.error);
-// }
-
 function loadVehicleFile(filePath){
   fetch(filePath + cacheBust(), { cache: 'no-store' })
     .then(res => res.json())
@@ -1104,21 +1072,19 @@ function loadVehicleFile(filePath){
       document.getElementById('carName').textContent = vehicle.name;
 
       brakeDecels = {};
-      if(vehicle.notch_accels && vehicle.notches){
-        for(let i=0;i<vehicle.notches;i++){
-          brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches-1-i] ?? 0);
+      if (vehicle.notch_accels && vehicle.notches) {
+        for (let i = 0; i < vehicle.notches; i++) {
+          brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches - 1 - i] ?? 0);
         }
       }
 
-      if(ws.readyState === WebSocket.OPEN){
+      if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: filePath } }));
-
       }
       sendLoadRate();
     })
     .catch(console.error);
 }
-
 
 function populateSeries(){
   const fam=trainFamilyEl.value, list=TRAIN_DB[fam]||[];
@@ -1139,10 +1105,7 @@ trainSeriesEl.addEventListener('change',(e)=>{
   setTrainLengthOptions(lengths);
   loadVehicleFile(opt.value);
 });
-document.addEventListener('DOMContentLoaded', () => {
-  populateSeries(); // 초기 로드
-});
-
+populateSeries(); // 최초 세팅
 </script>
 
 <!-- ===== 10s 언어 토글 (ko <-> en), 피드백 포함 ===== -->
