@@ -599,13 +599,11 @@ class StoppingSim:
         self._t_start = time.time()  # sim_loop에서 참조 가능
         if DEBUG:
             print("Simulation started")
-                        
     def compute_power_accel(self, lever_notch: int, v: float) -> float:
         """
-        Realistic forward acceleration for commuter EMU (P1~P5).
-        - lever_notch < 0 : forward notch
-        - v : current speed in m/s
-        - Nonlinear (exponential) fade-out per notch (v=0 -> full accel, v>=v_cap -> 0)
+        Forward acceleration for commuter EMU with per-notch max speed.
+        lever_notch < 0 : forward notch
+        v : current speed in m/s
         """
         if lever_notch >= 0 or v <= 0.0:
             return 0.0  # Not a forward notch or stopped
@@ -615,16 +613,19 @@ class StoppingSim:
 
         base_accel = self.veh.forward_notch_accels[idx]
 
-        v_max_total = max(0.01, self.veh.maxSpeed_kmh / 3.6)  # m/s
-        v_cap = (v_max_total * (idx + 1) / n_notches)         # linear cap per notch
+        # 노치별 최대 속도
+        v_max_total = self.veh.maxSpeed_kmh / 3.6
+        v_cap = v_max_total * (idx + 1) / n_notches  # P1~P5 비례 cap
 
         if v >= v_cap:
-            return 0.0  # cap 넘으면 가속도 0
+            return 0.0  # 현재 속도가 노치별 cap 이상이면 가속도 0
 
-        # 비선형 fade-out: exp(-4 * v / v_cap)
-        factor = math.exp(-4 * v / v_cap)
+        # 선형 fade-out: 0 -> v_cap
+        factor = 1.0 - (v / v_cap)
+        factor = max(0.0, min(1.0, factor))
 
         return base_accel * factor
+
 
     def eb_used_from_history(self) -> bool:
         return any(n == self.veh.notches - 1 for n in self.notch_history)
