@@ -620,6 +620,8 @@ class StoppingSim:
         self._t_start = time.time()  # sim_loop에서 참조 가능
         if DEBUG:
             print("Simulation started")
+
+            
     def compute_power_accel(self, lever_notch: int, v: float) -> float:
         if lever_notch >= 0 or v <= 0.0:
             return 0.0
@@ -630,21 +632,20 @@ class StoppingSim:
 
         v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
         v_cap = v_max_total * (idx + 1) / n_notches
-
         fade_start = 0.6 * v_cap
+
+        min_factor = 0.2  # 캡 근처에서도 20%는 남음
 
         if v <= fade_start:
             factor = 1.0
         else:
-            # v_cap 근처에서는 사실상 0
             x = (v - fade_start) / (v_cap - fade_start)
-            factor = 1 / (1 + 10 * x**4)  # 0.99~0.01 구간을 부드럽게
-            if factor < 0.01:
-                factor = 0.0
+            # 지수 또는 시그모이드 방식으로 부드럽게 감소
+            factor = min_factor + (1 - min_factor) * math.exp(-5 * x)
+            # 필요하면 factor < min_factor clamp
+            factor = max(factor, min_factor)
 
         return base_accel * factor
-
-
 
     def eb_used_from_history(self) -> bool:
         return any(n == self.veh.notches - 1 for n in self.notch_history)
