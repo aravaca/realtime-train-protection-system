@@ -620,43 +620,31 @@ class StoppingSim:
         self._t_start = time.time()  # sim_loop에서 참조 가능
         if DEBUG:
             print("Simulation started")
+
     def compute_power_accel(self, lever_notch: int, v: float) -> float:
         """
-        Forward acceleration for commuter EMU with per-notch max speed.
-        lever_notch < 0 : forward notch
-        v : current speed in m/s (서버는 m/s 사용)
+        Forward acceleration for commuter EMU (linear fade-out).
+        - lever_notch < 0 : forward notch (P1~P5)
+        - v : current speed in m/s
+        - Linear fade-out from 0 -> maxSpeed
         """
         if lever_notch >= 0 or v <= 0.0:
             return 0.0  # Not a forward notch or stopped
 
+        # 기본 전진 가속 (노치별)
         n_notches = len(self.veh.forward_notch_accels)
-        idx = max(0, min(-lever_notch - 1, n_notches - 1))  # P1=-1 -> idx 0
-
+        idx = max(0, min(-lever_notch - 1, n_notches - 1))
         base_accel = self.veh.forward_notch_accels[idx]
 
-        # 안전 체크: forward accel 은 양수여야 함
-        if base_accel <= 0.0:
-            if DEBUG:
-                print(f"[WARN] forward_notch_accels[{idx}]={base_accel} (<=0) -> ignore")
-            return 0.0
-
-        # 노치별 최대 속도 (km/h -> m/s)
-        v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
-        v_cap = v_max_total * (idx + 1) / n_notches
-
-        # 단위 문제 의심 시 디버그 출력
-        if DEBUG:
-            print(f"[PWR] notch={lever_notch} idx={idx} base={base_accel:.3f} v={v:.3f} v_cap={v_cap:.3f}")
-
-        # cap 초과하거나 factor <= 0이면 무조건 0 반환
-        if v >= v_cap or v_cap <= 0.0:
-            return 0.0
-
-        factor = 1.0 - (v / v_cap)
-        if factor <= 0.0:
-            return 0.0
+        # 전체 최대 속도 기준 선형 fade-out
+        v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)  # m/s
+        factor = 1.0 - (v / v_max_total)
+        factor = max(0.0, factor)
 
         return base_accel * factor
+
+
+
 
     def eb_used_from_history(self) -> bool:
         return any(n == self.veh.notches - 1 for n in self.notch_history)
