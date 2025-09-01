@@ -33,7 +33,7 @@ class Vehicle:
     tau_brk: float = 0.250
     mass_kg: float = 200000.0
     # Vehicle 클래스 내
-    maxSpeed_kmh: float = 140.0
+    maxSpeed_kmh: float = 10.0
     forward_notches: int = 5
     forward_notch_accels: list = None  # [-1.5, -1.1] 등
 
@@ -86,7 +86,7 @@ class Vehicle:
                 "notch_accels",
                 [-1.5, -1.10, -0.95, -0.80, -0.65, -0.50, -0.35, -0.20, 0.0],
             ),
-            maxSpeed_kmh=data.get("maxSpeed_kmh", 140.0),
+            maxSpeed_kmh=data.get("maxSpeed_kmh", 10.0),
             forward_notches=data.get("forward_notches", 5),
             forward_notch_accels=data.get("forward_notch_accels", [ 0.250, 0.287, 0.378, 0.515, 0.694 ]),
             tau_cmd=data.get("tau_cmd_ms", 150) / 1000.0,
