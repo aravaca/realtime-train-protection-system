@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 # ------------------------------------------------------------
 # Config
 # ------------------------------------------------------------
-DEBUG = False  # 디버그 로그를 보고 싶으면 True
+DEBUG = True  # 디버그 로그를 보고 싶으면 True
 
 # ------------------------------------------------------------
 # Data classes
@@ -33,7 +33,7 @@ class Vehicle:
     tau_brk: float = 0.250
     mass_kg: float = 200000.0
     # Vehicle 클래스 내
-    maxSpeed_kmh: float = 10.0
+    maxSpeed_kmh: float = 140.0
     forward_notches: int = 5
     forward_notch_accels: list = None  # [-1.5, -1.1] 등
 
@@ -86,7 +86,7 @@ class Vehicle:
                 "notch_accels",
                 [-1.5, -1.10, -0.95, -0.80, -0.65, -0.50, -0.35, -0.20, 0.0],
             ),
-            maxSpeed_kmh=data.get("maxSpeed_kmh", 10.0),
+            maxSpeed_kmh=data.get("maxSpeed_kmh", 140.0),
             forward_notches=data.get("forward_notches", 5),
             forward_notch_accels=data.get("forward_notch_accels", [ 0.250, 0.287, 0.378, 0.515, 0.694 ]),
             tau_cmd=data.get("tau_cmd_ms", 150) / 1000.0,
@@ -603,7 +603,7 @@ class StoppingSim:
         """
         Forward acceleration for commuter EMU with per-notch max speed.
         lever_notch < 0 : forward notch
-        v : current speed in m/s
+        v : current speed in m/s (서버는 m/s 사용)
         """
         if lever_notch >= 0 or v <= 0.0:
             return 0.0  # Not a forward notch or stopped
@@ -613,19 +613,29 @@ class StoppingSim:
 
         base_accel = self.veh.forward_notch_accels[idx]
 
-        # 노치별 최대 속도
-        v_max_total = self.veh.maxSpeed_kmh / 3.6
-        v_cap = v_max_total * (idx + 1) / n_notches  # P1~P5 비례 cap
+        # 안전 체크: forward accel 은 양수여야 함
+        if base_accel <= 0.0:
+            if DEBUG:
+                print(f"[WARN] forward_notch_accels[{idx}]={base_accel} (<=0) -> ignore")
+            return 0.0
 
-        if v >= v_cap:
-            return 0.0  # 현재 속도가 노치별 cap 이상이면 가속도 0
+        # 노치별 최대 속도 (km/h -> m/s)
+        v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
+        v_cap = v_max_total * (idx + 1) / n_notches
 
-        # 선형 fade-out: 0 -> v_cap
+        # 단위 문제 의심 시 디버그 출력
+        if DEBUG:
+            print(f"[PWR] notch={lever_notch} idx={idx} base={base_accel:.3f} v={v:.3f} v_cap={v_cap:.3f}")
+
+        # cap 초과하거나 factor <= 0이면 무조건 0 반환
+        if v >= v_cap or v_cap <= 0.0:
+            return 0.0
+
         factor = 1.0 - (v / v_cap)
-        factor = max(0.0, min(1.0, factor))
+        if factor <= 0.0:
+            return 0.0
 
         return base_accel * factor
-
 
     def eb_used_from_history(self) -> bool:
         return any(n == self.veh.notches - 1 for n in self.notch_history)
