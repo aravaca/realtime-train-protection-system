@@ -643,11 +643,7 @@ class StoppingSim:
         a = float(self.state.a)
         s = 0.0
 
-                # 동력 가속도 계산 (전진 notch)
-        if notch < 0:  # P1~P5
-            pwr_accel = self.compute_power_accel(notch, v)
-        else:
-            pwr_accel = 0.0
+
 
         brk_elec = float(self.brk_elec)
         brk_air  = float(self.brk_air)
@@ -662,6 +658,12 @@ class StoppingSim:
         latency_margin = v * ctrl_delay
 
         for _ in range(2400):
+
+                                # 동력 가속도 계산 (전진 notch)
+            if notch < 0:  # P1~P5
+                pwr_accel = self.compute_power_accel(notch, v)
+            else:
+                pwr_accel = 0.0
             is_eb = (notch == self.veh.notches - 1)
             a_cmd_total = self._effective_brake_accel(notch, v)
 
