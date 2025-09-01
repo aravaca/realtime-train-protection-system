@@ -178,6 +178,8 @@ def build_vref(L: float, a_ref: float):
 class StoppingSim:
     def __init__(self, veh: Vehicle, scn: Scenario):
 
+       
+        self._planned_v0 = scn.v0  # 출발 버튼 누를 때 쓸 예정 속도
         # --- 인계 지점(남은거리) & 히스테리시스 설정 ---
         self.tasc_takeover_rem_m = 150.0 # 인계 거리 (m)
         self.tasc_takeover_hyst_m = 2 # ± 오차 완충 (경계 튐 방지)
@@ -549,8 +551,13 @@ class StoppingSim:
         # ▼ 기존 상태의 timer_enabled를 보존(없으면 False)
         prev_timer_enabled = getattr(self.state, "timer_enabled", False)
 
+
+
+        # 계획 속도는 시나리오의 v0를 따로 들고 있고, 대기 상태에는 v=0으로 둔다
+        self._planned_v0 = self.scn.v0
+
         self.state = State(
-            t=0.0, s=0.0, v=self.scn.v0, a=0.0, lever_notch=0, finished=False
+            t=0.0, s=0.0, v=0.0, a=0.0, lever_notch=0, finished=False
         )
         self.running = False
         self._cmd_queue.clear()
