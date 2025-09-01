@@ -599,7 +599,7 @@ class StoppingSim:
         self._t_start = time.time()  # sim_loop에서 참조 가능
         if DEBUG:
             print("Simulation started")
-                    
+                        
     def compute_power_accel(self, lever_notch: int, v: float) -> float:
         """
         Realistic forward acceleration for commuter EMU (P1~P5).
@@ -614,7 +614,7 @@ class StoppingSim:
         n_notches = len(self.veh.forward_notch_accels)
         idx = max(0, min(-lever_notch - 1, n_notches - 1))  # P1=-1 -> idx 0
 
-        base_accels = self.veh.forward_notch_accels
+        base_accels = self.veh.forward_notch_accels  # [0.100, 0.149, 0.271, 0.454, 0.694]
         base_accel = base_accels[idx]
 
         v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
@@ -625,7 +625,6 @@ class StoppingSim:
             return 0.0  # cap 넘으면 가속도 0
 
         return base_accel * factor
-
     def eb_used_from_history(self) -> bool:
         return any(n == self.veh.notches - 1 for n in self.notch_history)
 
