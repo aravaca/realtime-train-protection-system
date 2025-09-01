@@ -621,7 +621,7 @@ class StoppingSim:
         if DEBUG:
             print("Simulation started")
 
-            
+
     def compute_power_accel(self, lever_notch: int, v: float) -> float:
         if lever_notch >= 0 or v <= 0.0:
             return 0.0
@@ -632,7 +632,7 @@ class StoppingSim:
 
         v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
         v_cap = v_max_total * (idx + 1) / n_notches
-        fade_start = 0.6 * v_cap
+        fade_start = 0.8 * v_cap
 
         min_factor = 0.2  # 캡 근처에서도 20%는 남음
 
