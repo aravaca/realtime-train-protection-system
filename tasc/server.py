@@ -24,14 +24,14 @@ DEBUG = True  # 디버그 로그를 보고 싶으면 True
 @dataclass
 class Vehicle:
     name: str = "EMU-233-JR-East"
-    mass_t: float = 200.0
+    mass_t: float = 39.9
     a_max: float = 1.0
-    j_max: float = 0.8
-    notches: int = 9
+    j_max: float = 0.4
+    notches: int = 10
     notch_accels: list = None
     tau_cmd: float = 0.150
     tau_brk: float = 0.250
-    mass_kg: float = 200000.0
+    mass_kg: float = 39000
     # Vehicle 클래스 내
     maxSpeed_kmh: float = 140.0
     forward_notches: int = 5
