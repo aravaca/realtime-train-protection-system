@@ -643,7 +643,7 @@ if (Math.abs(toShowInt) <= 2) {
   // 그래프/미니 인디케이터
   drawHUD(st);
   drawBrakeLadderMini(st);
-  drawTrainLength(st); // 편성수 
+  
 
   // ⚠ 피드백(fb) UI는 여기서 건드리지 마세요 (언어 토글은 setLang에서 처리)
 
@@ -881,50 +881,49 @@ function drawHUD(st){
   stopLines.forEach((line, index) => {
     ctx.fillText(line, stopBtnX + stopBtnW / 2, stopBtnY + stopBtnH / 2 + index * stopLineHeight);
   });
+
+
+
+  // 🚆 편성수 표시
+const trainLengthEl = document.getElementById("trainLength");
+const trainLength = parseInt(trainLengthEl.value) || 8;
+
+const ctx = canvas.getContext("2d");
+const dpr = devicePixelRatio;
+
+// 위치 & 크기
+const boxW = 40 * dpr;
+const boxH = 24 * dpr;
+const boxX = 10 * dpr;  // 좌측 여백
+const boxY = 10 * dpr;  // 상단 여백
+const radius = 4 * dpr;
+
+// 빨간색 배경 박스
+ctx.fillStyle = "#ff5757";
+ctx.beginPath();
+ctx.moveTo(boxX + radius, boxY);
+ctx.lineTo(boxX + boxW - radius, boxY);
+ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
+ctx.lineTo(boxX + boxW, boxY + boxH - radius);
+ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
+ctx.lineTo(boxX + radius, boxY + boxH);
+ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
+ctx.lineTo(boxX, boxY + radius);
+ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+ctx.closePath();
+ctx.fill();
+
+// 편성수 텍스트
+ctx.fillStyle = "#fff"; 
+ctx.font = `${14 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+ctx.fillText(trainLength, boxX + boxW / 2, boxY + boxH / 2);
 }
 
 
 }
 
-function drawTrainLength(st) {
-  if (!vehicle) return;
-
-  const ctx = canvas.getContext("2d");
-  const dpr = devicePixelRatio;
-
-  // trainLength DOM에서 읽기
-  const trainLengthEl = document.getElementById("trainLength");
-  const trainLength = parseInt(trainLengthEl.value) || 8;
-
-  // 위치 & 크기
-  const boxW = 40 * dpr;
-  const boxH = 24 * dpr;
-  const boxX = 10 * dpr;  // 좌측 여백
-  const boxY = 10 * dpr;  // 상단 여백
-  const radius = 4 * dpr;
-
-  // 빨간색 배경 박스
-  ctx.fillStyle = "#ff5757";
-  ctx.beginPath();
-  ctx.moveTo(boxX + radius, boxY);
-  ctx.lineTo(boxX + boxW - radius, boxY);
-  ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
-  ctx.lineTo(boxX + boxW, boxY + boxH - radius);
-  ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
-  ctx.lineTo(boxX + radius, boxY + boxH);
-  ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
-  ctx.lineTo(boxX, boxY + radius);
-  ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
-  ctx.closePath();
-  ctx.fill();
-
-  // trainLength 텍스트
-  ctx.fillStyle = "#fff"; // 흰색
-  ctx.font = `${14 * dpr}px 'A-OTF Shin Go Pro', sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(trainLength, boxX + boxW / 2, boxY + boxH / 2);
-}
 
 /* ===== 브레이크 미니 인디케이터 ===== */
 const ladderCanvas = document.getElementById('brakeLadder');
