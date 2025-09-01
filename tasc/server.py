@@ -1141,6 +1141,13 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 async def root():
     return HTMLResponse(open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8").read())
 
+from fastapi.responses import FileResponse
+
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse(os.path.join(STATIC_DIR, "favicon.ico"))
+
+
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
     await ws.accept()
