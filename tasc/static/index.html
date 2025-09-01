@@ -1110,11 +1110,10 @@ function loadVehicleFile(filePath){
         }
       }
 
-    if(ws.readyState === WebSocket.OPEN){
-        ws.send(JSON.stringify({ type:"cmd", payload:{ name:"setVehicleFile", file:filePath }}));
-    } else {
-        console.warn("WebSocket not open yet, cannot load vehicle");
-    }
+      if(ws.readyState === WebSocket.OPEN){
+        ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: filePath } }));
+
+      }
       sendLoadRate();
     })
     .catch(console.error);
