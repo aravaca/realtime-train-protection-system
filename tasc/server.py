@@ -1306,7 +1306,7 @@ async def ws_endpoint(ws: WebSocket):
 
                             # Davis 재계산 (파일 값 + 질량 확인)
                             newv.recompute_davis(newv.mass_kg)
-
+                            vehicle = newv
                             # sim에 교체
                             sim.veh = newv
 
