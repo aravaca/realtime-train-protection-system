@@ -1136,7 +1136,7 @@ app = FastAPI()
 
 # /static 경로 제공
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
+#yes
 @app.get("/")
 async def root():
     return HTMLResponse(open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8").read())
