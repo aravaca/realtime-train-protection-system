@@ -395,19 +395,40 @@ class StoppingSim:
 
     # ----------------- Physics helpers -----------------
 
+    # def _effective_brake_accel(self, notch: int, v: float) -> float:
+    #     if notch >= len(self.veh.notch_accels):
+    #         return 0.0
+    #     if notch >= 0:
+    #         base = float(self.veh.notch_accels[notch])  # 브레이크
+    #     else:
+    #         idx = -notch - 1
+    #         base = float(self.veh.forward_notch_accels[idx])  # 전진 notch
+    #     k_srv = 0.85
+    #     k_eb = 0.98
+    #     is_eb = (notch == (self.veh.notches - 1))
+    #     k_adh = k_eb if is_eb else k_srv
+    #     a_cap = -k_adh * float(self.scn.mu) * 9.81
+    #     a_eff = max(base, a_cap)
+    #     if a_eff <= a_cap + 1e-6:
+    #         scale = 0.90 if v > 8.0 else 0.85
+    #         a_eff = a_cap * scale
+    #     return a_eff
+
     def _effective_brake_accel(self, notch: int, v: float) -> float:
+        # ✅ 악셀(음수) 또는 N(0)에서는 '브레이크 없음'
+        if notch <= 0:
+            return 0.0
+
         if notch >= len(self.veh.notch_accels):
             return 0.0
-        if notch >= 0:
-            base = float(self.veh.notch_accels[notch])  # 브레이크
-        else:
-            idx = -notch - 1
-            base = float(self.veh.forward_notch_accels[idx])  # 전진 notch
+
+        base = float(self.veh.notch_accels[notch]) # 음수여야 정상(제동)
         k_srv = 0.85
         k_eb = 0.98
-        is_eb = (notch == (self.veh.notches - 1))
+        is_eb = (notch == self.veh.notches - 1)
         k_adh = k_eb if is_eb else k_srv
-        a_cap = -k_adh * float(self.scn.mu) * 9.81
+        a_cap = -k_adh * float(self.scn.mu) * 9.81 # 음수
+
         a_eff = max(base, a_cap)
         if a_eff <= a_cap + 1e-6:
             scale = 0.90 if v > 8.0 else 0.85
