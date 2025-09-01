@@ -621,28 +621,26 @@ class StoppingSim:
         if DEBUG:
             print("Simulation started")
     def compute_power_accel(self, lever_notch: int, v: float) -> float:
-        """
-        Forward acceleration for commuter EMU (per-notch max speed, nonlinear fade-out).
-        - lever_notch < 0 : forward notch (P1=-1 ... P5=-5)
-        - v : current speed in m/s
-        """
         if lever_notch >= 0 or v <= 0.0:
-            return 0.0  # Not a forward notch or stopped
+            return 0.0
 
         n_notches = len(self.veh.forward_notch_accels)
-        idx = max(0, min(-lever_notch - 1, n_notches - 1))  # P1=-1 -> idx 0
+        idx = max(0, min(-lever_notch - 1, n_notches - 1))
 
         base_accel = self.veh.forward_notch_accels[idx]
 
-        # 노치별 최대 속도 (maxSpeed / total_notches * notch_index)
         v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
         v_cap = v_max_total * (idx + 1) / n_notches
 
         if v >= v_cap:
-            return 0.0  # 노치별 cap 초과 시 가속도 0
+            return 0.0
 
-        # 비선형 fade-out (exponential)
-        factor = math.exp(-4 * v / v_cap)
+        # 비선형 fade-out: 노치 최대 속도 대비 80% 이상부터 지수적으로 줄어들게
+        fade_start = 0.8 * v_cap
+        if v <= fade_start:
+            factor = 1.0
+        else:
+            factor = math.exp(-5 * (v - fade_start) / (v_cap - fade_start))
 
         return base_accel * factor
 
