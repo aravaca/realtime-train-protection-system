@@ -303,9 +303,12 @@ ws.addEventListener('open', () => {
 const tascToggle = document.getElementById("tascToggle");
 tascToggle.addEventListener("change", () => {
   const enabled = tascToggle.checked;
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTASC", enabled } }));
+  if(ws && ws.readyState === WebSocket.OPEN){
+    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: filePath }}));
+  } else {
+    console.warn("WebSocket not open yet");
   }
+
 });
 // function forceManualOverride(){
 //   if (tascToggle.checked){
@@ -1129,7 +1132,10 @@ trainSeriesEl.addEventListener('change',(e)=>{
   setTrainLengthOptions(lengths);
   loadVehicleFile(opt.value);
 });
-populateSeries(); // 최초 세팅
+document.addEventListener('DOMContentLoaded', () => {
+  populateSeries(); // 초기 로드
+});
+
 </script>
 
 <!-- ===== 10s 언어 토글 (ko <-> en), 피드백 포함 ===== -->
