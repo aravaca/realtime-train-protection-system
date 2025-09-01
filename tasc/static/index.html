@@ -336,7 +336,7 @@ function hapticForEB() { vibrate([80, 100, 80]); }
 /* ===== 차량 JSON 로드 (캐시 무시) ===== */
 let vehicle=null; let brakeDecels={};
 const cacheBust=()=>`?v=${Date.now()}`;
-fetch('./e233_1000.json'+cacheBust(),{cache:'no-store'})
+fetch('/static/e233_1000.json'+cacheBust(),{cache:'no-store'})
   .then(r=>r.json()).then(data=>{
     vehicle=data; document.getElementById('carName').textContent=vehicle.name;
     if(vehicle.notch_accels && vehicle.notches){
@@ -989,58 +989,58 @@ function drawBrakeLadderMini(st) {
 /* ===== 전동차/시리즈/편성 ===== */
 const TRAIN_DB={
   E233:[
-    {code:"JR EAST E233-1000", lines:"게이힌토호쿠·네기시", file:"./e233_1000.json", lengths:[10]},
-    {code:"JR EAST E233-2000", lines:"조반 각역·쾌속", file:"./e233_2000.json", lengths:[10]},
-    {code:"JR EAST E233-3000", lines:"도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file:"./e233_3000.json", lengths:[5,10,15]}
+    {code:"JR EAST E233-1000", lines:"게이힌토호쿠·네기시", file:"/static/e233_1000.json", lengths:[10]},
+    {code:"JR EAST E233-2000", lines:"조반 각역·쾌속", file:"/static/e233_2000.json", lengths:[10]},
+    {code:"JR EAST E233-3000", lines:"도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file:"/static/e233_3000.json", lengths:[5,10,15]}
   ],
   E235:[
-    {code:"JR EAST E235-0", lines:"야마노테", file:"./e235_0.json", lengths:[11]},
-    {code:"JR EAST E235-1000", lines:"요코스카·소부쾌속", file:"./e235_1000.json", lengths:[4,11,15]}
+    {code:"JR EAST E235-0", lines:"야마노테", file:"/static/e235_0.json", lengths:[11]},
+    {code:"JR EAST E235-1000", lines:"요코스카·소부쾌속", file:"/static/e235_1000.json", lengths:[4,11,15]}
   ],
   JRW223: [
     { code: "JR WEST 223-0",
       lines: "오사카 순환선 · 한와선 · 간사이공항선 직결 · 기노쿠니선",
-      file: "./223_0000.json", lengths: [4] },
+      file: "/static/223_0000.json", lengths: [4] },
     { code: "JR WEST 223-1000",
       lines: "비와코·JR 교토·JR 고베 라인 등",
-      file: "./223_1000.json", lengths: [4,8] }
+      file: "/static/223_1000.json", lengths: [4,8] }
   ],
   JRW225: [
     { code: "JR WEST 225-0",
       lines: "비와코·JR 교토·JR 고베 라인 등",
-      file: "./225_0000.json", lengths: [4,8] },
+      file: "/static/225_0000.json", lengths: [4,8] },
     { code: "JR WEST 225-5000",
       lines: "오사카 순환선 · 한와선 · 간사이공항선",
-      file: "./225_5000.json", lengths: [4] },
+      file: "/static/225_5000.json", lengths: [4] },
     { code: "JR WEST 225-6000",
       lines: "JR 고베선 · 후쿠치야마선",
-      file: "./225_6000.json", lengths: [4,6] }
+      file: "/static/225_6000.json", lengths: [4,6] }
   ],
-  JRW323: [{ code: "JR WEST 323-0", lines: "오사카 순환선 전용", file: "./323_0000.json", lengths: [8] }],
-  JRW285: [{ code: "JR WEST 285-0/3000", lines: "일반 침대특급 선라이즈 이즈모·세토", file: "./285.json", lengths: [7, 14] }],
-  JRH261: [{ code: "JR HOKKAIDO KiHa 261-5000", lines: "북해도의 혹한에 최적화된 특급 디젤동차", file: "./261_5000.json", lengths: [4, 5, 6, 10] }],
+  JRW323: [{ code: "JR WEST 323-0", lines: "오사카 순환선 전용", file: "/static/323_0000.json", lengths: [8] }],
+  JRW285: [{ code: "JR WEST 285-0/3000", lines: "일반 침대특급 선라이즈 이즈모·세토", file: "/static/285.json", lengths: [7, 14] }],
+  JRH261: [{ code: "JR HOKKAIDO KiHa 261-5000", lines: "북해도의 혹한에 최적화된 특급 디젤동차", file: "/static/261_5000.json", lengths: [4, 5, 6, 10] }],
 JR103: [{
   code: "JR/JNR 103-0",
   lines: "1960~80년대 일본 통근형 전동차의 상징",
-  file: "./103.json",
+  file: "/static/103.json",
   lengths: [4, 6, 8, 10, 15]
 }],
 EF510: [{
   code: "JR EAST Cassiopeia • 초호화 침대특급",
   lines: "우에노↔아오모리",
-  file: "./e26.json",
+  file: "/static/e26.json",
   lengths: [13]
 }],
 K3000: [{
   code: "Keisei 3000",
   lines: "케이세이 본선, 나리타 공항선",
-  file: "./keisei3000.json",
+  file: "/static/keisei3000.json",
   lengths: [6, 8]
 }],
 T5300: [{
   code: "Toei 5300",
   lines: "도에이 아사쿠사선, 케이세이 본선, 게이큐 본선",
-  file: "./toei5300.json",
+  file: "/static/toei5300.json",
   lengths: [8]
 }]
 
