@@ -1387,20 +1387,31 @@ async def ws_endpoint(ws: WebSocket):
         dt = sim.scn.dt
         step_count = 0
         t_start = None  # 시작 시점은 start() 눌렀을 때 설정
+        was_running = False
 
         while True:
             if sim.running:
-                if t_start is None:
+                if not was_running:
                     t_start = time.time()
                     step_count = 0
 
                 t_now = time.time()
                 expected_steps = int((t_now - t_start) / dt)
+
+            # 누적된 스텝만큼만 진행
                 for _ in range(step_count, expected_steps):
                     sim.step()
-                step_count = expected_steps
-            await asyncio.sleep(dt / 2)
 
+                step_count = expected_steps
+                was_running = True
+
+            else:
+            # ★ 정지 상태에서는 기준값들을 항상 초기화
+                was_running = False
+                t_start = None
+                step_count = 0
+
+            await asyncio.sleep(dt / 2)
 
 
     async def send_loop():
