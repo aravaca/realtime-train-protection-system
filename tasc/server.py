@@ -617,7 +617,7 @@ class StoppingSim:
         base_accel = self.veh.forward_notch_accels[idx]
 
         v_max_total = max(0.01, self.veh.maxSpeed_kmh / 3.6)  # m/s
-        v_cap = (v_max_total * (idx + 1) / n_notches) - (20/3.6)           # linear cap per notch
+        v_cap = (v_max_total * (idx + 1) / n_notches) - (50/3.6)           # linear cap per notch
 
         if v >= v_cap:
             return 0.0  # cap 넘으면 가속도 0
