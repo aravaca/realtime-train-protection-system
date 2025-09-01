@@ -304,7 +304,13 @@ const tascToggle = document.getElementById("tascToggle");
 tascToggle.addEventListener("change", () => {
   const enabled = tascToggle.checked;
   if(ws && ws.readyState === WebSocket.OPEN){
-    ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: filePath }}));
+  ws.send(JSON.stringify({
+    type: "cmd",
+    payload: {
+      name: "setVehicleFile",
+      file: filePath
+    }
+  }));
   } else {
     console.warn("WebSocket not open yet");
   }
