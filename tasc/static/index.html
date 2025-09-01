@@ -1063,6 +1063,29 @@ function setTrainLengthOptions(lengths){
   });
   updateTrainLength();
 }
+// function loadVehicleFile(filePath){
+//   fetch(filePath + cacheBust(), { cache: 'no-store' })
+//     .then(res => res.json())
+//     .then(data => {
+//       vehicle = data;
+//       vehicle.notches = (vehicle.notch_accels || []).length;
+//       document.getElementById('carName').textContent = vehicle.name;
+
+//       brakeDecels = {};
+//       if (vehicle.notch_accels && vehicle.notches) {
+//         for (let i = 0; i < vehicle.notches; i++) {
+//           brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches - 1 - i] ?? 0);
+//         }
+//       }
+
+//       if (ws.readyState === WebSocket.OPEN) {
+//         ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: filePath } }));
+//       }
+//       sendLoadRate();
+//     })
+//     .catch(console.error);
+// }
+
 function loadVehicleFile(filePath){
   fetch(filePath + cacheBust(), { cache: 'no-store' })
     .then(res => res.json())
@@ -1072,38 +1095,20 @@ function loadVehicleFile(filePath){
       document.getElementById('carName').textContent = vehicle.name;
 
       brakeDecels = {};
-      if (vehicle.notch_accels && vehicle.notches) {
-        for (let i = 0; i < vehicle.notches; i++) {
-          brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches - 1 - i] ?? 0);
+      if(vehicle.notch_accels && vehicle.notches){
+        for(let i=0;i<vehicle.notches;i++){
+          brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches-1-i] ?? 0);
         }
       }
 
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: filePath } }));
+      if(ws.readyState === WebSocket.OPEN){
+        ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: filePath }}));
       }
       sendLoadRate();
     })
     .catch(console.error);
 }
-.then(data => {
-  vehicle = data;
-  console.log("Loaded vehicle:", vehicle);
-  console.log("DOM element:", document.getElementById('carName'));
 
-  vehicle.notches = (vehicle.notch_accels || []).length;
-  const carNameElem = document.getElementById('carName');
-  if(carNameElem) carNameElem.textContent = vehicle.name;
-  else console.warn("#carName element not found");
-
-  brakeDecels = {};
-  if(vehicle.notch_accels && vehicle.notches){
-    for(let i=0;i<vehicle.notches;i++){
-      brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches-1-i] ?? 0);
-    }
-  }
-
-  console.log("Brake decels:", brakeDecels);
-})
 
 function populateSeries(){
   const fam=trainFamilyEl.value, list=TRAIN_DB[fam]||[];
