@@ -1136,17 +1136,10 @@ app = FastAPI()
 
 # /static 경로 제공
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-#yes
+
 @app.get("/")
 async def root():
     return HTMLResponse(open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8").read())
-
-from fastapi.responses import FileResponse
-
-@app.get("/favicon.ico")
-async def favicon():
-    return FileResponse(os.path.join(STATIC_DIR, "favicon.ico"))
-
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
@@ -1306,7 +1299,7 @@ async def ws_endpoint(ws: WebSocket):
 
                             # Davis 재계산 (파일 값 + 질량 확인)
                             newv.recompute_davis(newv.mass_kg)
-                            vehicle = newv
+
                             # sim에 교체
                             sim.veh = newv
 
