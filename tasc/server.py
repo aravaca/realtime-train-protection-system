@@ -600,8 +600,6 @@ class StoppingSim:
         if DEBUG:
             print("Simulation started")
                         
-
-
     def compute_power_accel(self, lever_notch: int, v: float) -> float:
         """
         Realistic forward acceleration for commuter EMU (P1~P5).
