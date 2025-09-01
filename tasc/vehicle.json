@@ -16,6 +16,14 @@
 -0.40,
 0.00
 ],
+"forward_notches": 5,
+"forward_notch_accels": [
+  0.139,
+  0.278,
+  0.417,
+  0.556,
+  0.694
+],
 "tau_cmd_ms": 150,
 "tau_brk_ms": 250
 } 
