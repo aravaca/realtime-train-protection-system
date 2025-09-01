@@ -16,6 +16,9 @@
   -0.40, 
    0.00    
 ],
+"maxSpeed_kmh": 110,
+"forward_notches": 5,
+"forward_notch_accels":[ 0.350, 0.431, 0.536, 0.653, 0.778 ],
  "tau_cmd_ms": 150,
   "tau_brk_ms": 250
 }
