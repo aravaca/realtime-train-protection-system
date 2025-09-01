@@ -632,8 +632,8 @@ class StoppingSim:
         v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
         v_cap = v_max_total * (idx + 1) / n_notches
 
-        if v >= v_cap:
-            return 0.0
+        # if v >= v_cap:
+        #     return 0.0
 
         # 비선형 fade-out: 노치 최대 속도 대비 80% 이상부터 지수적으로 줄어들게
         fade_start = 0.6 * v_cap
