@@ -619,8 +619,9 @@ class StoppingSim:
         v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)  # avoid division by zero
         v_cap = v_max_total * (idx + 1) / n_notches
 
-        if v >= v_cap:
+        if v >= v_cap or v <= 0.0:
             return 0.0
+
 
         # Nonlinear fade factor (v=0 -> 1, v>=v_cap -> 0)
         factor = max(0.0, (1.0 - (v / v_cap))**alpha)
