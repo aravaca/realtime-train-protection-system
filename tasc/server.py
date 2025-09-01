@@ -601,14 +601,15 @@ class StoppingSim:
             print("Simulation started")
                         
 
+
     def compute_power_accel(self, lever_notch: int, v: float) -> float:
         """
         Realistic forward acceleration for commuter EMU (P1~P5).
         - lever_notch < 0 : forward notch
         - v : current speed in m/s
-        - Linear fade-out per notch (v=0 -> full accel, v>=v_cap -> 0)
+        - Nonlinear (exponential) fade-out per notch (v=0 -> full accel, v>=v_cap -> 0)
         """
-        if lever_notch > 0 or v <= 0.0:
+        if lever_notch >= 0 or v <= 0.0:
             return 0.0  # Not a forward notch or stopped
 
         n_notches = len(self.veh.forward_notch_accels)
@@ -622,9 +623,8 @@ class StoppingSim:
         if v >= v_cap:
             return 0.0  # cap 넘으면 가속도 0
 
-        # 선형 fade-out: 0 -> v_cap
-        factor = 1.0 - (v / v_cap)
-        factor = max(0.0, min(1.0, factor))
+        # 비선형 fade-out: exp(-4 * v / v_cap)
+        factor = math.exp(-4 * v / v_cap)
 
         return base_accel * factor
 
@@ -1350,8 +1350,6 @@ async def ws_endpoint(ws: WebSocket):
         except Exception as e:
             if DEBUG:
                 print(f"Error during receive: {e}")
-
-    import time
 
     async def sim_loop():
         dt = sim.scn.dt
