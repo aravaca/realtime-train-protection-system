@@ -600,19 +600,30 @@ class StoppingSim:
         if DEBUG:
             print("Simulation started")
 
-    def compute_power_accel(self, lever_notch: int, v: float) -> float:
+    def compute_power_accel(self, lever_notch: int, v: float, alpha: float = 1.5) -> float:
+        """
+        Compute forward acceleration for a given lever notch and speed.
+        Nonlinear fade-out applied per notch.
+        """
         if lever_notch >= 0:
-            return 0.0  # 전진이 아님
+            return 0.0  # Not a forward notch
 
-        idx = -lever_notch - 1  # P1=-1 → idx 0
-        base_accel = self.veh.forward_notch_accels[min(idx, len(self.veh.forward_notch_accels)-1)]
+        # Clamp idx to valid range
+        n_notches = len(self.veh.forward_notch_accels)
+        idx = max(0, min(-lever_notch - 1, n_notches - 1))  # P1=-1 -> idx 0, P5=-5 -> idx 4
+
+        base_accel = self.veh.forward_notch_accels[idx]
 
         # max speed per notch
-        n_notches = len(self.veh.forward_notch_accels)
         v_max_total = self.veh.maxSpeed_kmh / 3.6  # m/s
-        v_cap = v_max_total * (idx + 1) / n_notches  # P1: 1/n, P2: 2/n, ... Pn: n/n
+        v_cap = v_max_total * (idx + 1) / n_notches
 
-        factor = max(0.0, 1.0 - v / v_cap)  # 0 if v >= v_cap
+        if v_cap <= 0:
+            return 0.0
+
+        # Nonlinear fade factor (v=0 -> 1, v>=v_cap -> 0)
+        factor = max(0.0, (1.0 - (v / v_cap))**alpha)
+
         return base_accel * factor
 
 
