@@ -1129,21 +1129,22 @@ class StoppingSim:
 # FastAPI app
 # ------------------------------------------------------------
 
-app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
+app = FastAPI()
+
+# /static 경로 제공
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 async def root():
-    return HTMLResponse(open("static/index.html", "r", encoding="utf-8").read())
-
+    return HTMLResponse(open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8").read())
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
     await ws.accept()
-
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    vehicle_json_path = os.path.join(BASE_DIR, "static/e233_1000.json")
+    vehicle_json_path = os.path.join(STATIC_DIR, "e233_1000.json")
     scenario_json_path = os.path.join(BASE_DIR, "scenario.json")
 
     vehicle = Vehicle.from_json(vehicle_json_path)
