@@ -611,24 +611,18 @@ class StoppingSim:
         if lever_notch >= 0 or v <= 0.0:
             return 0.0  # Not a forward notch or stopped
 
-        # --- Notch index ---
         n_notches = len(self.veh.forward_notch_accels)
         idx = max(0, min(-lever_notch - 1, n_notches - 1))  # P1=-1 -> idx 0
 
-        # --- Base acceleration per notch (m/s^2) ---
-        # 예: P1~P5 약간씩 감소/증가 조정
-        base_accels = self.veh.forward_notch_accels  # [0.08, 0.22, 0.42, 0.56, 0.69] m/s²
+        base_accels = self.veh.forward_notch_accels
         base_accel = base_accels[idx]
 
-        # --- Max speed per notch ---
-        v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)  # km/h -> m/s
-        v_cap = v_max_total * (idx + 1) / n_notches      # P1:1/5, P5:5/5
+        v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
+        v_cap = v_max_total * (idx + 1) / n_notches
 
-        if v >= v_cap:
-            return 0.0  # Cap reached
-
-        # --- Linear fade factor ---
         factor = 1.0 - (v / v_cap)
+        if factor <= 0.0:
+            return 0.0  # cap 넘으면 가속도 0
 
         return base_accel * factor
 
