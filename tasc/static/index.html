@@ -594,6 +594,15 @@ ws.onmessage = (ev) => {
     st = msg.payload;
     window.st = st;
 
+      if(st.lever_notch < 0){
+      const idx = -st.lever_notch - 1;
+      const accel = vehicle.forward_notch_accels[idx] ?? vehicle.forward_notch_accels[vehicle.forward_notch_accels.length - 1];
+
+      // 필요 시 서버로 전달
+      // sendCmd("applyForwardAccel", accel);
+      console.log("Forward accel:", accel);
+  }
+
 
   // 숫자 HUD 갱신
   const remRaw = st.remaining_m;
