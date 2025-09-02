@@ -1307,33 +1307,34 @@ async def ws_endpoint(ws: WebSocket):
                     rel = payload.get("file", "")
                     if rel:
                         try:
-                            # 기존 STATIC_DIR 그대로 사용
-                            path = os.path.join(STATIC_DIR, rel.lstrip("./"))
+                            # 🔧 경로 정규화: /static/ 접두나 static/ 접두를 제거해서 파일명만 남기기
+                            rel_norm = rel.strip()
+                            if rel_norm.startswith("/static/"):
+                                rel_norm = rel_norm[len("/static/"):]
+                            elif rel_norm.startswith("static/"):
+                                rel_norm = rel_norm[len("static/"):]
+
+                            # 절대경로가 아니라면 STATIC_DIR과 합치기
+                            if not os.path.isabs(rel_norm):
+                                path = os.path.join(STATIC_DIR, rel_norm)
+                            else:
+                                path = rel_norm
+
                             if not os.path.isfile(path):
                                 raise FileNotFoundError(path)
 
-                            # 새 Vehicle 로드
                             newv = Vehicle.from_json(path)
-
-                            # notch_accels 역전 및 개수 동기화
                             newv.notch_accels = list(reversed(newv.notch_accels))
                             newv.notches = len(newv.notch_accels)
-
-                            # 질량 기준으로 Davis 재계산(안전)
                             newv.recompute_davis(newv.mass_kg)
 
-                            # 시뮬레이터에 적용
                             sim.veh = newv
-                            # 이후 setTrainLength 등도 같은 객체를 쓰도록 vehicle도 같이 바꿈
-                            vehicle = newv
-
+                            vehicle = newv # ✅ 이후 setTrainLength 등에서도 같은 객체 쓰도록
                             sim.reset()
 
                             if DEBUG:
-                                print(
-                                    f"[Vehicle] switched to {rel} / notches={newv.notches} "
-                                    f"A0={newv.A0:.1f}, B1={newv.B1:.2f}, C2={newv.C2:.2f}"
-                                )
+                                print(f"[Vehicle] switched to {rel} -> {path} / notches={newv.notches} "
+                                    f"A0={newv.A0:.1f}, B1={newv.B1:.2f}, C2={newv.C2:.2f}")
                         except Exception as e:
                             if DEBUG:
                                 print(f"[Vehicle] load failed: {rel} -> {e}")
