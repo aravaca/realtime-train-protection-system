@@ -184,7 +184,7 @@
 
 ## 🚀 Run (로컬 실행)
 1. 브라우저에서 접속  
-[바로 체험해보기](http://18.222.103.182/) → HUD/오버레이 UI 실행 (https가 아니라 http로 입력해야 웹에 연결됩니다.)
+[바로 체험해보기](https://jrtasc.kro.kr/) → HUD/오버레이 UI 실행 
 
 
 ---
@@ -380,9 +380,9 @@ Frontend (HTML/CSS/JS) + Backend (FastAPI WebSocket) integration provides **brak
 
 ---
 
-## 🚀 Run (Local)
+## 🚀 Run Locally
 1. Open in browser  
-[Try it live](http://18.222.103.182/) → HUD/overlay UI will run (HTTP required for WebSocket).
+[Try it live](https://jrtasc.kro.kr/) 
 
 ---
 
