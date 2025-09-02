@@ -339,13 +339,13 @@ function hapticForEB() { vibrate([80, 100, 80]); }
 /* ===== 차량 JSON 로드 (캐시 무시) ===== */
 let vehicle=null; let brakeDecels={};
 const cacheBust=()=>`?v=${Date.now()}`;
-fetch('/static/e233_1000.json'+cacheBust(),{cache:'no-store'})
-  .then(r=>r.json()).then(data=>{
-    vehicle=data; document.getElementById('carName').textContent=vehicle.name;
-    if(vehicle.notch_accels && vehicle.notches){
-      brakeDecels={}; for(let i=0;i<vehicle.notches;i++){ brakeDecels[i]=Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0); }
-    }
-  }).catch(console.error);
+// fetch('/static/e233_1000.json'+cacheBust(),{cache:'no-store'})
+//   .then(r=>r.json()).then(data=>{
+//     vehicle=data; document.getElementById('carName').textContent=vehicle.name;
+//     if(vehicle.notch_accels && vehicle.notches){
+//       brakeDecels={}; for(let i=0;i<vehicle.notches;i++){ brakeDecels[i]=Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0); }
+//     }
+//   }).catch(console.error);
 
 /* ===== DOM ===== */
 const remEl=document.getElementById("rem"),
@@ -1061,7 +1061,7 @@ function setTrainLengthOptions(lengths){
     opt.value=String(len); opt.textContent=`${len}량`;
     trainLengthEl.appendChild(opt);
   });
-  updateTrainLength();
+  // updateTrainLength();
 }
 function loadVehicleFile(filePath){
   fetch(filePath + cacheBust(), { cache: 'no-store' })
@@ -1079,15 +1079,29 @@ function loadVehicleFile(filePath){
       }
 
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: filePath } }));
+        // 서버에 차량 교체(파일명만 권장)
+        const justName = filePath.split('/').pop();
+        ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: justName } }));
+        
+        // 🔒 순서 보장: 짧은 마이크로 딜레이 뒤 길이/탑승률 전송
+        // (WebSocket ACK가 없으니 최소한의 순서 안정화)
+        const len = parseInt(document.getElementById("trainLength").value) || 8;
+        const loadRate = parseFloat(document.getElementById("inputLoadRate").value) || 0;
+
+        setTimeout(() => {
+          ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTrainLength", length: len } }));
+          ws.send(JSON.stringify({ type: "cmd", payload: { name: "setLoadRate", loadRate, length: len } }));
+        }, 10);
       }
-      sendLoadRate();
     })
     .catch(console.error);
 }
+
+
 function populateSeries(){
-  const fam=trainFamilyEl.value, list=TRAIN_DB[fam]||[];
-  trainSeriesEl.innerHTML="";
+  const fam = trainFamilyEl.value;
+  const list = TRAIN_DB[fam] || [];
+  trainSeriesEl.innerHTML = "";
   list.forEach((s,i)=>{
     const opt=document.createElement('option');
     opt.value=s.file; opt.dataset.lengths=JSON.stringify(s.lengths);
@@ -1095,15 +1109,24 @@ function populateSeries(){
     if(i===0) opt.selected=true;
     trainSeriesEl.appendChild(opt);
   });
-  if(list[0]){ setTrainLengthOptions(list[0].lengths); loadVehicleFile(list[0].file); }
+
+  if (list[0]) {
+    // 1) UI 옵션만 세팅 (자동 전송 X)
+    setTrainLengthOptions(list[0].lengths);
+    // 2) 차량 로드 + 서버 전송 + 이어서 길이/탑승률 전송
+    loadVehicleFile(list[0].file);
+  }
 }
-trainFamilyEl.addEventListener('change', populateSeries);
+
 trainSeriesEl.addEventListener('change',(e)=>{
   const opt=e.target.selectedOptions[0];
   const lengths=JSON.parse(opt.dataset.lengths||"[]");
+  // 1) 길이 옵션만 바꿈 (자동 전송 X)
   setTrainLengthOptions(lengths);
+  // 2) 차량 로드 → 서버 전송 → 이어서 길이/탑승률 전송
   loadVehicleFile(opt.value);
 });
+trainFamilyEl.addEventListener('change', populateSeries);
 populateSeries(); // 최초 세팅
 </script>
 
