@@ -31,7 +31,7 @@ class Vehicle:
     notch_accels: list = None
     tau_cmd: float = 0.150
     tau_brk: float = 0.250
-    mass_kg: float = 39000
+    mass_kg: float = 39900
     # Vehicle 클래스 내
     maxSpeed_kmh: float = 140.0
     forward_notches: int = 5
@@ -1150,6 +1150,8 @@ async def favicon():
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
+    cur_length = 10
+    cur_load_rate = 0.70
     await ws.accept()
     vehicle_json_path = os.path.join(STATIC_DIR, "e233_1000.json")
     scenario_json_path = os.path.join(BASE_DIR, "scenario.json")
@@ -1240,12 +1242,21 @@ async def ws_endpoint(ws: WebSocket):
 
                 elif name == "setTrainLength":
                     length = int(payload.get("length", 8))
-                    sim.veh.update_mass(length) # ✅ sim.veh 기준으로 갱신
+                    cur_length = length # ✅ 상태 저장
+
+                    # 길이 반영
+                    sim.veh.update_mass(cur_length)
+
+                    # 탑승률이 이미 있다면 총중량 덮어쓰기 + 재계산
+                    base_1c_t = sim.veh.mass_t
+                    pax_1c_t = 10.5
+                    total_tons = cur_length * (base_1c_t + pax_1c_t * cur_load_rate)
+                    sim.veh.mass_kg = total_tons * 1000.0
+                    sim.veh.recompute_davis(sim.veh.mass_kg)
+
                     if DEBUG:
-                        print(
-                            f"Train length set to {length} cars. mass_kg={sim.veh.mass_kg:.0f}, "
-                            f"A0={sim.veh.A0:.1f}, B1={sim.veh.B1:.2f}, C2={sim.veh.C2:.2f}"
-                        )
+                        print(f"[Length] {cur_length} cars | load={cur_load_rate*100:.1f}% "
+                            f"-> mass_kg={sim.veh.mass_kg:.0f}, A0={sim.veh.A0:.1f}, B1={sim.veh.B1:.2f}, C2={sim.veh.C2:.2f}")
                     sim.reset()
 
                 elif name == "setMassTons":
@@ -1259,25 +1270,22 @@ async def ws_endpoint(ws: WebSocket):
                             f"A0={sim.veh.A0:.1f}, B1={sim.veh.B1:.2f}, C2={sim.veh.C2:.2f}"
                         )
                     sim.reset()
+
                 elif name == "setLoadRate":
-                    load_rate = float(payload.get("loadRate", 0.0)) / 100.0
-                    length = int(payload.get("length", 8))
+                    cur_load_rate = float(payload.get("loadRate", 0.0)) / 100.0 # ✅ 상태 저장
 
-                    base_1c_t = sim.veh.mass_t # ✅ 현재 차량 1량 기본중량
-                    pax_1c_t = 10.5 # 승객 만차 가정(1량당)
-                    total_tons = length * (base_1c_t + pax_1c_t * load_rate)
+                    # 길이/탑승률로 총중량 재산출
+                    base_1c_t = sim.veh.mass_t
+                    pax_1c_t = 10.5
+                    total_tons = cur_length * (base_1c_t + pax_1c_t * cur_load_rate)
 
-                    # 길이 반영 + 1차 재계산
-                    sim.veh.update_mass(length)
-                    # 실제 총중량 덮어쓰기 + 최종 재계산
-                    sim.veh.mass_kg = total_tons * 1000.0
-                    sim.veh.recompute_davis(sim.veh.mass_kg)
+                    sim.veh.update_mass(cur_length) # 1차 (길이 반영)
+                    sim.veh.mass_kg = total_tons * 1000.0 # 실제 총중량 덮어쓰기
+                    sim.veh.recompute_davis(sim.veh.mass_kg) # 최종 재계산
 
                     if DEBUG:
-                        print(
-                            f"[LoadRate] length={length}, load={load_rate*100:.1f}%, total={total_tons:.1f} t -> "
-                            f"A0={sim.veh.A0:.1f}, B1={sim.veh.B1:.2f}, C2={sim.veh.C2:.2f}"
-                        )
+                        print(f"[LoadRate] length={cur_length}, load={cur_load_rate*100:.1f}% "
+                            f"-> mass_kg={sim.veh.mass_kg:.0f}, A0={sim.veh.A0:.1f}, B1={sim.veh.B1:.2f}, C2={sim.veh.C2:.2f}")
                     sim.reset()
 
 
@@ -1307,18 +1315,11 @@ async def ws_endpoint(ws: WebSocket):
                     rel = payload.get("file", "")
                     if rel:
                         try:
-                            # 🔧 경로 정규화: /static/ 접두나 static/ 접두를 제거해서 파일명만 남기기
+                            # 경로 정규화
                             rel_norm = rel.strip()
-                            if rel_norm.startswith("/static/"):
-                                rel_norm = rel_norm[len("/static/"):]
-                            elif rel_norm.startswith("static/"):
-                                rel_norm = rel_norm[len("static/"):]
-
-                            # 절대경로가 아니라면 STATIC_DIR과 합치기
-                            if not os.path.isabs(rel_norm):
-                                path = os.path.join(STATIC_DIR, rel_norm)
-                            else:
-                                path = rel_norm
+                            if rel_norm.startswith("/static/"): rel_norm = rel_norm[len("/static/"):]
+                            elif rel_norm.startswith("static/"): rel_norm = rel_norm[len("static/"):]
+                            path = os.path.join(STATIC_DIR, rel_norm)
 
                             if not os.path.isfile(path):
                                 raise FileNotFoundError(path)
@@ -1329,15 +1330,24 @@ async def ws_endpoint(ws: WebSocket):
                             newv.recompute_davis(newv.mass_kg)
 
                             sim.veh = newv
-                            vehicle = newv # ✅ 이후 setTrainLength 등에서도 같은 객체 쓰도록
+                            vehicle = newv
+
+                            # 🔒 차량 교체 직후, 현재 길이/탑승률 재적용 (순서 무관 일관성 보장)
+                            sim.veh.update_mass(cur_length)
+                            base_1c_t = sim.veh.mass_t
+                            pax_1c_t = 10.5
+                            total_tons = cur_length * (base_1c_t + pax_1c_t * cur_load_rate)
+                            sim.veh.mass_kg = total_tons * 1000.0
+                            sim.veh.recompute_davis(sim.veh.mass_kg)
+
                             sim.reset()
 
                             if DEBUG:
-                                print(f"[Vehicle] switched to {rel} -> {path} / notches={newv.notches} "
-                                    f"A0={newv.A0:.1f}, B1={newv.B1:.2f}, C2={newv.C2:.2f}")
+                                print(f"[Vehicle] switched -> {rel} ({path}) | len={cur_length}, load={cur_load_rate*100:.1f}% "
+                                    f"| mass_kg={sim.veh.mass_kg:.0f} A0={sim.veh.A0:.1f} B1={sim.veh.B1:.2f} C2={sim.veh.C2:.2f}")
                         except Exception as e:
-                            if DEBUG:
-                                print(f"[Vehicle] load failed: {rel} -> {e}")
+                            if DEBUG: print(f"[Vehicle] load failed: {rel} -> {e}")
+
 
                 elif name == "reset":
                     sim.reset()
