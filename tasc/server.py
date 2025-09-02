@@ -640,7 +640,7 @@ class StoppingSim:
 
         v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
         if idx < 2:
-            v_cap = (v_max_total * (idx + 1) / n_notches) + (10 / 3.6)
+            v_cap = (v_max_total * (idx + 1) / n_notches) + (20 / 3.6)
         else:
             v_cap = (v_max_total * (idx + 1) / n_notches)
 
