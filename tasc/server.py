@@ -1136,10 +1136,17 @@ app = FastAPI()
 
 # /static 경로 제공
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
+#yes
 @app.get("/")
 async def root():
     return HTMLResponse(open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8").read())
+
+from fastapi.responses import FileResponse
+
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse(os.path.join(STATIC_DIR, "favicon.ico"))
+
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
@@ -1280,55 +1287,41 @@ async def ws_endpoint(ws: WebSocket):
                     if DEBUG:
                         print(f"마찰계수(mu)={value}")
                     sim.reset()
+
                 elif name == "setVehicleFile":
-                    newv_data = payload  # JS에서 보낸 dict
-                    newv = Vehicle.from_dict(newv_data)  # from_json 대신 from_dict
-                    sim.veh = newv
-                    sim.reset()
+                    rel = payload.get("file", "")
+                    if rel:
+                        try:
+                            STATIC_DIR = os.path.join(BASE_DIR, "static")
+                            path = os.path.join(STATIC_DIR, rel.lstrip("./"))
+                            if not os.path.isfile(path):
+                                raise FileNotFoundError(path)
 
-                # elif name == "setVehicleFile":
-                #     rel = payload.get("file", "")
-                #     if rel:
-                #         try:
-                #             STATIC_DIR = os.path.join(BASE_DIR, "static")
-                #             path = os.path.join(STATIC_DIR, rel.lstrip("./"))
-                #             if not os.path.isfile(path):
-                #                 raise FileNotFoundError(path)
+                            # 새 Vehicle 객체 생성
+                            newv = Vehicle.from_json(path)
 
-                #             # 새 Vehicle 객체 생성
-                #             newv = Vehicle.from_json(path)
+                            # notch_accels 역전 + 안전하게 복사
+                            newv.notch_accels = list(reversed(newv.notch_accels))
+                            newv.notches = len(newv.notch_accels)
 
-                #             # notch_accels 역전 + 안전하게 복사
-                #             newv.notch_accels = list(reversed(newv.notch_accels))
-                #             newv.notches = len(newv.notch_accels)
-                #             # newv.forward_notch_accels / list(newv.forward_notch_accels)
-                #             # newv.forward_notches = len(newv.forward_notch_accels)
+                            # Davis 재계산 (파일 값 + 질량 확인)
+                            newv.recompute_davis(newv.mass_kg)
 
-                #             # Davis 재계산 (파일 값 + 질량 확인)
-                #             newv.recompute_davis(newv.mass_kg)
-                #             # sim에 교체
-                #             sim.veh = newv
+                            # sim에 교체
+                            sim.veh = newv
 
-                #             # 시뮬레이션 상태 초기화
-                #             sim.reset()
-                #             await ws.send_json({"type":"vehicle", "payload":newv.to_dict()})
+                            # 시뮬레이션 상태 초기화
+                            sim.reset()
 
-                #             if DEBUG:
-                #                 print(f"[Vehicle] switched to {rel} / notches={vehicle.notches} "
-                #                       f"A0={vehicle.A0:.1f}, B1={vehicle.B1:.2f}, C2={vehicle.C2:.2f}")
-                #         except Exception as e:
-                #             if DEBUG:
-                #                 print(f"[Vehicle] load failed: {rel} -> {e}")
+                            if DEBUG:
+                                print(f"[Vehicle] switched to {rel} / notches={vehicle.notches} "
+                                      f"A0={vehicle.A0:.1f}, B1={vehicle.B1:.2f}, C2={vehicle.C2:.2f}")
+                        except Exception as e:
+                            if DEBUG:
+                                print(f"[Vehicle] load failed: {rel} -> {e}")
 
                 elif name == "reset":
                     sim.reset()
-
-                elif name == "setForwardAccels":
-                    accels = payload.get("accels", [])
-                    if accels and hasattr(sim, "veh"):
-                        sim.veh.forward_notch_accels = list(accels)
-                        sim.veh.forward_notches = len(accels)
-                        sim.reset()
 
                 # ---------- 타이머/페널티/보너스/보정 설정 ----------
                 elif name == "setTimerFormula":

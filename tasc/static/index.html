@@ -274,7 +274,8 @@ body{overflow-x:hidden;overflow-y:auto}
 <button id="btnMobileRestart" class="fab hide" type="button">재시작</button>
 
 <script>
-/* ===== WebSocket & TASC ===== */ const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
+/* ===== WebSocket & TASC ===== */
+const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
 
 ws.addEventListener('open', () => {
   // ✅ 보정표(IDW) 한 번만 세팅하면 이후 자동 제한시간 산출
@@ -338,22 +339,13 @@ function hapticForEB() { vibrate([80, 100, 80]); }
 /* ===== 차량 JSON 로드 (캐시 무시) ===== */
 let vehicle=null; let brakeDecels={};
 const cacheBust=()=>`?v=${Date.now()}`;
-fetch('/static/e26.json'+cacheBust(), {cache:'no-store'})
-  .then(r=>r.json())
-  .then(data => {
-     vehicle = data;
-     document.getElementById('carName').textContent = vehicle.name;
-     // notch_accels / forward_notch_accels 초기화
-     brakeDecels = {};
-     if(vehicle.notch_accels && vehicle.notches){
-         for(let i=0;i<vehicle.notches;i++){
-             brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0);
-         }
-     }
-     // 서버로 전달
-     ws.send(JSON.stringify({type:"setVehicleFile", payload:vehicle}));
-  })
-
+fetch('/static/e233_1000.json'+cacheBust(),{cache:'no-store'})
+  .then(r=>r.json()).then(data=>{
+    vehicle=data; document.getElementById('carName').textContent=vehicle.name;
+    if(vehicle.notch_accels && vehicle.notches){
+      brakeDecels={}; for(let i=0;i<vehicle.notches;i++){ brakeDecels[i]=Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0); }
+    }
+  }).catch(console.error);
 
 /* ===== DOM ===== */
 const remEl=document.getElementById("rem"),
@@ -561,62 +553,15 @@ function formatTimeSec(secInt) {
   return `${sign}<span class="min">${m < 10 ? "0" : ""}${m}</span><span class="sep">:</span><span class="sec">${s2 < 10 ? "0" : ""}${s2}</span>`;
 }
 
+
+// ===== WebSocket (단일 핸들러로 교체) =====
 ws.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data);  // ✅ 항상 첫 줄에 초기화
+  const msg = JSON.parse(ev.data);
+  if (msg.type !== "state") return;
 
-    // 1️⃣ 차량 JSON 업데이트
-    if(msg.type === "vehicle"){
-        vehicle = msg.payload;
-        document.getElementById('carName').textContent = vehicle.name;
-
-        // notch_accels 역순 처리
-        brakeDecels = {};
-        if(vehicle.notch_accels && vehicle.notches){
-            for(let i=0; i<vehicle.notches; i++){
-                brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches-1-i] ?? 0);
-            }
-        }
-
-        // forward_notch_accels 기본값 보정
-        if(!vehicle.forward_notch_accels || vehicle.forward_notch_accels.length === 0){
-            vehicle.forward_notch_accels = [0.139,0.278,0.417,0.556,0.694];
-        }
-
-        if(ws.readyState === WebSocket.OPEN){
-            ws.send(JSON.stringify({
-                type: "cmd",
-                payload: {
-                    name: "setForwardAccels",
-                    accels: vehicle.forward_notch_accels
-                }
-            }));
-        }
-
-
-        // ⚠️ HUD나 제어 관련 변수도 즉시 최신 vehicle 기준으로 갱신
-        // 예: maxIdx, forwardAccels 등
-    }
-
-    // 2️⃣ 시뮬레이션 상태 업데이트
-    if (msg.type !== "state") return;
-
-    st = msg.payload;
-    window.st = st;
-
-if(st.lever_notch < 0){
-    // st.lever_notch: -1..-forward_notches
-    const idx = -st.lever_notch - 1; 
-    // vehicle.forward_notches 를 기준으로 최대 인덱스 clamp
-    const maxIdx = (vehicle?.forward_notches ?? vehicle?.forward_notch_accels.length) - 1;
-    const accel = vehicle.forward_notch_accels[Math.min(idx, maxIdx)];
-
-    // 서버에 전달
-    if(ws.readyState === WebSocket.OPEN){
-        ws.send(JSON.stringify({type:"cmd", payload:{name:"applyForwardAccel", delta:accel}}));
-    }
-}
-
-
+  // 상태 저장
+  st = msg.payload;
+  window.st = st;
 
   // 숫자 HUD 갱신
   const remRaw = st.remaining_m;
@@ -645,31 +590,23 @@ const forwardAccels = vehicle?.forward_notch_accels ?? [0.139, 0.278, 0.417, 0.5
 
 let notchText = "N";
 let notchColor = "#9effb5"; // 기본 초록
+
 if (st.lever_notch === 0) {
-    notchText = "N";
-    notchColor = "#9effb5"; // 초록
-} else if (st.lever_notch < 0) {   // 여기가 P 노치
-    notchText = `P${-st.lever_notch}`;
-    notchColor = "#ADD8E6"; // 주황
-
-    // ✅ 여기에 forward_accel 계산
-    const forwardAccels = vehicle?.forward_notch_accels ?? [];
-    const maxForwardNotch = vehicle?.forward_notches ?? forwardAccels.length;
-    const idx = Math.min(-st.lever_notch - 1, maxForwardNotch - 1);
-    const accel = forwardAccels[idx];
-
-    // 필요 시 서버에 전달
-    if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type:"cmd", payload:{ name:"applyForwardAccel", delta:accel }}));
-    }
+  notchText = "N";
+  notchColor = "#9effb5";     // 초록
+} else if (st.lever_notch < 0) {
+  const idx = -st.lever_notch - 1; // -1 → 0, -2 → 1
+  notchText = `P${idx + 1}`;
+  notchColor = "#ADD8E6";        // 주황
+  const accel = forwardAccels[idx] ?? forwardAccels[forwardAccels.length - 1];
+  // 필요하면 accel 변수로 가속도 제어 가능
 } else if (st.lever_notch === maxIdx) {
-    notchText = "EB";
-    notchColor = "#ff5757"; // 빨강
+  notchText = "EB";
+  notchColor = "#ff5757";     // 빨강
 } else {
-    notchText = `B${st.lever_notch}`;
-    notchColor = "#ed9a09"; // 기존 주황/황토색
+  notchText = `B${st.lever_notch}`;
+  notchColor = "#ed9a09";     // 기존 주황/황토색
 }
-
 
 
 notchEl.textContent = notchText;
@@ -1148,7 +1085,6 @@ function loadVehicleFile(filePath){
     })
     .catch(console.error);
 }
-
 function populateSeries(){
   const fam=trainFamilyEl.value, list=TRAIN_DB[fam]||[];
   trainSeriesEl.innerHTML="";
@@ -1166,14 +1102,7 @@ trainSeriesEl.addEventListener('change',(e)=>{
   const opt=e.target.selectedOptions[0];
   const lengths=JSON.parse(opt.dataset.lengths||"[]");
   setTrainLengthOptions(lengths);
-
-  // ❌ fetch 제거
-  // loadVehicleFile(opt.value);
-
-  // ✅ 서버에 WebSocket으로 요청
-  if(ws.readyState === WebSocket.OPEN){
-    ws.send(JSON.stringify({ type:"cmd", payload:{ name:"setVehicleFile", file: opt.value } }));
-  }
+  loadVehicleFile(opt.value);
 });
 populateSeries(); // 최초 세팅
 </script>
