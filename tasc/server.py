@@ -1323,7 +1323,7 @@ async def ws_endpoint(ws: WebSocket):
                     if accels and hasattr(sim, "veh"):
                         sim.veh.forward_notch_accels = list(accels)
                         sim.veh.forward_notches = len(accels)
-
+                        sim.reset()
 
                 # ---------- 타이머/페널티/보너스/보정 설정 ----------
                 elif name == "setTimerFormula":
