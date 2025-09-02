@@ -390,11 +390,7 @@ function sendLoadRate(){
     ws.send(JSON.stringify({ type: "cmd", payload: { name: "setLoadRate", loadRate, length: trainLength }}));
   }
 }
-inputLoadRate.addEventListener('change', sendLoadRate);
-inputLoadRate.addEventListener('input', () => {
-  // 입력 중 즉시 반영을 원하면 유지, 너무 시끄러우면 이 줄은 빼세요.
-  sendLoadRate();
-});
+
 /* ===== 입력 보정 & 제한 ===== */
 const inputSpeed=document.getElementById("inputSpeed"),
       inputDist=document.getElementById("inputDist"),
@@ -453,7 +449,11 @@ inputSpeed.addEventListener('input',  () => {
   const minD = minDistForSpeed(Math.min(130, Math.max(40, v)));
   inputDist.min = Math.max(150, minD);
 });
-
+inputLoadRate.addEventListener('change', sendLoadRate);
+inputLoadRate.addEventListener('input', () => {
+  // 입력 중 즉시 반영을 원하면 유지, 너무 시끄러우면 이 줄은 빼세요.
+  sendLoadRate();
+});
 /* ===== 날씨 UI ===== */
 function muFromWeather(w){return w==="비옴"?0.6:(w==="눈옴"?0.3:1.0)}
 function updateWeatherUI(){
