@@ -594,14 +594,19 @@ ws.onmessage = (ev) => {
     st = msg.payload;
     window.st = st;
 
-      if(st.lever_notch < 0){
-      const idx = -st.lever_notch - 1;
-      const accel = vehicle.forward_notch_accels[idx] ?? vehicle.forward_notch_accels[vehicle.forward_notch_accels.length - 1];
+if(st.lever_notch < 0){
+    // st.lever_notch: -1..-forward_notches
+    const idx = -st.lever_notch - 1; 
+    // vehicle.forward_notches 를 기준으로 최대 인덱스 clamp
+    const maxIdx = (vehicle?.forward_notches ?? vehicle?.forward_notch_accels.length) - 1;
+    const accel = vehicle.forward_notch_accels[Math.min(idx, maxIdx)];
 
-      // 필요 시 서버로 전달
-      // sendCmd("applyForwardAccel", accel);
-      console.log("Forward accel:", accel);
-  }
+    // 서버에 전달
+    if(ws.readyState === WebSocket.OPEN){
+        ws.send(JSON.stringify({type:"cmd", payload:{name:"applyForwardAccel", delta:accel}}));
+    }
+}
+
 
 
   // 숫자 HUD 갱신
