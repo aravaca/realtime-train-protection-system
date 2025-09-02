@@ -1150,9 +1150,9 @@ async def favicon():
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
+    await ws.accept()
     cur_length = 10
     cur_load_rate = 0.70
-    await ws.accept()
     vehicle_json_path = os.path.join(STATIC_DIR, "e233_1000.json")
     scenario_json_path = os.path.join(BASE_DIR, "scenario.json")
 
@@ -1175,7 +1175,7 @@ async def ws_endpoint(ws: WebSocket):
     # ---- 분리된 비동기 루프들 ----
     async def recv_loop():
         # vehicle(바깥 스코프 변수)에 재할당 가능하게
-        nonlocal vehicle
+        nonlocal vehicle, cur_length, cur_load_rate
         try:
             while True:
                 msg = await ws.receive_text()
