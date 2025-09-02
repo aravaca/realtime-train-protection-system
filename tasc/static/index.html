@@ -139,6 +139,15 @@ body{overflow-x:hidden;overflow-y:auto}
 @media (max-width:768px){
   .line .value { padding-right: 50px; }
 }
+
+#hud, #brakeLadder {
+  touch-action: none; /* iOS 13+ / 최신 사파리 */
+  -ms-touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 </style>
 </head>
 <body>
@@ -501,13 +510,14 @@ btnMobileRestart.addEventListener("click", ()=>{
 if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
   const game=document.getElementById("hud");
   game.addEventListener("touchstart",(e)=>{
+  e.preventDefault();
     if(!overlay.classList.contains("hide")) return;
     if(e.touches.length!==1) return;
     // forceManualOverride();
     const r=game.getBoundingClientRect(), y=e.touches[0].clientY-r.top, half=r.height/2;
     if(y<half){ hapticForNotch(+1); sendCmd("applyNotch",+1); }
     else      { hapticForNotch(-1); sendCmd("applyNotch",-1); }
-  }, { passive: true });
+  }, { passive: false });
 }
 
 /* ===== 키보드 ===== */
