@@ -555,8 +555,9 @@ function formatTimeSec(secInt) {
 
 // ===== WebSocket (단일 핸들러로 교체) =====
 ws.onmessage = (ev) => {
+  const msg = JSON.parse(ev.data);   // ✅ 먼저 선언
 
-
+  // Vehicle 데이터 처리
   if(msg.type === "vehicle"){
     vehicle = msg.payload;
     document.getElementById('carName').textContent = vehicle.name;
@@ -565,16 +566,14 @@ ws.onmessage = (ev) => {
     brakeDecels = {};
     if(vehicle.notch_accels && vehicle.notches){
       for(let i=0; i<vehicle.notches; i++){
-        brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0);
+        brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches-1-i] ?? 0);
       }
     }
   }
 
-
-  const msg = JSON.parse(ev.data);
+  // 상태 업데이트
   if (msg.type !== "state") return;
 
-  // 상태 저장
   st = msg.payload;
   window.st = st;
 
