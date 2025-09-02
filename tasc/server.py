@@ -644,7 +644,7 @@ class StoppingSim:
         else:
             v_cap = (v_max_total * (idx + 1) / n_notches)
 
-        fade_start = 0.7 * v_cap
+        fade_start = 0 * v_cap
         #0.85 0.2
         min_factor = 0.05  # 캡 근처에서도 20%는 남음
 
