@@ -1318,6 +1318,13 @@ async def ws_endpoint(ws: WebSocket):
                 elif name == "reset":
                     sim.reset()
 
+                elif name == "setForwardAccels":
+                    accels = payload.get("accels", [])
+                    if accels and hasattr(sim, "veh"):
+                        sim.veh.forward_notch_accels = list(accels)
+                        sim.veh.forward_notches = len(accels)
+
+
                 # ---------- 타이머/페널티/보너스/보정 설정 ----------
                 elif name == "setTimerFormula":
                     # payload: { "enabled": true, "v_target_kmh": 70, "buffer_s": 0 }

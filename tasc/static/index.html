@@ -573,6 +573,17 @@ ws.onmessage = (ev) => {
             vehicle.forward_notch_accels = [0.139,0.278,0.417,0.556,0.694];
         }
 
+        if(ws.readyState === WebSocket.OPEN){
+            ws.send(JSON.stringify({
+                type: "cmd",
+                payload: {
+                    name: "setForwardAccels",
+                    accels: vehicle.forward_notch_accels
+                }
+            }));
+        }
+
+
         // ⚠️ HUD나 제어 관련 변수도 즉시 최신 vehicle 기준으로 갱신
         // 예: maxIdx, forwardAccels 등
     }
