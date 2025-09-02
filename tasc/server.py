@@ -639,7 +639,11 @@ class StoppingSim:
         base_accel = self.veh.forward_notch_accels[idx]
 
         v_max_total = max(1e-6, self.veh.maxSpeed_kmh / 3.6)
-        v_cap = (v_max_total * (idx + 1) / n_notches) +  (10/3.6)  # m/s
+        if idx < 3:
+            v_cap = (v_max_total * (idx + 1) / n_notches) + (20 / 3.6)
+        else:
+            v_cap = (v_max_total * (idx + 1) / n_notches)
+
         fade_start = 0.7 * v_cap
         #0.85 0.2
         min_factor = 0.05  # 캡 근처에서도 20%는 남음
