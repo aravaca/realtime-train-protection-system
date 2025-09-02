@@ -552,30 +552,37 @@ function formatTimeSec(secInt) {
   return `${sign}<span class="min">${m < 10 ? "0" : ""}${m}</span><span class="sep">:</span><span class="sec">${s2 < 10 ? "0" : ""}${s2}</span>`;
 }
 
-
-// ===== WebSocket (단일 핸들러로 교체) =====
 ws.onmessage = (ev) => {
-  const msg = JSON.parse(ev.data);   // ✅ 먼저 선언
+    const msg = JSON.parse(ev.data);  // ✅ 항상 첫 줄에 초기화
 
-  // Vehicle 데이터 처리
-  if(msg.type === "vehicle"){
-    vehicle = msg.payload;
-    document.getElementById('carName').textContent = vehicle.name;
+    // 1️⃣ 차량 JSON 업데이트
+    if(msg.type === "vehicle"){
+        vehicle = msg.payload;
+        document.getElementById('carName').textContent = vehicle.name;
 
-    // notch_accels 역순 처리
-    brakeDecels = {};
-    if(vehicle.notch_accels && vehicle.notches){
-      for(let i=0; i<vehicle.notches; i++){
-        brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches-1-i] ?? 0);
-      }
+        // notch_accels 역순 처리
+        brakeDecels = {};
+        if(vehicle.notch_accels && vehicle.notches){
+            for(let i=0; i<vehicle.notches; i++){
+                brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches-1-i] ?? 0);
+            }
+        }
+
+        // forward_notch_accels 기본값 보정
+        if(!vehicle.forward_notch_accels || vehicle.forward_notch_accels.length === 0){
+            vehicle.forward_notch_accels = [0.139,0.278,0.417,0.556,0.694];
+        }
+
+        // ⚠️ HUD나 제어 관련 변수도 즉시 최신 vehicle 기준으로 갱신
+        // 예: maxIdx, forwardAccels 등
     }
-  }
 
-  // 상태 업데이트
-  if (msg.type !== "state") return;
+    // 2️⃣ 시뮬레이션 상태 업데이트
+    if (msg.type !== "state") return;
 
-  st = msg.payload;
-  window.st = st;
+    st = msg.payload;
+    window.st = st;
+
 
   // 숫자 HUD 갱신
   const remRaw = st.remaining_m;
