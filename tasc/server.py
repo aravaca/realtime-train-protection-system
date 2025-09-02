@@ -215,7 +215,7 @@ class StoppingSim:
         self._tasc_phase = "build"  # "build" → "relax"
         self._tasc_peak_notch = 1
         # 대기/활성 상태
-        self.tasc_armed = True
+        self.tasc_armed = False
         self.tasc_active = False
 
         # μ-저항 분리: rr_factor는 항상 1.0로 고정(μ와 무관)
