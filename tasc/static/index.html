@@ -532,7 +532,7 @@ if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
 
 /* ===== 키보드 ===== */
 addEventListener("keydown", (e) => {
-  if([" ","w","W","s","S","n","N","e","E","d","D", "a", "A"].includes(e.key)) e.preventDefault();
+  if([" ","w","W","s","S","n","N","e","E","d","D", "a", "A", 'q', 'Q'].includes(e.key)) e.preventDefault();
   if(e.repeat) return;
 
   if(e.key === " "){ 
@@ -558,6 +558,11 @@ addEventListener("keydown", (e) => {
   else if(e.key === "a" || e.key === "A"){
     if(vehicle && vehicle.notches){
       sendCmd("setNotch", vehicle.notches - 2); // EB 직전 notch
+    }
+  }
+  else if(e.key === "q" || e.key === "Q"){
+    if(vehicle && vehicle.forward_notches){
+      sendCmd("setNotch", -vehicle.notches); // EB 직전 notch
     }
   }
 
