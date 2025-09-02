@@ -564,7 +564,7 @@ class StoppingSim:
 
         self.first_brake_start = None
         self.first_brake_done = False
-
+        self.eb_used = False
         self.notch_history.clear()
         self.time_history.clear()
 
