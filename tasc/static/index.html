@@ -274,26 +274,7 @@ body{overflow-x:hidden;overflow-y:auto}
 <button id="btnMobileRestart" class="fab hide" type="button">재시작</button>
 
 <script>
-const ws = new WebSocket(
-  (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws"
-);
-
-ws.onopen = () => {
-  console.log("WebSocket open");
-
-  // 예: 초기 vehicle JSON 서버로 전송
-  if(vehicle) {
-    ws.send(JSON.stringify({
-      type:"cmd",
-      payload:{
-        name:"setVehicleFile",
-        data: vehicle
-      }
-    }));
-  }
-
-  // 타이머, TASC 등 초기 명령도 여기서 보내야 안전
-};
+/* ===== WebSocket & TASC ===== */ const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
 
 ws.addEventListener('open', () => {
   // ✅ 보정표(IDW) 한 번만 세팅하면 이후 자동 제한시간 산출

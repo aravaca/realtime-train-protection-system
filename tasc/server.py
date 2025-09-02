@@ -1296,6 +1296,8 @@ async def ws_endpoint(ws: WebSocket):
                             # notch_accels 역전 + 안전하게 복사
                             newv.notch_accels = list(reversed(newv.notch_accels))
                             newv.notches = len(newv.notch_accels)
+                            newv.forward_notch_accels = list(newv.forward_notch_accels)
+                            newv.forward_notches = len(newv.forward_notch_accels)
 
                             # Davis 재계산 (파일 값 + 질량 확인)
                             newv.recompute_davis(newv.mass_kg)
