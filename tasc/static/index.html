@@ -562,7 +562,7 @@ addEventListener("keydown", (e) => {
   }
   else if(e.key === "q" || e.key === "Q"){
     if(vehicle && vehicle.forward_notches){
-      sendCmd("setNotch", -vehicle.notches); // EB 직전 notch
+      sendCmd("setNotch", -vehicle.forward_notches); // EB 직전 notch
     }
   }
 
