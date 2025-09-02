@@ -12,7 +12,7 @@ max_accel = 0.694
 # max_accel *= (5/18)
 # 최소값
 min_accel = 0.45
-factor = 2.2
+factor = 1
 
 # 정규화 0~1
 x_norm = (notches - notches[0]) / (notches[-1] - notches[0])
