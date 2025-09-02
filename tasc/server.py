@@ -1306,6 +1306,7 @@ async def ws_endpoint(ws: WebSocket):
 
                             # 시뮬레이션 상태 초기화
                             sim.reset()
+                            await ws.send_json({"type":"vehicle", "payload":newv.to_dict()})
 
                             if DEBUG:
                                 print(f"[Vehicle] switched to {rel} / notches={vehicle.notches} "

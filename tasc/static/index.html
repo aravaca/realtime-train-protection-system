@@ -338,13 +338,13 @@ function hapticForEB() { vibrate([80, 100, 80]); }
 /* ===== 차량 JSON 로드 (캐시 무시) ===== */
 let vehicle=null; let brakeDecels={};
 const cacheBust=()=>`?v=${Date.now()}`;
-fetch('/static/e233_1000.json'+cacheBust(),{cache:'no-store'})
-  .then(r=>r.json()).then(data=>{
-    vehicle=data; document.getElementById('carName').textContent=vehicle.name;
-    if(vehicle.notch_accels && vehicle.notches){
-      brakeDecels={}; for(let i=0;i<vehicle.notches;i++){ brakeDecels[i]=Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0); }
-    }
-  }).catch(console.error);
+// fetch('/static/e233_1000.json'+cacheBust(),{cache:'no-store'})
+//   .then(r=>r.json()).then(data=>{
+//     vehicle=data; document.getElementById('carName').textContent=vehicle.name;
+//     if(vehicle.notch_accels && vehicle.notches){
+//       brakeDecels={}; for(let i=0;i<vehicle.notches;i++){ brakeDecels[i]=Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0); }
+//     }
+//   }).catch(console.error);
 
 /* ===== DOM ===== */
 const remEl=document.getElementById("rem"),
@@ -555,6 +555,22 @@ function formatTimeSec(secInt) {
 
 // ===== WebSocket (단일 핸들러로 교체) =====
 ws.onmessage = (ev) => {
+
+
+  if(msg.type === "vehicle"){
+    vehicle = msg.payload;
+    document.getElementById('carName').textContent = vehicle.name;
+
+    // notch_accels 역순 처리
+    brakeDecels = {};
+    if(vehicle.notch_accels && vehicle.notches){
+      for(let i=0; i<vehicle.notches; i++){
+        brakeDecels[i] = Math.abs(vehicle.notch_accels[vehicle.notches-1-i]??0);
+      }
+    }
+  }
+
+
   const msg = JSON.parse(ev.data);
   if (msg.type !== "state") return;
 
@@ -1102,7 +1118,14 @@ trainSeriesEl.addEventListener('change',(e)=>{
   const opt=e.target.selectedOptions[0];
   const lengths=JSON.parse(opt.dataset.lengths||"[]");
   setTrainLengthOptions(lengths);
-  loadVehicleFile(opt.value);
+
+  // ❌ fetch 제거
+  // loadVehicleFile(opt.value);
+
+  // ✅ 서버에 WebSocket으로 요청
+  if(ws.readyState === WebSocket.OPEN){
+    ws.send(JSON.stringify({ type:"cmd", payload:{ name:"setVehicleFile", file: opt.value } }));
+  }
 });
 populateSeries(); // 최초 세팅
 </script>
