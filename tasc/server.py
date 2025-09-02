@@ -207,7 +207,7 @@ class StoppingSim:
         self.jerk_history: List[float] = []
 
         # ---------- TASC ----------
-        self.tasc_enabled = False
+        self.tasc_enabled = True
         self.manual_override = False
         self.tasc_deadband_m = 0.05
         self.tasc_hold_min_s = 0.05
