@@ -1074,10 +1074,11 @@ class StoppingSim:
         adjusted_jerk = avg_jerk * (1 + penalty_factor)
 
         # 12 이하 → 500점, 12~30 → 선형 감소, 30 이상 → 0점
-        if adjusted_jerk <= 12:
+        low_bound = 13.3
+        if adjusted_jerk <= low_bound:
             jerk_score = 500
         elif adjusted_jerk <= 30:
-            jerk_score = 500 * (30 - adjusted_jerk) / (30 - 12)  # 500 * (30 - jerk)/18
+            jerk_score = 500 * (30 - adjusted_jerk) / (30 - low_bound)  # 500 * (30 - jerk)/18
         else:
             jerk_score = 0
 
