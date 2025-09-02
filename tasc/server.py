@@ -1172,6 +1172,8 @@ async def ws_endpoint(ws: WebSocket):
 
     # ---- 분리된 비동기 루프들 ----
     async def recv_loop():
+        # vehicle(바깥 스코프 변수)에 재할당 가능하게
+        nonlocal vehicle
         try:
             while True:
                 msg = await ws.receive_text()
@@ -1238,35 +1240,47 @@ async def ws_endpoint(ws: WebSocket):
 
                 elif name == "setTrainLength":
                     length = int(payload.get("length", 8))
-                    vehicle.update_mass(length)                 # mass_kg + Davis 재계산
+                    sim.veh.update_mass(length) # ✅ sim.veh 기준으로 갱신
                     if DEBUG:
-                        print(f"Train length set to {length} cars. mass_kg={vehicle.mass_kg:.0f}, "
-                              f"A0={vehicle.A0:.1f}, B1={vehicle.B1:.2f}, C2={vehicle.C2:.2f}")
+                        print(
+                            f"Train length set to {length} cars. mass_kg={sim.veh.mass_kg:.0f}, "
+                            f"A0={sim.veh.A0:.1f}, B1={sim.veh.B1:.2f}, C2={sim.veh.C2:.2f}"
+                        )
                     sim.reset()
 
                 elif name == "setMassTons":
                     mass_tons = float(payload.get("mass_tons", 200.0))
-                    vehicle.mass_t = mass_tons / int(payload.get("length", 8))
-                    vehicle.mass_kg = mass_tons * 1000.0
-                    vehicle.recompute_davis(vehicle.mass_kg)     # ★ 총중량 직접 지정 시 재계산
+                    sim.veh.mass_t = mass_tons / int(payload.get("length", 8))
+                    sim.veh.mass_kg = mass_tons * 1000.0
+                    sim.veh.recompute_davis(sim.veh.mass_kg) # ✅ 새 질량으로 재계산
                     if DEBUG:
-                        print(f"총중량={mass_tons:.2f} t -> A0={vehicle.A0:.1f}, B1={vehicle.B1:.2f}, C2={vehicle.C2:.2f}")
+                        print(
+                            f"총중량={mass_tons:.2f} t -> "
+                            f"A0={sim.veh.A0:.1f}, B1={sim.veh.B1:.2f}, C2={sim.veh.C2:.2f}"
+                        )
                     sim.reset()
-
                 elif name == "setLoadRate":
                     load_rate = float(payload.get("loadRate", 0.0)) / 100.0
                     length = int(payload.get("length", 8))
-                    base_1c_t = vehicle.mass_t
-                    pax_1c_t = 10.5
+
+                    base_1c_t = sim.veh.mass_t # ✅ 현재 차량 1량 기본중량
+                    pax_1c_t = 10.5 # 승객 만차 가정(1량당)
                     total_tons = length * (base_1c_t + pax_1c_t * load_rate)
 
-                    vehicle.update_mass(length)                  # mass_kg 기본 반영 + Davis 재계산 1차
-                    vehicle.mass_kg = total_tons * 1000.0        # 실제 총중량 덮어쓰기
-                    vehicle.recompute_davis(vehicle.mass_kg)     # ★ 탑승률 반영 후 최종 재계산
+                    # 길이 반영 + 1차 재계산
+                    sim.veh.update_mass(length)
+                    # 실제 총중량 덮어쓰기 + 최종 재계산
+                    sim.veh.mass_kg = total_tons * 1000.0
+                    sim.veh.recompute_davis(sim.veh.mass_kg)
+
                     if DEBUG:
-                        print(f"[LoadRate] length={length}, load={load_rate*100:.1f}%, total={total_tons:.1f} t -> "
-                              f"A0={vehicle.A0:.1f}, B1={vehicle.B1:.2f}, C2={vehicle.C2:.2f}")
+                        print(
+                            f"[LoadRate] length={length}, load={load_rate*100:.1f}%, total={total_tons:.1f} t -> "
+                            f"A0={sim.veh.A0:.1f}, B1={sim.veh.B1:.2f}, C2={sim.veh.C2:.2f}"
+                        )
                     sim.reset()
+
+
 
                 elif name == "setTASC":
                     enabled = bool(payload.get("enabled", False))
@@ -1288,34 +1302,38 @@ async def ws_endpoint(ws: WebSocket):
                         print(f"마찰계수(mu)={value}")
                     sim.reset()
 
+
                 elif name == "setVehicleFile":
                     rel = payload.get("file", "")
                     if rel:
                         try:
-                            STATIC_DIR = os.path.join(BASE_DIR, "static")
+                            # 기존 STATIC_DIR 그대로 사용
                             path = os.path.join(STATIC_DIR, rel.lstrip("./"))
                             if not os.path.isfile(path):
                                 raise FileNotFoundError(path)
 
-                            # 새 Vehicle 객체 생성
+                            # 새 Vehicle 로드
                             newv = Vehicle.from_json(path)
 
-                            # notch_accels 역전 + 안전하게 복사
+                            # notch_accels 역전 및 개수 동기화
                             newv.notch_accels = list(reversed(newv.notch_accels))
                             newv.notches = len(newv.notch_accels)
 
-                            # Davis 재계산 (파일 값 + 질량 확인)
+                            # 질량 기준으로 Davis 재계산(안전)
                             newv.recompute_davis(newv.mass_kg)
 
-                            # sim에 교체
+                            # 시뮬레이터에 적용
                             sim.veh = newv
+                            # 이후 setTrainLength 등도 같은 객체를 쓰도록 vehicle도 같이 바꿈
+                            vehicle = newv
 
-                            # 시뮬레이션 상태 초기화
                             sim.reset()
 
                             if DEBUG:
-                                print(f"[Vehicle] switched to {rel} / notches={vehicle.notches} "
-                                      f"A0={vehicle.A0:.1f}, B1={vehicle.B1:.2f}, C2={vehicle.C2:.2f}")
+                                print(
+                                    f"[Vehicle] switched to {rel} / notches={newv.notches} "
+                                    f"A0={newv.A0:.1f}, B1={newv.B1:.2f}, C2={newv.C2:.2f}"
+                                )
                         except Exception as e:
                             if DEBUG:
                                 print(f"[Vehicle] load failed: {rel} -> {e}")
