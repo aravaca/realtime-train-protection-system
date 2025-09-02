@@ -206,7 +206,7 @@ body{overflow-x:hidden;overflow-y:auto}
 <div id="overlay">
   <div class="card">
     <h2 class="title">
-      <img src="/static/e233_logo.png" alt="E233" class="emoji"> 
+      <img id="trainIcon" src="/static/e233_logo.png" alt="E233" class="emoji"> 
       JR TASC Simulator
     </h2>
 
@@ -284,8 +284,18 @@ body{overflow-x:hidden;overflow-y:auto}
 <button id="btnMobileRestart" class="fab hide" type="button">재시작</button>
 
 <script>
+
+
 /* ===== WebSocket & TASC ===== */
 const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
+
+const icons = [
+  "/static/e233_icon.png",
+  "/static/e235_icon.png",
+  "/static/n700s_icon.png"
+];
+const randIcon = icons[Math.floor(Math.random() * icons.length)];
+document.getElementById("trainIcon").src = randIcon;
 
 ws.addEventListener('open', () => {
   // ✅ 보정표(IDW) 한 번만 세팅하면 이후 자동 제한시간 산출

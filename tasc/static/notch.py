@@ -8,11 +8,11 @@ for n in range(num_notch):
 
 notches = np.array(list)
 # 목표 최대값
-max_accel = 2.6
-max_accel *= (5/18)
+max_accel = 0.75
+# max_accel *= (5/18)/
 # 최소값
 min_accel = 0
-factor = 1
+factor = 1.2
 
 # 정규화 0~1
 x_norm = (notches - notches[0]) / (notches[-1] - notches[0])
