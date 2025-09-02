@@ -652,12 +652,11 @@ class StoppingSim:
             factor = 1.0
         else:
             x = (v - fade_start) / (v_cap - fade_start)
-            # 지수 또는 시그모이드 방식으로 부드럽게 감소
-            factor = min_factor + (1 - min_factor) * math.exp(-5 * x)
-            # 필요하면 factor < min_factor clamp
-            factor = max(factor, min_factor)
+            factor = 1.0 - (1.0 - min_factor) * x
+            factor = max(factor, min_factor)  # clamp 하한값
 
         return base_accel * factor
+
 
     def eb_used_from_history(self) -> bool:
         return any(n == self.veh.notches - 1 for n in self.notch_history)
