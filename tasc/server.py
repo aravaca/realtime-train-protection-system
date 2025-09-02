@@ -1157,16 +1157,32 @@ async def ws_endpoint(ws: WebSocket):
     scenario_json_path = os.path.join(BASE_DIR, "scenario.json")
 
     vehicle = Vehicle.from_json(vehicle_json_path)
-    # 프론트가 EB→...→N으로 올 때 서버는 N→...→EB로 쓰기 위해 반전
     vehicle.notch_accels = list(reversed(vehicle.notch_accels))
-    # EB 유령 방지: 실제 배열 길이로 동기화
     vehicle.notches = len(vehicle.notch_accels)
 
     scenario = Scenario.from_json(scenario_json_path)
 
     sim = StoppingSim(vehicle, scenario)
-    sim.reset()   # ✅ 시작 시 start() 대신 reset()
-    sim.running = False  # 반드시 시뮬이 자동으로 돌지 않도록 초기화
+    sim.reset() # 초기화
+
+    # ✅ 최초 연결 직후: 기본 편성/탑승률을 즉시 반영해 총중량/데이비스 재계산
+    sim.veh.update_mass(cur_length) # 1차: 편성 반영
+
+    base_1c_t = sim.veh.mass_t # 1량(공차) 톤
+    pax_1c_t = 10.5 # 1량 만차 탑승 톤 (가정값)
+    total_tons = cur_length * (base_1c_t + pax_1c_t * cur_load_rate)
+
+    sim.veh.mass_kg = total_tons * 1000.0
+    sim.veh.recompute_davis(sim.veh.mass_kg)
+
+    if DEBUG:
+        print(f"[INIT] len={cur_length}, load={cur_load_rate*100:.1f}% "
+              f"-> base_1c_t={base_1c_t:.3f} t, pax_1c_t={pax_1c_t:.2f} t "
+              f"| total={total_tons:.2f} t, mass_kg={sim.veh.mass_kg:.0f} "
+              f"| A0={sim.veh.A0:.1f}, B1={sim.veh.B1:.2f}, C2={sim.veh.C2:.2f}")
+
+    sim.reset() # ✅ 재계산 반영된 상태로 다시 초기화(처음부터 일관)
+    sim.running = False
 
 
     # 전송 속도: 30Hz
