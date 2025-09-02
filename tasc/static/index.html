@@ -498,6 +498,7 @@ function startRun(){
         mu=muFromWeather(weatherSelect.value);
 
   if(ws.readyState===WebSocket.OPEN){
+const enabled = document.getElementById("tascToggle").checked;
     ws.send(JSON.stringify({ type:"cmd", payload:{ name:"toggleTimer", enabled:true }}));
     ws.send(JSON.stringify({type:"cmd",payload:{name:"setInitial",speed,dist,grade,mu}}));
     ws.send(JSON.stringify({type:"cmd",payload:{name:"start"}}));
@@ -690,6 +691,11 @@ if (st.finished && !isOverlayOpen) {
 } else {
   // 그 외에는 항상 숨김 (오버레이가 떠 있으면 당연히 숨김)
   btnMobileRestart.classList.add('hide');
+}
+// onmessage 내부
+const serverEnabled = !!st.tasc_enabled;
+if (tascToggle.checked !== serverEnabled) {
+  tascToggle.checked = serverEnabled; // 서버 기준으로 강제 동기화
 }
 };
 
