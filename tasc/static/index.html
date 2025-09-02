@@ -663,16 +663,18 @@ if (Math.abs(toShowInt) <= 2) {
   
 
   // ⚠ 피드백(fb) UI는 여기서 건드리지 마세요 (언어 토글은 setLang에서 처리)
+const isOverlayOpen = !overlay.classList.contains('hide');
 
-// ✅ 재시작 FAB 표시/숨김
-if (st.finished) {
+if (st.finished && !isOverlayOpen) {
+  // 게임이 끝났고, 오버레이가 닫혀 있을 때만 FAB 표시
   if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-    btnMobileRestart.classList.remove('hide');  // 모바일이면 표시
+    btnMobileRestart.classList.remove('hide');
   } else {
-    btnMobileRestart.classList.add('hide');     // PC에서는 숨김 유지
+    btnMobileRestart.classList.add('hide');
   }
 } else {
-  btnMobileRestart.classList.add('hide');       // 게임 진행 중에는 항상 숨김
+  // 그 외에는 항상 숨김 (오버레이가 떠 있으면 당연히 숨김)
+  btnMobileRestart.classList.add('hide');
 }
 };
 
