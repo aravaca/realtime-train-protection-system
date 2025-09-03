@@ -749,6 +749,22 @@ function drawHUD(st){
   // const centerY=(ribbonY+ribbonH/2)-14, barH=12*dpr;
   // ctx.fillStyle="rgba(60,60,60,.9)"; ctx.fillRect(ribbonX+2*dpr, centerY-barH/2, ribbonW-4*dpr, barH);
 
+  
+// 날씨가 맑음이면 반투명 흰색 톤 사용
+const isClear = (weatherSelect?.value === "맑음");
+
+  // 리본(회색 사각형) 테두리/채움
+  const ribbonFill = isClear ? "rgba(255,255,255,0.12)" : "rgba(100,100,100,0.10)";
+  const ribbonStroke = isClear ? "rgba(255,255,255,0.35)" : "rgba(100,100,100,0.30)";
+
+  // 가운데 가로 바(기준 바)
+  const centerBarFill = isClear ? "rgba(255,255,255,0.50)" : "rgba(60,60,60,0.90)";
+
+  // 다이아몬드(정차 위치 마커)
+  const diamondFill = isClear ? "rgba(255,255,255,0.70)" : "#444";
+  const diamondStroke = isClear ? "rgba(255,255,255,0.90)" : "#222";
+
+
   // PC/모바일 판별
   const isMobile = window.innerWidth < 768; 
 
@@ -775,7 +791,7 @@ function drawHUD(st){
   const centerY = (ribbonY + ribbonH / 2) + offsetCenterY, 
         barH = 12 * dpr;
 
-  ctx.fillStyle = "rgba(60,60,60,.9)";
+  ctx.fillStyle = diamondFill;
   ctx.fillRect(ribbonX + 2 * dpr, centerY - barH / 2, ribbonW - 4 * dpr, barH);
 
   const rem=Math.min(Math.max(st.remaining_m??st.L,-st.L), st.L);
@@ -783,9 +799,17 @@ function drawHUD(st){
   const normalized=(rem-(-7))/(7-(-7));
   const dY=ribbonY+(ribbonH*(1-normalized))-diamondH/2;
   const adjY=Math.min(Math.max(dY, ribbonY-10*dpr), ribbonY+ribbonH-diamondH+10*dpr);
-  ctx.fillStyle="#444"; ctx.strokeStyle="#222"; ctx.lineWidth=2*dpr; ctx.beginPath();
-  ctx.moveTo(dX, adjY-diamondH/2); ctx.lineTo(dX+diamondW/2, adjY); ctx.lineTo(dX, adjY+diamondH/2); ctx.lineTo(dX-diamondW/2, adjY);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle=diamondFill; ctx.strokeStyle=diamondStroke; 
+
+  ctx.lineWidth=2*dpr; ctx.beginPath();
+  ctx.moveTo(dX, adjY-diamondH/2); 
+  ctx.lineTo(dX+diamondW/2, adjY); 
+  ctx.lineTo(dX, adjY+diamondH/2);
+  ctx.lineTo(dX-diamondW/2, adjY);
+  ctx.closePath(); 
+  ctx.fill(); 
+  ctx.stroke();
 
 /* === TASC 경고등 (HUD 위) === */
 /* === TASC 경고등 (HUD 위) === */
