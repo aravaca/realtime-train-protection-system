@@ -798,7 +798,7 @@ const isClear = (weatherSelect?.value === "맑음");
 
   const rem=Math.min(Math.max(st.remaining_m??st.L,-st.L), st.L);
   const diamondW=16*dpr, diamondH=10*dpr, dX=ribbonX+ribbonW/2;
-  const normalized=(rem-(-5))/(5-(-5));
+  const normalized=(rem-(-7))/(7-(-7));
   const dY=ribbonY+(ribbonH*(1-normalized))-diamondH/2;
   const adjY=Math.min(Math.max(dY, ribbonY-10*dpr), ribbonY+ribbonH-diamondH+10*dpr);
 
