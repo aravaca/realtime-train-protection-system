@@ -1,7 +1,6 @@
 import math
 import json
 import asyncio
-from random import random
 import time
 import os
 
@@ -183,7 +182,7 @@ class StoppingSim:
         self._planned_v0 = scn.v0  # 출발 버튼 누를 때 쓸 예정 속도
         # --- 인계 지점(남은거리) & 히스테리시스 설정 ---
         self.tasc_takeover_rem_m = 150.0 # 인계 거리 (m)
-        self.tasc_takeover_hyst_m = random.randint(1, 10) # add some randomness like real world tasc beacons!
+        self.tasc_takeover_hyst_m = 1 # add some randomness like real world tasc beacons!
 
         self.veh = veh
         self.scn = scn
