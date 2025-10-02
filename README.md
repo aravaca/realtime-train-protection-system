@@ -1,4 +1,4 @@
- JR TASC Simulator — Advanced TASC-based Precision Stop Simulator for JR Series EMUs
+# JR TASC Simulator — Advanced TASC-based Precision Stop Simulator for JR Series EMUs
 **A simulator for JR East/West EMU series trains based on real or virtual TASC systems for precision stop training.**
 
 This full-stack project models **JR series EMUs** for training purposes.  
@@ -191,4 +191,5 @@ MIT License © 2025 Hyungsuk Choi, University of Maryland
 - On the **brake navigation canvas**, watch where the red line intersects curves → read **stair-step braking & relaxing timing**.  
 - Observe TASC ON autopilot profiles, then try to **replicate manually** for skill improvement.  
 - Aim for **0cm stop bonus** and **on-time arrival bonus**, while monitoring jerk score for **both accuracy and ride comfort**.
+
 
