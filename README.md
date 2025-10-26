@@ -1,7 +1,7 @@
 # JR TASC Simulator — Advanced Precision Stop Simulation Framework for JR Series EMUs
 
----
-## Abstract
+
+Abstract
 
 This project presents an advanced simulation framework for **Train Automatic Stop Control (TASC) systems**, designed to replicate and evaluate the braking and precision stop performance of JR East and JR West Electric Multiple Units (EMUs). The simulator integrates a real-time control and visualization environment, combining a FastAPI-based backend with HTML/CSS/JavaScript front-end modules for dynamic rendering of distance–velocity trajectories and automatic brake navigation.
 
