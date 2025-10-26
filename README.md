@@ -4,7 +4,7 @@
 This full-stack project models **JR series EMUs** for training purposes.  
 Frontend (HTML/CSS/JS) + Backend (FastAPI WebSocket) integration provides **brake navigation canvas** (distance-speed curves) and **TASC (Train Automatic Stop Controller)** for **real-time braking practice** and **feedback/score evaluation**.
 
-I plan to add a recreation of other modern train protection systems such as ATC, ATP and ATS. 
+I plan to extend my project by adding a visualization of other modern train protection systems as well such as ATC, ATP and ATS. 
 
 ---
 
