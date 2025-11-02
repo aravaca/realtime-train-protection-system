@@ -800,10 +800,7 @@ const isClear = (weatherSelect?.value === "맑음");
   ctx.fillRect(ribbonX + 2 * dpr, centerY - barH / 2, ribbonW - 4 * dpr, barH);
 
   const rem=Math.min(Math.max(st.remaining_m??st.L,-st.L), st.L);
-  // diamond size tuned relative to ribbon width so it scales well
-  const diamondW = Math.min(8 * dpr, ribbonW * 0.7);
-  const diamondH = diamondW * 0.65;
-  const dX = ribbonX + ribbonW / 2;
+  const diamondW=16*dpr, diamondH=10*dpr, dX=ribbonX+ribbonW/2;
   const normalized=(rem-(-5))/(5-(-5));
   const dY=ribbonY+(ribbonH*(1-normalized))-diamondH/2;
   const adjY=Math.min(Math.max(dY, ribbonY-10*dpr), ribbonY+ribbonH-diamondH+10*dpr);
@@ -1118,10 +1115,7 @@ function drawRightRibbon(st){
 
   // 다이아몬드 위치
   const rem = Math.min(Math.max(st.remaining_m ?? st.L, -st.L), st.L);
-  // make diamond size proportional to the ribbon width so it stays visually balanced
-  const diamondW = Math.max(12 * dpr, ribbonW * 0.6);
-  const diamondH = diamondW * 0.65;
-  const dX = ribbonX + ribbonW / 2;
+  const diamondW = 12 * dpr * scale, diamondH = 8 * dpr * scale, dX = ribbonX + ribbonW / 2;
   const normalized = (rem - (-5)) / (5 - (-5));
   const dY = ribbonY + (ribbonH * (1 - normalized)) - diamondH / 2;
   const adjY = Math.min(Math.max(dY, ribbonY - 10 * dpr), ribbonY + ribbonH - diamondH + 10 * dpr);
