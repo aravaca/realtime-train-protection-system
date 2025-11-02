@@ -16,8 +16,9 @@ from fastapi.staticfiles import StaticFiles
 # Config
 # ------------------------------------------------------------
 DEBUG = False  # 디버그 로그를 보고 싶으면 True
-soft_stop_di = 10.0
-soft_stop_const = -0.18
+# I realized that the soft stop logic does not make sense and makes the simulation less realistic 
+# soft_stop_di = 10.0 
+# soft_stop_const = -0.18
 # ------------------------------------------------------------
 # Data classes
 # ------------------------------------------------------------
