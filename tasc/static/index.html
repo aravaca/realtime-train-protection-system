@@ -1062,7 +1062,7 @@ const ribbonBigCanvas = document.getElementById('ribbonBig');
 function sizeRibbonBigCanvas() {
   if (!ribbonBigCanvas) return;
   const dpr = window.devicePixelRatio || 1;
-  const cssW = ribbonBigCanvas.clientWidth || 72;
+  const cssW = ribbonBigCanvas.clientWidth || 32;
   const cssH = ribbonBigCanvas.clientHeight || (window.innerHeight * 0.8);
   ribbonBigCanvas.width = Math.max(1, Math.round(cssW * dpr));
   ribbonBigCanvas.height = Math.max(1, Math.round(cssH * dpr));
