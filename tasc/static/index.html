@@ -1086,7 +1086,7 @@ function drawRightRibbon(st){
   const isClear = (weatherSelect?.value === "맑음");
   const ribbonFill = isClear ? "rgba(255,255,255,0.01)" : "rgba(100,100,100,0.10)";
   const ribbonStroke = isClear ? "rgba(255,255,255,0.35)" : "rgba(100,100,100,0.30)";
-  const centerBarFill = "rgba(194, 250, 136, 0.90)"; // 연한 초록색
+  const centerBarFill = "rgba(16, 250, 13, 0.90)"; // 연한 초록색
   const diamondFill= "rgba(255,255,255,0.70)";
   const diamondStroke= "#FFD500";
 
@@ -1128,7 +1128,7 @@ function drawRightRibbon(st){
     const innerHeight = Math.max(6 * dpr, barH * 0.25); // smaller height
     const innerX = ribbonX + horizontalPadding;
     const innerY = centerY - innerHeight / 2;
-    ctxR.fillStyle = 'rgba(255,255,255,0.6)';
+    ctxR.fillStyle = 'rgba(204, 253, 208, 0.6)';
     ctxR.fillRect(innerX, innerY, innerWidth, innerHeight);
   })();
 
