@@ -16,7 +16,8 @@ from fastapi.staticfiles import StaticFiles
 # Config
 # ------------------------------------------------------------
 DEBUG = False  # 디버그 로그를 보고 싶으면 True
-soft_stop_const = -0.10
+soft_stop_di = 10.0
+soft_stop_const = -0.18
 # ------------------------------------------------------------
 # Data classes
 # ------------------------------------------------------------
@@ -747,8 +748,8 @@ class StoppingSim:
             # (신규) 속도 기반 소프트 스톱
             rem_pred = max(0.0, rem_now - s)
             v_kmh = v * 3.6
-            if v_kmh <= 5.0 and notch > 0:
-                alpha = max(0.0, min(1.0, v_kmh / 5.0))
+            if v_kmh <= soft_stop_di and notch > 0:
+                alpha = max(0.0, min(1.0, v_kmh / soft_stop_di))
                 # -0.08
                 a_soft = (-0.30) * alpha + (soft_stop_const) * (1.0 - alpha)
                 w_soft = 1.0 - alpha
@@ -926,8 +927,8 @@ class StoppingSim:
         rem_now = self.scn.L - st.s
         v_kmh = st.v * 3.6
         # --- 속도 기반 소프트 스톱 ---
-        if v_kmh <= 5.0 and st.lever_notch > 0:
-            alpha = max(0.0, min(1.0, v_kmh / 5.0))     # 5km/h→1, 0km/h→0
+        if v_kmh <= soft_stop_di and st.lever_notch > 0:
+            alpha = max(0.0, min(1.0, v_kmh / soft_stop_di))     # 5km/h→1, 0km/h→0
             # -0.08
             a_soft = (-0.30) * alpha + (soft_stop_const) * (1.0 - alpha)
             w_soft = 1.0 - alpha                         # 속도가 낮을수록 소프트 비중↑
