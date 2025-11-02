@@ -745,15 +745,14 @@ class StoppingSim:
             if notch == 0:
                 a_target = self._grade_accel() + self._davis_accel(v)
 
-            # (신규) 속도 기반 소프트 스톱
+            # # (신규) 속도 기반 소프트 스톱
             rem_pred = max(0.0, rem_now - s)
-            v_kmh = v * 3.6
-            if v_kmh <= soft_stop_di and notch > 0:
-                alpha = max(0.0, min(1.0, v_kmh / soft_stop_di))
-                # -0.08
-                a_soft = (-0.30) * alpha + (soft_stop_const) * (1.0 - alpha)
-                w_soft = 1.0 - alpha
-                a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
+            # v_kmh = v * 3.6
+            # if v_kmh <= soft_stop_di and notch > 0:
+            #     alpha = max(0.0, min(1.0, v_kmh / soft_stop_di))
+            #     a_soft = (-0.30) * alpha + (soft_stop_const) * (1.0 - alpha)
+            #     w_soft = 1.0 - alpha
+            #     a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
 
             if notch == 1 or rem_pred <= 0.0:
                 a_target = min(a_target, 0.0)
@@ -927,12 +926,12 @@ class StoppingSim:
         rem_now = self.scn.L - st.s
         v_kmh = st.v * 3.6
         # --- 속도 기반 소프트 스톱 ---
-        if v_kmh <= soft_stop_di and st.lever_notch > 0:
-            alpha = max(0.0, min(1.0, v_kmh / soft_stop_di))     # 5km/h→1, 0km/h→0
-            # -0.08
-            a_soft = (-0.30) * alpha + (soft_stop_const) * (1.0 - alpha)
-            w_soft = 1.0 - alpha                         # 속도가 낮을수록 소프트 비중↑
-            a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
+        # if v_kmh <= soft_stop_di and st.lever_notch > 0:
+        #     alpha = max(0.0, min(1.0, v_kmh / soft_stop_di))     # 5km/h→1, 0km/h→0
+        #     # -0.08
+        #     a_soft = (-0.30) * alpha + (soft_stop_const) * (1.0 - alpha)
+        #     w_soft = 1.0 - alpha                         # 속도가 낮을수록 소프트 비중↑
+        #     a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
 
         if st.lever_notch >= 1:
             a_target = min(a_target, 0.0)
