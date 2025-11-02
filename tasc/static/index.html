@@ -1122,6 +1122,16 @@ function drawRightRibbon(st){
   ctxR.fillStyle = centerBarFill;
   ctxR.fillRect(ribbonX + horizontalPadding, centerY - barH / 2, ribbonW - horizontalPadding * 2, barH);
 
+  // 내부에 작은 반투명 흰색 박스 추가 (너비 동일, 높이만 작음)
+  (function(){
+    const innerWidth = Math.max(4 * dpr, ribbonW - horizontalPadding * 2); // same width as bar
+    const innerHeight = Math.max(6 * dpr, barH * 0.45); // smaller height
+    const innerX = ribbonX + horizontalPadding;
+    const innerY = centerY - innerHeight / 2;
+    ctxR.fillStyle = 'rgba(255,255,255,0.6)';
+    ctxR.fillRect(innerX, innerY, innerWidth, innerHeight);
+  })();
+
   // 다이아몬드 위치
   const rem = Math.min(Math.max(st.remaining_m ?? st.L, -st.L), st.L);
   const diamondW = 8 * dpr * scale, diamondH = 5 * dpr * scale, dX = ribbonX + ribbonW / 2;
