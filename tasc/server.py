@@ -19,6 +19,7 @@ DEBUG = False  # 디버그 로그를 보고 싶으면 True
 # I realized that the soft stop logic does not make sense and makes the simulation less realistic 
 # soft_stop_di = 10.0 
 # soft_stop_const = -0.18
+air_brake_di = 7.0  # km/h 이하에서 공기제동 밸브 지연 반영 시작
 # ------------------------------------------------------------
 # Data classes
 # ------------------------------------------------------------
@@ -418,6 +419,27 @@ class StoppingSim:
     #         a_eff = a_cap * scale
     #     return a_eff
 
+    # def _effective_brake_accel(self, notch: int, v: float) -> float:
+    #     # ✅ 악셀(음수) 또는 N(0)에서는 '브레이크 없음'
+    #     if notch <= 0:
+    #         return 0.0
+
+    #     if notch >= len(self.veh.notch_accels):
+    #         return 0.0
+
+    #     base = float(self.veh.notch_accels[notch]) # 음수여야 정상(제동)
+    #     k_srv = 0.85
+    #     k_eb = 0.98
+    #     is_eb = (notch == self.veh.notches - 1)
+    #     k_adh = k_eb if is_eb else k_srv
+    #     a_cap = -k_adh * float(self.scn.mu) * 9.81 # 음수
+
+    #     a_eff = max(base, a_cap)
+    #     if a_eff <= a_cap + 1e-6:
+    #         scale = 0.90 if v > 8.0 else 0.85
+    #         a_eff = a_cap * scale
+    #     return a_eff
+
     def _effective_brake_accel(self, notch: int, v: float) -> float:
         # ✅ 악셀(음수) 또는 N(0)에서는 '브레이크 없음'
         if notch <= 0:
@@ -426,7 +448,15 @@ class StoppingSim:
         if notch >= len(self.veh.notch_accels):
             return 0.0
 
+        v_kmh = v * 3.6
+
+        # 기본 제동 가속도(음수)
         base = float(self.veh.notch_accels[notch]) # 음수여야 정상(제동)
+
+        # 저속(<=10 km/h)에서는 마찰/밸브 한계로 제동력이 감소 (0.7~0.8 범위)
+        if v_kmh <= air_brake_di:
+            base *= 0.8
+
         k_srv = 0.85
         k_eb = 0.98
         is_eb = (notch == self.veh.notches - 1)
@@ -746,6 +776,18 @@ class StoppingSim:
             if notch == 0:
                 a_target = self._grade_accel() + self._davis_accel(v)
 
+            # E233계열은 회생제동 우선 제어 방식을 사용하며, 속도 약 7~10 km/h 이하에서 회생제동이 실질적으로 사라집니다.
+
+            # 이때 공기제동이 완전히 takeover 되는데,
+            # 공기압 밸브 제어에 따른 지연이 필연적으로 존재합니다.
+            # 일반적으로 응답상수 τ ≈ 0.5초 내외로 알려져 있습니다.
+
+            # 반면 회생제동의 경우 전류 제어 응답이 수백 ms(0.2~0.3s) 수준이라
+            # 체감상 약 1.5~2배 느리다고 볼 수 있습니다.
+
+            # 제동력 자체는 저속 시 마찰제동의 압력 제한 및 마찰계수 변화로 인해
+            # 약 0.7~0.8배 수준으로 감소합니다.
+
             # # (신규) 속도 기반 소프트 스톱
             rem_pred = max(0.0, rem_now - s)
             # v_kmh = v * 3.6
@@ -755,10 +797,15 @@ class StoppingSim:
             #     w_soft = 1.0 - alpha
             #     a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
 
+            ### NEW NEW NEW
             if notch == 1 or rem_pred <= 0.0:
                 a_target = min(a_target, 0.0)
 
-            a_cmd_filt += (a_target - a_cmd_filt) * (dt / max(1e-6, self.veh.tau_brk))
+            # 응답시간(tau_brk)을 저속에서 늘려서 밸브 지연 반영
+            v_kmh_local = v * 3.6
+            effective_tau_brk = self.veh.tau_brk * 2.0 if v_kmh_local <= air_brake_di else self.veh.tau_brk
+
+            a_cmd_filt += (a_target - a_cmd_filt) * (dt / max(1e-6, effective_tau_brk))
 
             max_da = self.veh.j_max * dt
             v_kmh = v * 3.6
@@ -933,11 +980,16 @@ class StoppingSim:
         #     a_soft = (-0.30) * alpha + (soft_stop_const) * (1.0 - alpha)
         #     w_soft = 1.0 - alpha                         # 속도가 낮을수록 소프트 비중↑
         #     a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
-
+        
+        ### NEW NEW NEW 
         if st.lever_notch >= 1:
             a_target = min(a_target, 0.0)
 
-        self._a_cmd_filt += (a_target - self._a_cmd_filt) * (dt / max(1e-6, self.veh.tau_brk))
+        # 저속(<=10 km/h)일 때 tau_brk를 2배로 사용하여 공기제동 밸브 지연을 반영
+        v_kmh = st.v * 3.6
+        effective_tau_brk = self.veh.tau_brk * 2.0 if v_kmh <= air_brake_di else self.veh.tau_brk
+
+        self._a_cmd_filt += (a_target - self._a_cmd_filt) * (dt / max(1e-6, effective_tau_brk))
 
         max_da = self.veh.j_max * dt
         if v_kmh <= 5.0:
