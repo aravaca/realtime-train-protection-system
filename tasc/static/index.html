@@ -80,6 +80,10 @@ button:hover,.btn-primary:hover{background:linear-gradient(135deg,#0072ff,#00c6f
 @keyframes rain{0%{transform:translateY(-20px)}100%{transform:translateY(100vh)}}
 body{overflow-x:hidden;overflow-y:auto}
 @media (max-width:768px){html,body{height:100%}body{-webkit-overflow-scrolling:touch}#wrap{padding-bottom:96px}canvas#hud{height:42vh}}
+/* Hide large right ribbon on mobile for space and performance */
+@media (max-width:768px){
+  #ribbonBig{display:none !important}
+}
 /* 재시작 FAB – 최상단, 클릭 확실하게 */
 .fab{
   position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:12px 18px;font-weight:700;border-radius:999px;
@@ -1088,6 +1092,8 @@ function drawRightRibbon(st){
 
   // 모바일/데스크톱 보정 (원래와 비슷한 비율 유지)
   const isMobileLocal = window.innerWidth < 768;
+  // Do not draw on mobile (CSS also hides the canvas) to save CPU
+  if (isMobileLocal) { ctxR.clearRect(0,0,w,h); return; }
   const offsetRibbonY = isMobileLocal ? -32 : -12;
   const offsetCenterY = isMobileLocal ? -14 : -5;
 
