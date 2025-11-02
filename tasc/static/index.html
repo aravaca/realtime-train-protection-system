@@ -801,7 +801,7 @@ const isClear = (weatherSelect?.value === "맑음");
 
   const rem=Math.min(Math.max(st.remaining_m??st.L,-st.L), st.L);
   // diamond size tuned relative to ribbon width so it scales well
-  const diamondW = Math.max(8 * dpr, ribbonW * 0.7);
+  const diamondW = Math.min(8 * dpr, ribbonW * 0.7);
   const diamondH = diamondW * 0.65;
   const dX = ribbonX + ribbonW / 2;
   const normalized=(rem-(-5))/(5-(-5));
