@@ -1086,7 +1086,7 @@ function drawRightRibbon(st){
   const isClear = (weatherSelect?.value === "맑음");
   const ribbonFill = isClear ? "rgba(255,255,255,0.01)" : "rgba(100,100,100,0.10)";
   const ribbonStroke = isClear ? "rgba(255,255,255,0.35)" : "rgba(100,100,100,0.30)";
-  const centerBarFill = "rgba(144, 238, 144,0.5)";
+  const centerBarFill = "rgba(144, 238, 144,0.60)"; // 연한 초록색
   const diamondFill= "rgba(255,255,255,0.70)";
   const diamondStroke= "#FFD500";
 
@@ -1115,9 +1115,12 @@ function drawRightRibbon(st){
 
   // 중앙 바
   const centerY = (ribbonY + ribbonH / 2) + offsetCenterY * dpr;
-  const barH = 12 * dpr * scale;
+  // Make the center bar larger: increase height and reduce horizontal padding so it appears wider
+  const barHeightBase = 18; // px base at DPR=1 (tweak this to change size)
+  const barH = barHeightBase * dpr * scale; // taller than default
+  const horizontalPadding = 1 * dpr; // smaller padding -> wider bar
   ctxR.fillStyle = centerBarFill;
-  ctxR.fillRect(ribbonX + 2 * dpr, centerY - barH / 2, ribbonW - 4 * dpr, barH);
+  ctxR.fillRect(ribbonX + horizontalPadding, centerY - barH / 2, ribbonW - horizontalPadding * 2, barH);
 
   // 다이아몬드 위치
   const rem = Math.min(Math.max(st.remaining_m ?? st.L, -st.L), st.L);
