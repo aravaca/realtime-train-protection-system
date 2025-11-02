@@ -800,29 +800,8 @@ const isClear = (weatherSelect?.value === "맑음");
   const centerY = (ribbonY + ribbonH / 2) + offsetCenterY, 
         barH = 12 * dpr;
 
-  // vertical gradient: strongest in center (vertically), fades toward top/bottom edges
-  (function(){
-    const x = ribbonX + ribbonW / 2;
-    const y0 = centerY - barH / 2;
-    const y1 = centerY + barH / 2;
-    const makeEdge = (col, a)=>{
-      try{
-        if(/rgba?\(/.test(col)){
-          const m = col.match(/rgba?\((\d+,\s*\d+,\s*\d+)(?:,\s*[0-9.]+)?\)/);
-          if(m) return `rgba(${m[1]},${a})`;
-        }
-      }catch(e){}
-      return col;
-    };
-    const edgeColor = makeEdge(diamondFill, 0.12);
-    const centerColor = makeEdge(diamondFill, 0.85);
-    const grad = ctx.createLinearGradient(x, y0, x, y1);
-    grad.addColorStop(0, edgeColor);
-    grad.addColorStop(0.5, centerColor);
-    grad.addColorStop(1, edgeColor);
-    ctx.fillStyle = grad;
-    ctx.fillRect(ribbonX + 2 * dpr, y0, ribbonW - 4 * dpr, barH);
-  })();
+  ctx.fillStyle = diamondFill;
+  ctx.fillRect(ribbonX + 2 * dpr, centerY - barH / 2, ribbonW - 4 * dpr, barH);
 
   const rem=Math.min(Math.max(st.remaining_m??st.L,-st.L), st.L);
   const diamondW=16*dpr, diamondH=10*dpr, dX=ribbonX+ribbonW/2;
@@ -1140,29 +1119,8 @@ function drawRightRibbon(st){
   const barHeightBase = 30; // px base at DPR=1 (tweak this to change size)
   const barH = barHeightBase * dpr * scale; // taller than default
   const horizontalPadding = 1 * dpr; // smaller padding -> wider bar
-  // vertical gradient: strongest at center (vertically), fades toward top/bottom
-  (function(){
-    const x = ribbonX + ribbonW / 2;
-    const y0 = centerY - barH / 2;
-    const y1 = centerY + barH / 2;
-    const makeEdge = (col, a)=>{
-      try{
-        if(/rgba?\(/.test(col)){
-          const m = col.match(/rgba?\((\d+,\s*\d+,\s*\d+)(?:,\s*[0-9.]+)?\)/);
-          if(m) return `rgba(${m[1]},${a})`;
-        }
-      }catch(e){}
-      return col;
-    };
-    const edgeColor = makeEdge(centerBarFill, 0.35);
-    const centerColor = makeEdge(centerBarFill, 0.65);
-    const grad = ctxR.createLinearGradient(x, y0, x, y1);
-    grad.addColorStop(0, edgeColor);
-    grad.addColorStop(0.5, centerColor);
-    grad.addColorStop(1, edgeColor);
-    ctxR.fillStyle = grad;
-    ctxR.fillRect(ribbonX + horizontalPadding, y0, ribbonW - horizontalPadding * 2, barH);
-  })();
+  ctxR.fillStyle = centerBarFill;
+  ctxR.fillRect(ribbonX + horizontalPadding, centerY - barH / 2, ribbonW - horizontalPadding * 2, barH);
 
   // 다이아몬드 위치
   const rem = Math.min(Math.max(st.remaining_m ?? st.L, -st.L), st.L);
