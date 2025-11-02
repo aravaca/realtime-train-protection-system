@@ -1084,7 +1084,7 @@ function drawRightRibbon(st){
 
   // 색상/모드 재사용 (일관된 스타일)
   const isClear = (weatherSelect?.value === "맑음");
-  const ribbonFill = isClear ? "rgba(255,255,255,0.12)" : "rgba(100,100,100,0.10)";
+  const ribbonFill = isClear ? "rgba(255,255,255,0.50)" : "rgba(100,100,100,0.10)";
   const ribbonStroke = isClear ? "rgba(255,255,255,0.35)" : "rgba(100,100,100,0.30)";
   const centerBarFill = isClear ? "rgba(255,255,255,0.50)" : "rgba(60,60,60,0.90)";
   const diamondFill = isClear ? "rgba(255,255,255,0.70)" : "#444";
