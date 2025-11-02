@@ -1115,7 +1115,7 @@ function drawRightRibbon(st){
 
   // 다이아몬드 위치
   const rem = Math.min(Math.max(st.remaining_m ?? st.L, -st.L), st.L);
-  const diamondW = 12 * dpr * scale, diamondH = 8 * dpr * scale, dX = ribbonX + ribbonW / 2;
+  const diamondW = 8 * dpr * scale, diamondH = 5 * dpr * scale, dX = ribbonX + ribbonW / 2;
   const normalized = (rem - (-5)) / (5 - (-5));
   const dY = ribbonY + (ribbonH * (1 - normalized)) - diamondH / 2;
   const adjY = Math.min(Math.max(dY, ribbonY - 10 * dpr), ribbonY + ribbonH - diamondH + 10 * dpr);
