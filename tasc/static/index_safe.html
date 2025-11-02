@@ -195,8 +195,6 @@ body{overflow-x:hidden;overflow-y:auto}
   </div>
 
   <canvas id="brakeLadder" style="position:absolute; right:10px; top:30px; width:28px; height:70%;"></canvas>
-  <!-- 큰 우측 리본: 페이지 오른쪽에 고정되어 HUD의 리본/다이아몬드를 더 크게 표시합니다 -->
-  <canvas id="ribbonBig" style="position:fixed; right:10px; top:50%; transform:translateY(-50%); width:72px; height:80vh; pointer-events:none; z-index:10000;"></canvas>
 </div>
 
 <div class="card" style="flex:2 1 520px"><canvas id="hud"></canvas></div>
@@ -814,8 +812,6 @@ const isClear = (weatherSelect?.value === "맑음");
   ctx.closePath(); 
   ctx.fill(); 
   ctx.stroke();
-  // also draw the large right-side ribbon (fixed canvas)
-  try{ if(typeof drawRightRibbon === 'function') drawRightRibbon(st); }catch(e){}
 
 /* === TASC 경고등 (HUD 위) === */
 /* === TASC 경고등 (HUD 위) === */
@@ -1054,81 +1050,6 @@ function drawBrakeLadderMini(st) {
   ctx2.strokeRect(x, yEB, bW, bH);
 
   
-}
-
-/* ===== 큰 우측 리본 캔버스 (고정) ===== */
-const ribbonBigCanvas = document.getElementById('ribbonBig');
-function sizeRibbonBigCanvas() {
-  if (!ribbonBigCanvas) return;
-  const dpr = window.devicePixelRatio || 1;
-  const cssW = ribbonBigCanvas.clientWidth || 72;
-  const cssH = ribbonBigCanvas.clientHeight || (window.innerHeight * 0.8);
-  ribbonBigCanvas.width = Math.max(1, Math.round(cssW * dpr));
-  ribbonBigCanvas.height = Math.max(1, Math.round(cssH * dpr));
-}
-addEventListener('resize', sizeRibbonBigCanvas);
-sizeRibbonBigCanvas();
-
-function drawRightRibbon(st){
-  if (!ribbonBigCanvas) return;
-  if (!st) return;
-  const ctxR = ribbonBigCanvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  const w = ribbonBigCanvas.width, h = ribbonBigCanvas.height;
-  ctxR.clearRect(0,0,w,h);
-
-  // 색상/모드 재사용 (일관된 스타일)
-  const isClear = (weatherSelect?.value === "맑음");
-  const ribbonFill = isClear ? "rgba(255,255,255,0.12)" : "rgba(100,100,100,0.10)";
-  const ribbonStroke = isClear ? "rgba(255,255,255,0.35)" : "rgba(100,100,100,0.30)";
-  const centerBarFill = isClear ? "rgba(255,255,255,0.50)" : "rgba(60,60,60,0.90)";
-  const diamondFill = isClear ? "rgba(255,255,255,0.70)" : "#444";
-  const diamondStroke = isClear ? "#FFD500" : "#222";
-
-  // 모바일/데스크톱 보정 (원래와 비슷한 비율 유지)
-  const isMobileLocal = window.innerWidth < 768;
-  const offsetRibbonY = isMobileLocal ? -32 : -12;
-  const offsetCenterY = isMobileLocal ? -14 : -5;
-
-  // 더 크게 보이게 스케일을 키움
-  const scale = 3; // 원하는 만큼 키우세요 (2~4 권장)
-  const ribbonW = Math.min(72 * dpr, 24 * dpr * scale);
-  const ribbonH = h * 0.95;
-  const ribbonX = (w - ribbonW) / 2;
-  const ribbonY = ((h - ribbonH) / 2) + offsetRibbonY * dpr;
-
-  // 배경 박스
-  ctxR.fillStyle = ribbonFill;
-  ctxR.strokeStyle = ribbonStroke;
-  ctxR.lineWidth = 1.5 * dpr;
-  ctxR.beginPath();
-  ctxR.rect(ribbonX, ribbonY, ribbonW, ribbonH);
-  ctxR.fill();
-  ctxR.stroke();
-
-  // 중앙 바
-  const centerY = (ribbonY + ribbonH / 2) + offsetCenterY * dpr;
-  const barH = 12 * dpr * scale;
-  ctxR.fillStyle = centerBarFill;
-  ctxR.fillRect(ribbonX + 2 * dpr, centerY - barH / 2, ribbonW - 4 * dpr, barH);
-
-  // 다이아몬드 위치
-  const rem = Math.min(Math.max(st.remaining_m ?? st.L, -st.L), st.L);
-  const diamondW = 16 * dpr * scale, diamondH = 10 * dpr * scale, dX = ribbonX + ribbonW / 2;
-  const normalized = (rem - (-5)) / (5 - (-5));
-  const dY = ribbonY + (ribbonH * (1 - normalized)) - diamondH / 2;
-  const adjY = Math.min(Math.max(dY, ribbonY - 10 * dpr), ribbonY + ribbonH - diamondH + 10 * dpr);
-
-  ctxR.fillStyle = diamondFill; ctxR.strokeStyle = diamondStroke;
-  ctxR.lineWidth = 2 * dpr;
-  ctxR.beginPath();
-  ctxR.moveTo(dX, adjY - diamondH / 2);
-  ctxR.lineTo(dX + diamondW / 2, adjY);
-  ctxR.lineTo(dX, adjY + diamondH / 2);
-  ctxR.lineTo(dX - diamondW / 2, adjY);
-  ctxR.closePath();
-  ctxR.fill();
-  ctxR.stroke();
 }
 
 /* ===== 전동차/시리즈/편성 ===== */
