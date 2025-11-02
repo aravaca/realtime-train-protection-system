@@ -1125,7 +1125,7 @@ function drawRightRibbon(st){
   // 내부에 작은 반투명 흰색 박스 추가 (너비 동일, 높이만 작음)
   (function(){
     const innerWidth = Math.max(4 * dpr, ribbonW - horizontalPadding * 2); // same width as bar
-    const innerHeight = Math.max(6 * dpr, barH * 0.35); // smaller height
+    const innerHeight = barH * 0.35; // smaller height
     const innerX = ribbonX + horizontalPadding;
     const innerY = centerY - innerHeight / 2;
     ctxR.fillStyle = 'rgba(204, 253, 208, 0.6)';
