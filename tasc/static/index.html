@@ -800,7 +800,10 @@ const isClear = (weatherSelect?.value === "맑음");
   ctx.fillRect(ribbonX + 2 * dpr, centerY - barH / 2, ribbonW - 4 * dpr, barH);
 
   const rem=Math.min(Math.max(st.remaining_m??st.L,-st.L), st.L);
-  const diamondW=16*dpr, diamondH=10*dpr, dX=ribbonX+ribbonW/2;
+  // diamond size tuned relative to ribbon width so it scales well
+  const diamondW = Math.max(8 * dpr, ribbonW * 0.7);
+  const diamondH = diamondW * 0.65;
+  const dX = ribbonX + ribbonW / 2;
   const normalized=(rem-(-5))/(5-(-5));
   const dY=ribbonY+(ribbonH*(1-normalized))-diamondH/2;
   const adjY=Math.min(Math.max(dY, ribbonY-10*dpr), ribbonY+ribbonH-diamondH+10*dpr);
@@ -1062,7 +1065,7 @@ const ribbonBigCanvas = document.getElementById('ribbonBig');
 function sizeRibbonBigCanvas() {
   if (!ribbonBigCanvas) return;
   const dpr = window.devicePixelRatio || 1;
-  const cssW = ribbonBigCanvas.clientWidth || 32;
+  const cssW = ribbonBigCanvas.clientWidth || 72;
   const cssH = ribbonBigCanvas.clientHeight || (window.innerHeight * 0.8);
   ribbonBigCanvas.width = Math.max(1, Math.round(cssW * dpr));
   ribbonBigCanvas.height = Math.max(1, Math.round(cssH * dpr));
@@ -1115,7 +1118,10 @@ function drawRightRibbon(st){
 
   // 다이아몬드 위치
   const rem = Math.min(Math.max(st.remaining_m ?? st.L, -st.L), st.L);
-  const diamondW = 16 * dpr * scale, diamondH = 10 * dpr * scale, dX = ribbonX + ribbonW / 2;
+  // make diamond size proportional to the ribbon width so it stays visually balanced
+  const diamondW = Math.max(12 * dpr, ribbonW * 0.6);
+  const diamondH = diamondW * 0.65;
+  const dX = ribbonX + ribbonW / 2;
   const normalized = (rem - (-5)) / (5 - (-5));
   const dY = ribbonY + (ribbonH * (1 - normalized)) - diamondH / 2;
   const adjY = Math.min(Math.max(dY, ribbonY - 10 * dpr), ribbonY + ribbonH - diamondH + 10 * dpr);
