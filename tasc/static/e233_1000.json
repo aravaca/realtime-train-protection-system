@@ -2,7 +2,7 @@
 "name": "JR EAST E233-1000",
 "mass_t": 39.9,
 "a_max": 0.694,
-"j_max": 0.4,
+"j_max": 0.3,
 "notches": 10,
 "notch_accels": [
 -1.44,
