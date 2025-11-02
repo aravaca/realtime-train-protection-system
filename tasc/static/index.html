@@ -1116,7 +1116,7 @@ function drawRightRibbon(st){
   // 중앙 바
   const centerY = (ribbonY + ribbonH / 2) + offsetCenterY * dpr;
   // Make the center bar larger: increase height and reduce horizontal padding so it appears wider
-  const barHeightBase = 18; // px base at DPR=1 (tweak this to change size)
+  const barHeightBase = 30; // px base at DPR=1 (tweak this to change size)
   const barH = barHeightBase * dpr * scale; // taller than default
   const horizontalPadding = 1 * dpr; // smaller padding -> wider bar
   ctxR.fillStyle = centerBarFill;
