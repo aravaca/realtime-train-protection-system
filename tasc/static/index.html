@@ -385,7 +385,7 @@ const overlay=document.getElementById("overlay"),
       btnStart=document.getElementById("btnStart"),
       canvas=document.getElementById("hud"),
       ctx=canvas.getContext("2d");
-// Optional station melody audio (place file at /static/tokyo_station_melody.mp3)
+// Optional station melody audio 
 let stationMelody = null;
 try{
   stationMelody = new Audio('/static/tokyo_station_melody.mp3');
@@ -393,13 +393,38 @@ try{
   stationMelody.volume = 0.75; // sensible default, user can adjust in browser
 }catch(e){ stationMelody = null; }
 
-function playStationMelody(){
+function playStationMelody(times = 2){
+  // plays the melody exactly `times` times (default 2)
   if (!stationMelody) return;
   try{
+    // remove previous ended handler if present
+    if (stationMelody._endedHandler) {
+      try{ stationMelody.removeEventListener('ended', stationMelody._endedHandler); }catch(e){}
+      stationMelody._endedHandler = null;
+    }
+
+    let remaining = Math.max(0, Math.floor(times));
+    if (remaining === 0) return;
+
+    // one play will start now, so subtract one from remaining plays to schedule
+    remaining -= 1;
+
+    const handler = function(){
+      if (remaining > 0) {
+        remaining -= 1;
+        try{ stationMelody.currentTime = 0; stationMelody.play().catch(()=>{}); }catch(e){}
+      } else {
+        try{ stationMelody.removeEventListener('ended', handler); }catch(e){}
+        stationMelody._endedHandler = null;
+      }
+    };
+
+    stationMelody._endedHandler = handler;
+    stationMelody.addEventListener('ended', handler);
+
     stationMelody.pause();
     stationMelody.currentTime = 0;
     stationMelody.play().catch(err=>{
-      // playback may be blocked; ignore silently
       console.debug('stationMelody play failed:', err);
     });
   }catch(e){ console.debug('playStationMelody error', e); }
@@ -534,7 +559,7 @@ const enabled = document.getElementById("tascToggle").checked;
   overlay.classList.add("hide"); isFinished=false; overlayShowingResult=false;
   btnMobileRestart.classList.add("hide");
   // play station melody on start (if available)
-  try{ playStationMelody(); }catch(e){}
+  try{ playStationMelody(2); }catch(e){}
 }
 btnStart.addEventListener("click", startRun);
 
