@@ -1095,7 +1095,7 @@ function drawRightRibbon(st){
   // Do not draw on mobile (CSS also hides the canvas) to save CPU
   if (isMobileLocal) { ctxR.clearRect(0,0,w,h); return; }
   const offsetRibbonY = isMobileLocal ? -32 : -12;
-  const offsetCenterY = isMobileLocal ? -14 : -7;
+  const offsetCenterY = isMobileLocal ? -14 : -3;
 
   // 더 크게 보이게 스케일을 키움
   const scale = 3; // 원하는 만큼 키우세요 (2~4 권장)
