@@ -385,6 +385,25 @@ const overlay=document.getElementById("overlay"),
       btnStart=document.getElementById("btnStart"),
       canvas=document.getElementById("hud"),
       ctx=canvas.getContext("2d");
+// Optional station melody audio (place file at /static/tokyo_station_melody.mp3)
+let stationMelody = null;
+try{
+  stationMelody = new Audio('/static/tokyo_station_melody.mp3');
+  stationMelody.preload = 'auto';
+  stationMelody.volume = 0.75; // sensible default, user can adjust in browser
+}catch(e){ stationMelody = null; }
+
+function playStationMelody(){
+  if (!stationMelody) return;
+  try{
+    stationMelody.pause();
+    stationMelody.currentTime = 0;
+    stationMelody.play().catch(err=>{
+      // playback may be blocked; ignore silently
+      console.debug('stationMelody play failed:', err);
+    });
+  }catch(e){ console.debug('playStationMelody error', e); }
+}
 const weatherSelect=document.getElementById("weatherSelect"),
       snowflakes=document.querySelector(".snowflakes"),
       raindrops=document.querySelector(".raindrops");
