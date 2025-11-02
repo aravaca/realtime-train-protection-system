@@ -533,6 +533,8 @@ const enabled = document.getElementById("tascToggle").checked;
   }
   overlay.classList.add("hide"); isFinished=false; overlayShowingResult=false;
   btnMobileRestart.classList.add("hide");
+  // play station melody on start (if available)
+  try{ playStationMelody(); }catch(e){}
 }
 btnStart.addEventListener("click", startRun);
 
