@@ -19,8 +19,7 @@ DEBUG = False  # 디버그 로그를 보고 싶으면 True
 # I realized that the soft stop logic does not make sense and makes the simulation less realistic 
 # soft_stop_di = 10.0 
 # soft_stop_const = -0.18
-air_brake_di = 10.0  # km/h 이하에서 공기제동 밸브 지연 반영 시작
-air_brake_ratio = 0.9  # 공기제동 밸브 지연 반영 비율 (0.7~0.8 범위)
+air_brake_vi = 12.0  # km/h 이하에서 공기제동 밸브 지연 반영 시작
 # ------------------------------------------------------------
 # Data classes
 # ------------------------------------------------------------
@@ -453,10 +452,22 @@ class StoppingSim:
 
         # 기본 제동 가속도(음수)
         base = float(self.veh.notch_accels[notch]) # 음수여야 정상(제동)
+    
+        # 저속(<=10 km/h)에서는 마찰/밸브 한계로 제동력이 감소 (0.8~1.0 범위)
+        # 저속에서 제동력 계수 적용 (12->8km/h 구간 선형, 8km/h 이하 0.90, <=3km/h는 0.85)
+        if v_kmh >= air_brake_vi:
+            factor = 1.0
+        elif v_kmh > 8.0:
+            # 12km/h -> 1.0, 8km/h -> 0.95 선형 보간
+            factor = 0.95 + (v_kmh - 8.0) * (1.0 - 0.95) / max(1e-6, (air_brake_vi - 8.0))
+        elif v_kmh > 4.0:
+            factor = 0.90
+        else: # lteq 4.0 km/h
+            factor = 0.85
+            if notch == 1:
+                factor = 0.65  # B1에서는 더 감소
 
-        # 저속(<=10 km/h)에서는 마찰/밸브 한계로 제동력이 감소 (0.7~0.8 범위)
-        if v_kmh <= air_brake_di:
-            base *= air_brake_ratio
+        base *= factor
 
         k_srv = 0.85
         k_eb = 0.98
@@ -804,7 +815,7 @@ class StoppingSim:
 
             # 응답시간(tau_brk)을 저속에서 늘려서 밸브 지연 반영
             v_kmh_local = v * 3.6
-            effective_tau_brk = self.veh.tau_brk * 2.0 if v_kmh_local <= air_brake_di else self.veh.tau_brk
+            effective_tau_brk = self.veh.tau_brk * 2.0 if v_kmh_local <= air_brake_vi else self.veh.tau_brk
 
             a_cmd_filt += (a_target - a_cmd_filt) * (dt / max(1e-6, effective_tau_brk))
 
@@ -988,7 +999,7 @@ class StoppingSim:
 
         # 저속(<=10 km/h)일 때 tau_brk를 2배로 사용하여 공기제동 밸브 지연을 반영
         v_kmh = st.v * 3.6
-        effective_tau_brk = self.veh.tau_brk * 2.0 if v_kmh <= air_brake_di else self.veh.tau_brk
+        effective_tau_brk = self.veh.tau_brk * 2.0 if v_kmh <= air_brake_vi else self.veh.tau_brk
 
         self._a_cmd_filt += (a_target - self._a_cmd_filt) * (dt / max(1e-6, effective_tau_brk))
 
