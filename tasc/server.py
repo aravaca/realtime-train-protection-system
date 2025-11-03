@@ -19,7 +19,8 @@ DEBUG = False  # 디버그 로그를 보고 싶으면 True
 # I realized that the soft stop logic does not make sense and makes the simulation less realistic 
 # soft_stop_di = 10.0 
 # soft_stop_const = -0.18
-air_brake_di = 7.0  # km/h 이하에서 공기제동 밸브 지연 반영 시작
+air_brake_di = 10.0  # km/h 이하에서 공기제동 밸브 지연 반영 시작
+air_brake_ratio = 0.9  # 공기제동 밸브 지연 반영 비율 (0.7~0.8 범위)
 # ------------------------------------------------------------
 # Data classes
 # ------------------------------------------------------------
@@ -455,7 +456,7 @@ class StoppingSim:
 
         # 저속(<=10 km/h)에서는 마찰/밸브 한계로 제동력이 감소 (0.7~0.8 범위)
         if v_kmh <= air_brake_di:
-            base *= 0.8
+            base *= air_brake_ratio
 
         k_srv = 0.85
         k_eb = 0.98
