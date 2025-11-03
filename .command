@@ -1,5 +1,5 @@
 git add .
-git commit -m "start weather update"
+git commit -m "add key instruction"
 git push
 
 pip install fastapi uvicorn[standard]
