@@ -1,5 +1,5 @@
 git add .
-git commit -m "air brk update"
+git commit -m "start weather update"
 git push
 
 pip install fastapi uvicorn[standard]
