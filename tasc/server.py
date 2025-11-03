@@ -460,12 +460,12 @@ class StoppingSim:
         elif v_kmh > 8.0:
             # 12km/h -> 1.0, 8km/h -> 0.95 선형 보간
             factor = 0.95 + (v_kmh - 8.0) * (1.0 - 0.95) / max(1e-6, (air_brake_vi - 8.0))
-        elif v_kmh > 4.0:
+        elif v_kmh > 5.0:
             factor = 0.90
-        else: # lteq 4.0 km/h
+        else: # lteq 5.0 km/h
             factor = 0.85
             if notch == 1:
-                factor = 0.65  # B1에서는 더 감소
+                factor = 0.70  # B1에서는 더 감소. 시험해본 결과 0.7정도가 적당한 것 같음...
 
         base *= factor
 
@@ -810,14 +810,20 @@ class StoppingSim:
             #     a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
 
             ### NEW NEW NEW
+            # if notch == 1 or rem_pred <= 0.0:
+            #     a_target = min(a_target, 0.0)
+
+            # # 응답시간(tau_brk)을 저속에서 늘려서 밸브 지연 반영
+            # v_kmh_local = v * 3.6
+            # effective_tau_brk = self.veh.tau_brk * 1.5 if v_kmh_local <= air_brake_vi else self.veh.tau_brk
+
+            # a_cmd_filt += (a_target - a_cmd_filt) * (dt / max(1e-6, effective_tau_brk))
+            ### NEW NEW NEW
+
             if notch == 1 or rem_pred <= 0.0:
                 a_target = min(a_target, 0.0)
 
-            # 응답시간(tau_brk)을 저속에서 늘려서 밸브 지연 반영
-            v_kmh_local = v * 3.6
-            effective_tau_brk = self.veh.tau_brk * 2.0 if v_kmh_local <= air_brake_vi else self.veh.tau_brk
-
-            a_cmd_filt += (a_target - a_cmd_filt) * (dt / max(1e-6, effective_tau_brk))
+            a_cmd_filt += (a_target - a_cmd_filt) * (dt / max(1e-6, self.veh.tau_brk))
 
             max_da = self.veh.j_max * dt
             v_kmh = v * 3.6
@@ -994,14 +1000,20 @@ class StoppingSim:
         #     a_target = (1.0 - w_soft) * a_target + w_soft * a_soft
         
         ### NEW NEW NEW 
+        # if st.lever_notch >= 1:
+        #     a_target = min(a_target, 0.0)
+
+        # # 저속(<=10 km/h)일 때 tau_brk를 2배로 사용하여 공기제동 밸브 지연을 반영
+        # v_kmh = st.v * 3.6
+        # effective_tau_brk = self.veh.tau_brk * 1.5 if v_kmh <= air_brake_vi else self.veh.tau_brk
+
+        # self._a_cmd_filt += (a_target - self._a_cmd_filt) * (dt / max(1e-6, effective_tau_brk))
+        ### NEW NEW NEW 
+
         if st.lever_notch >= 1:
             a_target = min(a_target, 0.0)
 
-        # 저속(<=10 km/h)일 때 tau_brk를 2배로 사용하여 공기제동 밸브 지연을 반영
-        v_kmh = st.v * 3.6
-        effective_tau_brk = self.veh.tau_brk * 2.0 if v_kmh <= air_brake_vi else self.veh.tau_brk
-
-        self._a_cmd_filt += (a_target - self._a_cmd_filt) * (dt / max(1e-6, effective_tau_brk))
+        self._a_cmd_filt += (a_target - self._a_cmd_filt) * (dt / max(1e-6, self.veh.tau_brk))        
 
         max_da = self.veh.j_max * dt
         if v_kmh <= 5.0:
