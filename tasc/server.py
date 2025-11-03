@@ -465,7 +465,7 @@ class StoppingSim:
         else: # lteq 5.0 km/h
             factor = 0.85
             if notch == 1:
-                factor = 0.70  # B1에서는 더 감소. 시험해본 결과 0.7정도가 적당한 것 같음...
+                factor = 0.70  # B1에서는 더 감소. 시험해본 결과 0.7정도가 적당한 것 같음... 0.65~75 사이 시험해보삼
 
         base *= factor
 
