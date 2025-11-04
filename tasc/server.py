@@ -20,6 +20,8 @@ DEBUG = False  # 디버그 로그를 보고 싶으면 True
 # soft_stop_di = 10.0 
 # soft_stop_const = -0.18
 air_brake_vi = 12.0  # km/h 이하에서 공기제동 밸브 지연 반영 시작
+test_notch = 5  # TASC 릴렉스 시도 시점에 비교할 목표 노치
+test_margin = 2.0  # TASC 릴렉스 시도 시점에 비교할 거리 마진 (m)
 # ------------------------------------------------------------
 # Data classes
 # ------------------------------------------------------------
@@ -209,10 +211,10 @@ class StoppingSim:
         self.prev_a = 0.0
         self.jerk_history: List[float] = []
 
-        # ---------- TASC ----------
+        # ---------- TASC ----------``
         self.tasc_enabled = True
         self.manual_override = False
-        self.tasc_deadband_m = 0.05
+        self.tasc_deadband_m = 0.05 #0.05
         self.tasc_hold_min_s = 0.05
         self._tasc_last_change_t = 0.0
         self._tasc_phase = "build"  # "build" → "relax"
@@ -220,6 +222,10 @@ class StoppingSim:
         # 대기/활성 상태
         self.tasc_armed = False
         self.tasc_active = False
+
+        self.tasc_relax_margin_m = test_margin
+        # 직전 단계 변경 후 추가로 요구할 최소 홀드시간 (초)
+        self.tasc_relax_hold_s = 0
 
         # μ-저항 분리: rr_factor는 항상 1.0로 고정(μ와 무관)
         self.rr_factor = 1.0
@@ -455,25 +461,24 @@ class StoppingSim:
     
         # 저속(<=10 km/h)에서는 마찰/밸브 한계로 제동력이 감소 (0.8~1.0 범위)
         # 저속에서 제동력 계수 적용 (12->8km/h 구간 선형, 8km/h 이하 0.90, <=3km/h는 0.85)
+        # 기본 factor 계산
         if v_kmh >= air_brake_vi:
             factor = 1.0
         elif v_kmh > 8.0:
-            # 12km/h -> 1.0, 8km/h -> 0.95 선형 보간
-            factor = 0.95 + (v_kmh - 8.0) * (1.0 - 0.95) / max(1e-6, (air_brake_vi - 8.0))
+            # 8~air_brake_vi km/h 사이 선형 보간 (8→0.95, air_brake_vi→1.0)
+            factor = 0.95 + (v_kmh - 8.0) * 0.05 / max(1e-6, (air_brake_vi - 8.0))
         elif v_kmh > 5.0:
             factor = 0.90
-        else: # lteq 5.0 km/h
-            factor = 0.85
-            if notch == 1:
-                factor = 0.70  # B1에서는 더 감소. 시험해본 결과 0.7정도가 적당한 것 같음... 0.65~75 사이 시험해보삼
-        
-        if notch == 1: # B1 특별 처리
-            if base * factor <= -0.14:
-                base *= factor
-            else:
-                base = -0.14 # 최소 제동력 한계
         else:
-            base *= factor 
+            # 5km/h 이하
+            factor = 0.80 if notch == 1 else 0.90  # B1은 특별히 더 낮게
+
+        # base 보정
+        if notch == 1 and v_kmh <= 5.0:
+            base = min(base * factor, -0.15)  # 지나친 미끄럼 방지 위해 최소 제동력을 -0.15로 클램핑
+        else:
+            base *= factor
+
 
         k_srv = 0.85
         k_eb = 0.98
@@ -796,7 +801,7 @@ class StoppingSim:
 
             # E233계열은 회생제동 우선 제어 방식을 사용하며, 속도 약 7~10 km/h 이하에서 회생제동이 실질적으로 사라집니다.
 
-            # 이때 공기제동이 완전히 takeover 되는데,
+            # 이때 공기제동이 완전히 takeover
             # 공기압 밸브 제어에 따른 지연이 필연적으로 존재합니다.
             # 일반적으로 응답상수 τ ≈ 0.5초 내외로 알려져 있습니다.
 
@@ -974,11 +979,26 @@ class StoppingSim:
                         else:
                             self._tasc_phase = "relax"
                     if self._tasc_phase == "relax" and not changed:
-                        if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
-                            if dwell_ok:
-                                st.lever_notch = self._clamp_notch(cur - 1)
-                                self._tasc_last_change_t = st.t
-
+                        # if cur > 1 and s_dn <= (rem_now + self.tasc_deadband_m):
+                        #     if dwell_ok:
+                        #         st.lever_notch = self._clamp_notch(cur - 1)
+                        #         self._tasc_last_change_t = st.t
+                        if cur > 1:
+                            target_notch = cur - 1
+                            # 변경: "릴렉스되어 내려갈 목표 노치(target_notch)가 4 이상"일 때만 마진/홀드를 적용
+                            # (즉, 5→4, 6→5 처럼 결과가 여전히 4 이상인 경우에만 지연)
+                            if cur >= test_notch:
+                                # 더 보수적으로 완화하려면 추가 마진 요구
+                                relax_allowed = (s_dn <= (rem_now + self.tasc_deadband_m - self.tasc_relax_margin_m))
+                                time_since_change = st.t - self._tasc_last_change_t
+                                if relax_allowed and dwell_ok and (time_since_change >= self.tasc_relax_hold_s):
+                                    st.lever_notch = self._clamp_notch(target_notch)
+                                    self._tasc_last_change_t = st.t
+                            else:
+                                # 목표 노치가 3 이하(3,2,1 등)면 기존 즉시 완화 규칙 유지
+                                if s_dn <= (rem_now + self.tasc_deadband_m) and dwell_ok:
+                                    st.lever_notch = self._clamp_notch(target_notch)
+                                    self._tasc_last_change_t = st.t
         # ---------- Dynamics ----------
 
                 
@@ -1307,7 +1327,7 @@ async def ws_endpoint(ws: WebSocket):
                         # ▼ 서버 측 이중 방어(클램프) — 프론트와 동일
                         v_kmh_raw = float(speed)
                         L_raw = float(dist)
-                        v_kmh = max(40.0,  min(130.0, v_kmh_raw))
+                        v_kmh = max(40.0,  min(300.0, v_kmh_raw))
                         L_m   = max(150.0, min(900.0,  L_raw))
 
                         sim.scn.v0 = v_kmh / 3.6

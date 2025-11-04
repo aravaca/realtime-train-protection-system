@@ -250,10 +250,10 @@ body{overflow-x:hidden;overflow-y:auto}
 
     <!-- ✅ 속도/거리 입력 범위 갱신: 속도 40~130, 거리 150~900 -->
     <label class="form-label"><span id="labelInitSpeed">초기 속도 (km/h)</span>
-      <input id="inputSpeed" type="number" value="40" min="40" max="130" step="1" class="form-input">
+      <input id="inputSpeed" type="number" value="80" min="40" max="300" step="1" class="form-input">
     </label>
     <label class="form-label"><span id="labelInitDist">거리 (m)</span>
-      <input id="inputDist" type="number" value="150" min="150" max="900" step="1" class="form-input">
+      <input id="inputDist" type="number" value="400" min="150" max="900" step="1" class="form-input">
     </label>
     <label class="form-label"><span id="labelGradeInput">경사도 (‰)</span>
       <input id="inputGrade" type="number" value="0.0" min="-10" max="10" step="0.1" class="form-input">
@@ -475,7 +475,7 @@ function enforceInt(el,min,max){ el.addEventListener('input',()=>{ el.value=el.v
 function enforceFloat(el,min,max,d=1){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^0-9.\-]/g,'');}); el.addEventListener('change',()=>{let v=parseFloat(el.value); if(isNaN(v)){el.value='';return;} v=clamp(v,min,max); el.value=v.toFixed(d);});}
 
 /* ✅ 범위 갱신: 속도 40~130 / 거리 150~900 */
-enforceInt(inputSpeed,40,130);
+enforceInt(inputSpeed,40,300);
 enforceInt(inputDist,150,900);
 enforceInt(inputLoadRate,0,120);
 enforceFloat(inputGrade,-10,10,1);
