@@ -466,8 +466,14 @@ class StoppingSim:
             factor = 0.85
             if notch == 1:
                 factor = 0.70  # B1에서는 더 감소. 시험해본 결과 0.7정도가 적당한 것 같음... 0.65~75 사이 시험해보삼
-
-        base *= factor
+        
+        if notch == 1: # B1 특별 처리
+            if base * factor <= -0.14:
+                base *= factor
+            else:
+                base = -0.14 # 최소 제동력 한계
+        else:
+            base *= factor 
 
         k_srv = 0.85
         k_eb = 0.98
