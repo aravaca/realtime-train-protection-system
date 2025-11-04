@@ -250,10 +250,10 @@ body{overflow-x:hidden;overflow-y:auto}
 
     <!-- ✅ 속도/거리 입력 범위 갱신: 속도 40~130, 거리 150~900 -->
     <label class="form-label"><span id="labelInitSpeed">초기 속도 (km/h)</span>
-      <input id="inputSpeed" type="number" value="80" min="40" max="300" step="1" class="form-input">
+      <input id="inputSpeed" type="number" value="60" min="40" max="300" step="1" class="form-input">
     </label>
     <label class="form-label"><span id="labelInitDist">거리 (m)</span>
-      <input id="inputDist" type="number" value="400" min="150" max="900" step="1" class="form-input">
+      <input id="inputDist" type="number" value="250" min="150" max="900" step="1" class="form-input">
     </label>
     <label class="form-label"><span id="labelGradeInput">경사도 (‰)</span>
       <input id="inputGrade" type="number" value="0.0" min="-10" max="10" step="0.1" class="form-input">
@@ -261,7 +261,7 @@ body{overflow-x:hidden;overflow-y:auto}
 
     <label class="form-label"><span id="labelWeather">날씨</span>
       <select id="weatherSelect" class="form-input">
-        <option value="눈옴">강설/빙판</option><option value="맑음">맑음</option><option value="비옴">우천</option>
+        <option value="맑음">맑음</option><option value="눈옴">강설/빙판</option><option value="비옴">우천</option>
       </select>
     </label>
     <label class="form-label"><span id="labelLoadRate">승객 탑승률 (%)</span>

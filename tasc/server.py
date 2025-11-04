@@ -20,8 +20,8 @@ DEBUG = False  # 디버그 로그를 보고 싶으면 True
 # soft_stop_di = 10.0 
 # soft_stop_const = -0.18
 air_brake_vi = 12.0  # km/h 이하에서 공기제동 밸브 지연 반영 시작
-test_notch = 5  # TASC 릴렉스 시도 시점에 비교할 목표 노치
-test_margin = 2.0  # TASC 릴렉스 시도 시점에 비교할 거리 마진 (m)
+test_notch = 3  # TASC 릴렉스 시도 시점에 비교할 목표 노치
+test_margin = 0  # TASC 릴렉스 시도 시점에 비교할 거리 마진 (m)
 # ------------------------------------------------------------
 # Data classes
 # ------------------------------------------------------------
@@ -305,6 +305,22 @@ class StoppingSim:
         # 입력 보정 기록(클라이언트에 안내용)
         self.last_input_sanitized = {}
 
+    def _tasc_relax_margin_for_notch(self, notch: int) -> float:
+        """
+        노치에 따라 동적으로 릴렉스 마진을 반환.
+        기본 매핑:
+          notch >= 5 -> 10.0 m
+          notch >= 4 -> 5.0  m
+          notch >= 2 -> 0.5  m
+        그 외는 기존 기본값(self.tasc_relax_margin_m)을 사용.
+        """
+        if notch >= 6:
+            return 7.0 #10.0
+        if notch >= 5:
+            return 4.0
+        if notch >= 4:
+            return 2.0
+        return float(self.tasc_relax_margin_m)
     # ----------------- Timer helpers -----------------
 
     def set_timer_calibration(self, points: List[dict],
@@ -471,11 +487,11 @@ class StoppingSim:
             factor = 0.90
         else:
             # 5km/h 이하
-            factor = 0.80 if notch == 1 else 0.90  # B1은 특별히 더 낮게
+            factor = 0.75 if notch == 1 else 0.85  # B1은 특별히 더 낮게, 0.75혹은 0.8이 딱 좋다..
 
         # base 보정
         if notch == 1 and v_kmh <= 5.0:
-            base = min(base * factor, -0.15)  # 지나친 미끄럼 방지 위해 최소 제동력을 -0.15로 클램핑
+            base = min(base * factor, -0.125)  # 지나친 미끄럼 방지 위해 최소 제동력을 -0.125로 클램핑
         else:
             base *= factor
 
@@ -989,7 +1005,8 @@ class StoppingSim:
                             # (즉, 5→4, 6→5 처럼 결과가 여전히 4 이상인 경우에만 지연)
                             if cur >= test_notch:
                                 # 더 보수적으로 완화하려면 추가 마진 요구
-                                relax_allowed = (s_dn <= (rem_now + self.tasc_deadband_m - self.tasc_relax_margin_m))
+                                margin = self._tasc_relax_margin_for_notch(cur)
+                                relax_allowed = (s_dn <= (rem_now + self.tasc_deadband_m - margin))
                                 time_since_change = st.t - self._tasc_last_change_t
                                 if relax_allowed and dwell_ok and (time_since_change >= self.tasc_relax_hold_s):
                                     st.lever_notch = self._clamp_notch(target_notch)
