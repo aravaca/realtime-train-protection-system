@@ -411,15 +411,28 @@ tascToggle.addEventListener("change", () => {
 /* ===== 날씨 이펙트 ===== */
 const snowflakesContainer=document.querySelector('.snowflakes');
 function generateSnowflake(){
-  const s=document.createElement('div');
-  s.style.animationDelay=(Math.random()*2)+'s';
-  s.style.animationDuration=(Math.random()*5+5)+'s';
-  s.style.left=Math.floor(Math.random()*101)+'%';
-  s.style.position='absolute';s.style.top='-10px';s.style.width='10px';s.style.height='10px';s.style.backgroundColor='rgba(255,255,255,.8)';s.style.borderRadius='50%';
+  // avoid creating snowflakes when not visible or disabled to reduce DOM churn
+  if (!snowflakesContainer) return;
+  if (snowflakesContainer.style.display !== 'block') return;
+  if (document.visibilityState !== 'visible') return;
+  // cap active flakes to avoid unbounded DOM growth
+  if (snowflakesContainer.children.length > 30) return;
+
+  const s = document.createElement('div');
+  s.style.animationDelay = (Math.random() * 2) + 's';
+  s.style.animationDuration = (Math.random() * 5 + 5) + 's';
+  s.style.left = Math.floor(Math.random() * 101) + '%';
+  s.style.position = 'absolute';
+  s.style.top = '-10px';
+  s.style.width = '10px';
+  s.style.height = '10px';
+  s.style.backgroundColor = 'rgba(255,255,255,.8)';
+  s.style.borderRadius = '50%';
   snowflakesContainer.appendChild(s);
-  setTimeout(()=>snowflakesContainer.removeChild(s),7000);
+  setTimeout(() => { try { if (s.parentNode) snowflakesContainer.removeChild(s); } catch (e) {} }, 7000);
 }
-setInterval(generateSnowflake,200);
+// throttle snow generation to reduce CPU/DOM pressure
+setInterval(generateSnowflake, 400);
 
 /* ===== Haptics (모바일) ===== */
 const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -494,10 +507,20 @@ const overlay=document.getElementById("overlay"),
   const camera = new THREE.PerspectiveCamera(58, initialW / initialH, 0.1, 2000);
 
 
-  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+  // const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+  const renderer = new THREE.WebGLRenderer({
+  antialias: false, // 저사양에서 큰 효과
+  alpha: false,
+  depth: true,
+  stencil: false, // 스텐실 끄기
+  powerPreference: "high-performance", // 고성능 GPU 우선
+  failIfMajorPerformanceCaveat: false
+});
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1));
   mount.appendChild(renderer.domElement);
+  // runtime-adjustable target DPR for the auto-scaler (initialized to current setting)
+  let targetDPR = renderer.getPixelRatio();
 
   function resize(){
     // match renderer/camera to the mount element's actual layout size so the 3D view fills it
@@ -537,8 +560,32 @@ const overlay=document.getElementById("overlay"),
   scene.add(dir);
 
   // renderer: 섀도우 사용
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = false;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// 간단한 동적 스케일러
+let lastFpsCheck = performance.now();
+let frames = 0;
+
+function autoScaleDPR() {
+  frames++;
+  const now = performance.now();
+  if (now - lastFpsCheck >= 1000) {
+    const fps = frames * 1000 / (now - lastFpsCheck);
+    // 목표 60fps 근처 유지: 낮으면 해상도 살짝 내리고, 높으면 올림
+    if (fps < 50 && targetDPR > 0.75) {
+      targetDPR = Math.max(0.75, targetDPR - 0.05);
+      renderer.setPixelRatio(targetDPR);
+      resize();
+    } else if (fps > 62 && targetDPR < 1.0) {
+      targetDPR = Math.min(1.0, targetDPR + 0.05);
+      renderer.setPixelRatio(targetDPR);
+      resize();
+    }
+    frames = 0;
+    lastFpsCheck = now;
+  }
+}
 
   // --- 텍스처 로더 ---
   const texLoader = new THREE.TextureLoader();
@@ -666,47 +713,47 @@ function createTrackCanvasTexture() {
   const platLine = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
   platLine.position.set(+1.55, platH + 0.105, platZ - platformLen/2);
   platLine.receiveShadow = false; platLine.castShadow = false; scene.add(platLine);
+ // 우측 플랫폼 
+  // const platR = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
+  // platR.position.set(-2.4, platH,platZ - platformLen/2);
+  // platR.receiveShadow = false; platR.castShadow = false; scene.add(platR);
 
-  const platR = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
-  platR.position.set(-2.4, platH,platZ - platformLen/2);
-  platR.receiveShadow = false; platR.castShadow = false; scene.add(platR);
-
-  const platLineR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
-  platLineR.position.set(-1.55, platH + 0.105, platZ - platformLen/2);
-  platLineR.receiveShadow = false; platLineR.castShadow = false; scene.add(platLineR);
+  // const platLineR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
+  // platLineR.position.set(-1.55, platH + 0.105, platZ - platformLen/2);
+  // platLineR.receiveShadow = false; platLineR.castShadow = false; scene.add(platLineR);
 
   // --- 플랫폼 기둥 및 지붕 추가 (간단한 구조로 분위기 향상) ---
-  (function addPlatformRoof(){
-    const pillarMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness:0.2, roughness:0.6 });
-    const roofMat = new THREE.MeshStandardMaterial({ color: 0xf1f3f6, metalness:0.05, roughness:0.8 });
-    const pillarGeo = new THREE.BoxGeometry(0.3, 5, 0.3);
-    const roofGeo = new THREE.BoxGeometry(platW*2.5, 0.12, platformLen + 4);
+//   (function addPlatformRoof(){
+//     const pillarMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness:0.2, roughness:0.6 });
+//     const roofMat = new THREE.MeshStandardMaterial({ color: 0xf1f3f6, metalness:0.05, roughness:0.8 });
+//     const pillarGeo = new THREE.BoxGeometry(0.3, 5, 0.3);
+//     const roofGeo = new THREE.BoxGeometry(platW*2.5, 0.12, platformLen + 4);
 
-    const startZ = platZ - 2;
-    const endZ = platZ - platformLen + 2;
-    const spacing = 20.0; // m 사이 간격
-    for (let z = startZ; z > endZ; z -= spacing){
-      // 왼쪽 기둥
-      const pL = new THREE.Mesh(pillarGeo, pillarMat);
-      pL.position.set(2.7, 2.5, z);
-      pL.castShadow = false; pL.receiveShadow = false;
-      scene.add(pL);
-      // 오른쪽 기둥
-      const pR = new THREE.Mesh(pillarGeo, pillarMat);
-      pR.position.set(-2.7, 2.5, z);
-      pR.castShadow = false; pR.receiveShadow = false;
-      scene.add(pR);
-    }
+//     const startZ = platZ - 2;
+//     const endZ = platZ - platformLen + 2;
+//     const spacing = 20.0; // m 사이 간격
+//     for (let z = startZ; z > endZ; z -= spacing){
+//       // 왼쪽 기둥
+//       const pL = new THREE.Mesh(pillarGeo, pillarMat);
+//       pL.position.set(2.7, 2.5, z);
+//       pL.castShadow = false; pL.receiveShadow = false;
+//       scene.add(pL);
+//       // 오른쪽 기둥
+//       const pR = new THREE.Mesh(pillarGeo, pillarMat);
+//       pR.position.set(-2.7, 2.5, z);
+//       pR.castShadow = false; pR.receiveShadow = false;
+//       scene.add(pR);
+//     }
 
-    // long roof spanning the platform
-    const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.set(0, platH + 3.5, platZ - platformLen/2);
-    roof.castShadow = false; roof.receiveShadow = false;
-    scene.add(roof);
-  })();
+//     // long roof spanning the platform
+//     const roof = new THREE.Mesh(roofGeo, roofMat);
+//     roof.position.set(0, platH + 3.5, platZ - platformLen/2);
+//     roof.castShadow = false; roof.receiveShadow = false;
+//     scene.add(roof);
+//   })();
 
-const ambient = new THREE.AmbientLight(0xffffff, 0.05);
-scene.add(ambient);
+// const ambient = new THREE.AmbientLight(0xffffff, 0.05);
+// scene.add(ambient);
 
   // === Red signs on platform every 50m up to 200m ===
 const signDistances = [0, 50, 100, 150, 200];
@@ -824,9 +871,16 @@ signDistances.forEach(d => {
     if (modeSel?.value === 'on'){
   // 진행감: 자갈/트랙 텍스처 스크롤(매 프레임 반복수 변경)
   const rem = Number(window.st?.remaining_m ?? 0);
-  try{ ballastDiff.offset.y = (rem * 10) % 1; }catch(e){}
-  try{ ballastNorm.offset.y = (rem * 10) % 1; }catch(e){}
-  try{ if(typeof trackTex !== 'undefined') trackTex.offset.y = (rem * 0.02) % 1; }catch(e){}
+  // only update texture offsets if the textures exist (avoid per-frame exceptions)
+  if (typeof ballastDiff !== 'undefined' && ballastDiff && ballastDiff.offset) {
+    ballastDiff.offset.y = (rem * 10) % 1;
+  }
+  if (typeof ballastNorm !== 'undefined' && ballastNorm && ballastNorm.offset) {
+    ballastNorm.offset.y = (rem * 10) % 1;
+  }
+  if (typeof trackTex !== 'undefined' && trackTex && trackTex.offset) {
+    trackTex.offset.y = (rem * 0.02) % 1;
+  }
       syncCameraFromState();
       // Make platform signs face the camera (billboard) so driver sees them
       try{
@@ -845,6 +899,8 @@ signDistances.forEach(d => {
       }catch(e){ /* non-fatal */ }
 
       renderer.render(scene, camera);
+      // lightweight DPR autoscaler: periodically adjust renderer pixel ratio based on observed FPS
+      try { autoScaleDPR(); } catch (e) { /* non-fatal */ }
     }
     requestAnimationFrame(tick);
   }
