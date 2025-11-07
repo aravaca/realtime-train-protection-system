@@ -281,8 +281,8 @@ body{overflow-x:hidden;overflow-y:auto}
     <!-- BEGIN PATCH: Overlay - Sync Mode Selector (label 변경만) -->
 <label class="form-label"><span>Graphic</span>
   <select id="syncMode" class="form-input">
-    <option value="on" selected>ACTIVATE</option>
-    <option value="off" >DEACTIVATE</option>
+    <option value="on" selected>Enable (Recommended for PC Only)</option>
+    <option value="off" >Disable</option>
   </select>
 </label>
 <!-- END PATCH -->
@@ -298,10 +298,10 @@ body{overflow-x:hidden;overflow-y:auto}
         <option value="JRW285">285계</option>
         <option value="JRW323">323계</option>
         <option value="JR103">103계</option>
-        <option value="EF510">EF510형 전기기관차 + E26계 객차</option>
         <option value="K3000">케이세이 3000계</option>
         <option value="T5300">도쿄도 교통국 5300계</option> -->
         <option value="N700S">신칸센 N700S계</option> 
+        <option value="EF510">EF510형 전기기관차 + E26계 객차</option>
       </select>
     </label>
     <label class="form-label"><span id="labelSeries">시리즈</span>
@@ -857,13 +857,17 @@ signDistances.forEach(d => {
   // --- 남은거리→카메라/오브젝트 동기 ---
   // 디자인: 카메라 z_world = 200 - remaining_m
   // 플랫폼/레일/자갈은 세계 고정. 카메라만 이동 -> 1인칭 주행.
-  function syncCameraFromState(){
-    const rem = Number(window.st?.remaining_m ?? 0);
-    const y = 2.8; // 눈높이 기관사 눈높이
-    const z = 200 - rem;
-    camera.position.set(0, y, z);
-    camera.lookAt(0, y + 0.1, z + 4.0); // 살짝 
-  }
+function syncCameraFromState() {
+  const rem = Number(window.st?.remaining_m ?? 0);
+  
+  // train_name에 'n700s'가 포함되어 있으면 높이를 3.5로
+  const trainName = window.st?.train_name ?? '';
+  const y = trainName.toLowerCase().includes('n700s') || trainName.toLowerCase().includes('e26') ? 3.1 : 2.8; // 대소문자 무시
+  
+  const z = 200 - rem;
+  camera.position.set(0, y, z);
+  camera.lookAt(0, y + 0.1, z + 4.0); // 살짝 위쪽을 바라봄
+}
 
   // --- 루프 ---
   let lastRAF = 0;
