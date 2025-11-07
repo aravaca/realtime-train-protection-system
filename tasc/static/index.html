@@ -553,37 +553,28 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 1000, 1, 1), groundMat
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = 0.0;
 ground.position.z = 200;
-ground.receiveShadow = true;
+ground.receiveShadow = false;
 ground.castShadow = false;
 scene.add(ground);
 
   // --- 트랙 텍스처(침목+레일을 하나의 텍스처로 합쳐서 처리) ---
-  function createTrackCanvasTexture(){
-    // create a tall canvas where vertical axis maps to track length repeat
-    const tileW = 1024, tileH = 256; // one tile: across sleepers+rails
-    const cvs = document.createElement('canvas'); cvs.width = tileW; cvs.height = tileH;
-    const c = cvs.getContext('2d');
+function createTrackCanvasTexture() {
+  const tileW = 1024, tileH = 256;
+  const cvs = document.createElement('canvas'); 
+  cvs.width = tileW; 
+  cvs.height = tileH;
+  const c = cvs.getContext('2d');
 
-    // background: ballast-ish
-    c.fillStyle = '#6b6b5f';
-    c.fillRect(0,0,tileW,tileH);
+  // background: ballast-ish
+  c.fillStyle = '#6b6b5f';
+  c.fillRect(0, 0, tileW, tileH);
 
-    // draw repeated sleepers across width
-    const sleeperH = 44; // thickness in pixels
-    const gap = 120; // distance between sleepers
-    c.fillStyle = '#6b432b'; // wood base
-    for (let x = -gap; x < tileW + gap; x += gap) {
-      // wood grain rectangle with small noise
-      c.save();
-      const jitter = (Math.random()-0.5)*8;
-      c.translate(x + jitter, tileH*0.5);
-      c.fillRect(0, -sleeperH/2, gap*0.9, sleeperH);
-      // add darker streaks
-      c.fillStyle = 'rgba(0,0,0,0.08)';
-      c.fillRect(4, -sleeperH/2+4, gap*0.5, 4);
-      c.fillStyle = '#6b432b';
-      c.restore();
-    }
+  // (침목 제거됨)
+  // 여기서 sleepers 관련 루프를 완전히 삭제함
+
+  // optional: 레일 그리기 (있다면 아래 추가)
+  // c.fillStyle = '#bbb';
+  // c.fillRect(...)
 
     // draw two metallic rails centered
     const railCenterX = tileW/2;
@@ -626,19 +617,19 @@ scene.add(ground);
   track.rotation.x = -Math.PI/2;
   track.position.y = 0.01;
   track.position.z = 200;
-  track.receiveShadow = true;
+  track.receiveShadow = false;
   scene.add(track);
 
   // rails (thin metallic extrusions) on top of the track plane for specular highlights and correct shading
-  const railMat = new THREE.MeshStandardMaterial({ color:0xaaaeb0, metalness:0.95, roughness:0.28 });
+  const railMat = new THREE.MeshStandardMaterial({ color:0xe0e5e5, metalness:0.95, roughness:0.28 });
   const railH = 0.14, railW = 0.065, railLen = 1000;
   const railGeo = new THREE.BoxGeometry(railW, railH, railLen);
   const railL = new THREE.Mesh(railGeo, railMat);
   const railR = new THREE.Mesh(railGeo, railMat);
   railL.position.set(-0.535, railH/2 + 0.01, 200);
   railR.position.set( 0.535, railH/2 + 0.01, 200);
-  railL.castShadow = true; railL.receiveShadow = false;
-  railR.castShadow = true; railR.receiveShadow = false;
+  railL.castShadow = false; railL.receiveShadow = false;
+  railR.castShadow = false; railR.receiveShadow = false;
   scene.add(railL, railR);
 
 //   // --- 침목(InstancedMesh) ---
@@ -669,20 +660,20 @@ scene.add(ground);
 
   const plat = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
   plat.position.set(+2.4, platH, platZ - platformLen/2);
-  plat.receiveShadow = true; plat.castShadow = false;
+  plat.receiveShadow = false; plat.castShadow = false;
   scene.add(plat);
 
   const platLine = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
   platLine.position.set(+1.55, platH + 0.105, platZ - platformLen/2);
-  platLine.receiveShadow = true; platLine.castShadow = false; scene.add(platLine);
+  platLine.receiveShadow = false; platLine.castShadow = false; scene.add(platLine);
 
   const platR = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
   platR.position.set(-2.4, platH,platZ - platformLen/2);
-  platR.receiveShadow = true; platR.castShadow = false; scene.add(platR);
+  platR.receiveShadow = false; platR.castShadow = false; scene.add(platR);
 
   const platLineR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
   platLineR.position.set(-1.55, platH + 0.105, platZ - platformLen/2);
-  platLineR.receiveShadow = true; platLineR.castShadow = false; scene.add(platLineR);
+  platLineR.receiveShadow = false; platLineR.castShadow = false; scene.add(platLineR);
 
   // --- 플랫폼 기둥 및 지붕 추가 (간단한 구조로 분위기 향상) ---
   (function addPlatformRoof(){
@@ -698,24 +689,27 @@ scene.add(ground);
       // 왼쪽 기둥
       const pL = new THREE.Mesh(pillarGeo, pillarMat);
       pL.position.set(2.7, 2.5, z);
-      pL.castShadow = true; pL.receiveShadow = false;
+      pL.castShadow = false; pL.receiveShadow = false;
       scene.add(pL);
       // 오른쪽 기둥
       const pR = new THREE.Mesh(pillarGeo, pillarMat);
       pR.position.set(-2.7, 2.5, z);
-      pR.castShadow = true; pR.receiveShadow = false;
+      pR.castShadow = false; pR.receiveShadow = false;
       scene.add(pR);
     }
 
     // long roof spanning the platform
     const roof = new THREE.Mesh(roofGeo, roofMat);
     roof.position.set(0, platH + 3.5, platZ - platformLen/2);
-    roof.castShadow = true; roof.receiveShadow = true;
+    roof.castShadow = false; roof.receiveShadow = false;
     scene.add(roof);
   })();
 
+const ambient = new THREE.AmbientLight(0xffffff, 0.05);
+scene.add(ambient);
+
   // === Red signs on platform every 50m up to 200m ===
-const signDistances = [0, 10, 50, 100, 150, 200];
+const signDistances = [0, 50, 100, 150, 200];
 
 // 기둥(폴)과 보드(판넬) 재질/형상
 const poleMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.6, metalness: 0.2 });
