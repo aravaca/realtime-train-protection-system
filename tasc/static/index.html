@@ -156,7 +156,57 @@ body{overflow-x:hidden;overflow-y:auto}
 </head>
 <body>
 <canvas id="ribbonBig" style="position:fixed; right:0; top:0; bottom:0; width:27px; height:100vh; pointer-events:none; z-index:10002; display:flex; align-items:right; justify-content:center;"></canvas>
+<!-- BEGIN PATCH: Cab 3D Card -->
+<style>
+/* Make the cab card tighter so the 3D view fills it with minimal padding */
+#cabCard {
+  padding: 2px 4px !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+  min-width: 0;
+  align-items: stretch;
+  /* display: fle/; Flex/ox layout to stretch the child */
+}
 
+#cabCard > #cab3d {
+  width: 50% !important;  /* Use full width of the parent */
+  margin: 0 !important;
+  padding: 0 !important;
+  aspect-ratio: 16/9 !important;
+  border-radius: 6px !important;
+  box-sizing: border-box !important;
+  display: block;
+}
+
+/* Slightly different spacing on very small screens */
+@media (max-width: 480px) {
+  #cabCard { padding: 4px !important; }
+  #cabCard > #cab3d { border-radius: 4px !important; }
+}
+</style>
+
+<script>
+/* Defensive runtime enforcement to override any inline width:50% */
+(function(){
+  const cab = document.getElementById('cab3d');
+  const cabCard = document.getElementById('cabCard');
+  if (cabCard) cabCard.style.padding = '2px 4px';
+  if (cab) {
+    cab.style.width = '100%';  /* Ensure 3D view takes up full available width */
+    cab.style.margin = '0';
+    cab.style.padding = '0';
+    cab.style.boxSizing = 'border-box';
+  }
+})();
+</script>
+<div class="card" id="cabCard" style="flex:0 1 auto;" align="center">
+  <div id="cab3d" style="background:#000;border-radius:8px;overflow:hidden"></div>
+  <div class="hint" style="font-size:12px;color:#9fc5ff;margin-top:6px">
+    <!-- 200m 지점부터 50m 간격으로 참고 표지판이 설치되어 있습니다. -->
+  </div>
+</div>
+
+<!-- END PATCH: Cab 3D Card -->
 <div id="wrap" class="row" style="flex-direction:column">
   <div class="row" style="gap:16px;flex-wrap:wrap">
 
@@ -167,6 +217,7 @@ body{overflow-x:hidden;overflow-y:auto}
     </div> -->
 
 <div class="card" style="flex:1 1 260px; position: relative">
+    
   <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal;" class="stat">차량 로딩 중...</div>
 
 <div class="line">
@@ -222,10 +273,19 @@ body{overflow-x:hidden;overflow-y:auto}
 
     <!-- TASC -->
     <div class="tasc-toggle">
-      <input type="checkbox" id="tascToggle" checked />
+      <input type="checkbox" id="tascToggle" unchecked />
       <label for="tascToggle" class="slider"></label>
       <span class="tasc-label" id="labelTASC" style="font-weight:700">TASC</span>
     </div>
+
+    <!-- BEGIN PATCH: Overlay - Sync Mode Selector (label 변경만) -->
+<label class="form-label"><span>Graphic (Beta)</span>
+  <select id="syncMode" class="form-input">
+    <option value="on" selected>ACTIVATE</option>
+    <option value="off" >DEACTIVATE</option>
+  </select>
+</label>
+<!-- END PATCH -->
 
     <!-- 전동차 / 시리즈 -->
     <label class="form-label"><span id="labelTrain">전동차</span>
@@ -288,11 +348,14 @@ body{overflow-x:hidden;overflow-y:auto}
   </div>
 </div>
 
+
 <!-- 재시작 FAB -->
 <button id="btnMobileRestart" class="fab hide" type="button">재시작</button>
 
-<script>
 
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
+<script>
 
 /* ===== WebSocket & TASC ===== */
 const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
@@ -386,50 +449,528 @@ const overlay=document.getElementById("overlay"),
       btnStart=document.getElementById("btnStart"),
       canvas=document.getElementById("hud"),
       ctx=canvas.getContext("2d");
+
+(() => {
+  const mount = document.getElementById('cab3d');
+  const modeSel = document.getElementById('syncMode');
+  const cabCard = document.getElementById('cabCard');
+
+  // ON/OFF → 3D 표시/숨김
+  function applyCabToggle(){
+    const on = (modeSel?.value === 'on');
+    cabCard.style.display = on ? 'block' : 'none';
+  }
+  modeSel?.addEventListener('change', applyCabToggle);
+  applyCabToggle();
+
+  // --- Three.js 기본 ---
+  const scene = new THREE.Scene(); // background will be a canvas gradient for natural sky
+  // create a canvas gradient sky and use as scene background texture
+  (function(){
+    const cw = 1024, ch = 512;
+    const cvs = document.createElement('canvas'); cvs.width = cw; cvs.height = ch;
+    const cx = cvs.getContext('2d');
+    // sky gradient: light near horizon, deep blue above
+    const g = cx.createLinearGradient(0,0,0,ch);
+    g.addColorStop(0, '#7fb7ff');
+    g.addColorStop(0.5, '#9dd1ff');
+    g.addColorStop(1, '#16304a');
+    cx.fillStyle = g;
+    cx.fillRect(0,0,cw,ch);
+    // subtle sun glow
+    const sx = Math.floor(cw*0.85), sy = Math.floor(ch*0.18);
+    const rg = cx.createRadialGradient(sx, sy, 10, sx, sy, 220);
+    rg.addColorStop(0, 'rgba(255,250,220,0.85)');
+    rg.addColorStop(0.2, 'rgba(255,240,200,0.25)');
+    rg.addColorStop(1, 'rgba(255,240,200,0)');
+    cx.fillStyle = rg; cx.fillRect(0,0,cw,ch);
+    const skyTex = new THREE.CanvasTexture(cvs);
+    skyTex.encoding = THREE.sRGBEncoding;
+    scene.background = skyTex;
+  })();
+  // use actual mount size for correct aspect ratio so canvas fills its container
+  const initialW = mount.clientWidth || Math.max(800, window.innerWidth);
+  const initialH = mount.clientHeight || Math.max(450, Math.round(initialW * 9/16));
+  const camera = new THREE.PerspectiveCamera(58, initialW / initialH, 0.1, 2000);
+
+
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  mount.appendChild(renderer.domElement);
+
+  function resize(){
+    // match renderer/camera to the mount element's actual layout size so the 3D view fills it
+    const w = Math.max(16, mount.clientWidth || window.innerWidth);
+    const h = Math.max(16, mount.clientHeight || Math.round(w * 9/16));
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
+    // ensure DOM canvas uses full container size (avoid CSS pixel mismatch)
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+  }
+  addEventListener('resize', resize);
+  // also observe mount size changes in case layout changes without window resize
+  const ro = new ResizeObserver(()=> resize());
+  ro.observe(mount);
+  resize();
+
+  // --- 라이트: 자연광 + 소프트 섀도우 (햇빛 느낌) ---
+  // hemisphere: 하늘/지면 색상으로 전체 fill을 부드럽게 해줌
+  const hemi = new THREE.HemisphereLight(0xbfdfff, 0x403020, 0.9);
+  scene.add(hemi);
+
+  // directional: 태양광. 섀도우를 활성화해서 현실감을 높인다.
+  const dir = new THREE.DirectionalLight(0xfff6e6, 1.0);
+  dir.position.set(6, 20, 10);
+  dir.castShadow = true;
+  dir.shadow.mapSize.width = 2048;
+  dir.shadow.mapSize.height = 2048;
+  dir.shadow.camera.left = -40;
+  dir.shadow.camera.right = 40;
+  dir.shadow.camera.top = 40;
+  dir.shadow.camera.bottom = -40;
+  dir.shadow.camera.near = 1;
+  dir.shadow.camera.far = 200;
+  dir.shadow.radius = 4;
+  scene.add(dir);
+
+  // renderer: 섀도우 사용
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  // --- 텍스처 로더 ---
+  const texLoader = new THREE.TextureLoader();
+
+  // 텍스처 경로 (파일 준비 권장)
+  // ballast: 자갈, sleeper: 침목, rail: 강철
+  const TX = {
+    ballast: '/static/textures/ballast_diff.jpg', // 자갈 알베도
+    ballast_n: '/static/textures/ballast_norm.jpg', // 자갈 노멀
+    sleeper: '/static/textures/sleeper_diff.jpg',
+    rail: '/static/textures/rail_diff.jpg',
+  };
+
+  function loadTex(url, opts={}){
+    const t = texLoader.load(url, (tx)=>{
+      tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+      if (opts.aniso) tx.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      if (opts.repeat) tx.repeat.set(opts.repeat.x, opts.repeat.y);
+    });
+    return t;
+  }
+
+  // --- 지반(자갈) ---
+  const ballastDiff = loadTex(TX.ballast, {aniso:true, repeat:{x:4, y:40}});
+  const ballastNorm = loadTex(TX.ballast_n, {aniso:true, repeat:{x:4, y:40}});
+  // const groundMat = new THREE.MeshStandardMaterial({
+  //   map: ballastDiff,
+  //   normalMap: ballastNorm,
+  //   roughness: 0.9,
+  //   metalness: 0.1,
+  //   color: 0xf0f0f0
+  // });
+  const groundMat = new THREE.MeshStandardMaterial({
+    map: ballastDiff,
+    normalMap: ballastNorm,
+    color: 0xb0b0b0,
+    roughness: 0.9,
+    metalness: 0.1
+  });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 1000, 1, 1), groundMat);
+  ground.rotation.x = -Math.PI/2;
+  ground.position.y = 0.0;
+  ground.position.z = 200; // 카메라가 -z에서 +z로 달려갈 구조
+  ground.receiveShadow = true;
+  ground.castShadow = false;
+  scene.add(ground);
+
+  // --- 트랙 텍스처(침목+레일을 하나의 텍스처로 합쳐서 처리) ---
+  function createTrackCanvasTexture(){
+    // create a tall canvas where vertical axis maps to track length repeat
+    const tileW = 1024, tileH = 256; // one tile: across sleepers+rails
+    const cvs = document.createElement('canvas'); cvs.width = tileW; cvs.height = tileH;
+    const c = cvs.getContext('2d');
+
+    // background: ballast-ish
+    c.fillStyle = '#6b6b5f';
+    c.fillRect(0,0,tileW,tileH);
+
+    // draw repeated sleepers across width
+    const sleeperH = 44; // thickness in pixels
+    const gap = 120; // distance between sleepers
+    c.fillStyle = '#6b432b'; // wood base
+    for (let x = -gap; x < tileW + gap; x += gap) {
+      // wood grain rectangle with small noise
+      c.save();
+      const jitter = (Math.random()-0.5)*8;
+      c.translate(x + jitter, tileH*0.5);
+      c.fillRect(0, -sleeperH/2, gap*0.9, sleeperH);
+      // add darker streaks
+      c.fillStyle = 'rgba(0,0,0,0.08)';
+      c.fillRect(4, -sleeperH/2+4, gap*0.5, 4);
+      c.fillStyle = '#6b432b';
+      c.restore();
+    }
+
+    // draw two metallic rails centered
+    const railCenterX = tileW/2;
+    const railOffset = 120; // pixel offset from center
+    function drawRail(cx){
+      // base dark strip
+      c.fillStyle = '#2a2a2a';
+      c.fillRect(cx-6, tileH*0.2, 12, tileH*0.6);
+      // highlight
+      const grad = c.createLinearGradient(cx-6,0,cx+6,0);
+      grad.addColorStop(0, 'rgba(255,255,255,0.10)');
+      grad.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+      grad.addColorStop(1, 'rgba(255,255,255,0.10)');
+      c.fillStyle = grad;
+      c.fillRect(cx-2, tileH*0.25, 4, tileH*0.5);
+    }
+    drawRail(railCenterX - railOffset);
+    drawRail(railCenterX + railOffset);
+
+    // subtle grime overlay
+    c.fillStyle = 'rgba(10,10,12,0.05)';
+    c.fillRect(0,0,tileW,tileH);
+
+    const tex = new THREE.CanvasTexture(cvs);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(1, 40);
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    tex.encoding = THREE.sRGBEncoding;
+    return tex;
+  }
+
+  const trackTex = createTrackCanvasTexture();
+
+  // track plane: a narrow strip representing sleepers+ballast; rails will still have metallic highlights
+  const trackMat = new THREE.MeshStandardMaterial({ map: trackTex, roughness: 0.85, metalness: 0.05 });
+  const trackWidth = 3.0;
+  const trackLen = 1000;
+  const trackGeo = new THREE.PlaneGeometry(trackWidth, trackLen, 1, 1);
+  const track = new THREE.Mesh(trackGeo, trackMat);
+  track.rotation.x = -Math.PI/2;
+  track.position.y = 0.01;
+  track.position.z = 200;
+  track.receiveShadow = true;
+  scene.add(track);
+
+  // rails (thin metallic extrusions) on top of the track plane for specular highlights and correct shading
+  const railMat = new THREE.MeshStandardMaterial({ color:0xaaaeb0, metalness:0.95, roughness:0.28 });
+  const railH = 0.14, railW = 0.065, railLen = 1000;
+  const railGeo = new THREE.BoxGeometry(railW, railH, railLen);
+  const railL = new THREE.Mesh(railGeo, railMat);
+  const railR = new THREE.Mesh(railGeo, railMat);
+  railL.position.set(-0.535, railH/2 + 0.01, 200);
+  railR.position.set( 0.535, railH/2 + 0.01, 200);
+  railL.castShadow = true; railL.receiveShadow = false;
+  railR.castShadow = true; railR.receiveShadow = false;
+  scene.add(railL, railR);
+
+//   // --- 침목(InstancedMesh) ---
+//   const sleeperMat = new THREE.MeshStandardMaterial({
+//     map: loadTex(TX.sleeper, {aniso:true, repeat:{x:1, y:1}}),
+//     roughness: 0.9, metalness: 0.0
+//   });
+//   const sleeperGeo = new THREE.BoxGeometry(2.0, 0.08, 0.22); // 길이x높이x두께(가시적)
+//   const sleeperCount = 2000; // 0.5~0.6m 간격으로 400m
+//   const sleepers = new THREE.InstancedMesh(sleeperGeo, sleeperMat, sleeperCount);
+//   sleepers.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+//   scene.add(sleepers);
+//   const pitch = 0.65;
+//   for (let i=0;i<sleeperCount;i++){
+//   const z = 200 - i*pitch; // z ∈ [200, 200-1000]
+//   if (z < -300) break; // -300m까지만 배치하면 충분
+//   const m = new THREE.Matrix4().makeTranslation(0, 0.02, z);
+//   sleepers.setMatrixAt(i, m);
+// }
+
+  // --- 플랫폼 (정차벽 기준 -platformLen ~ 0m, 오른쪽에 배치) ---
+  const platformLen = 210; // m 플랫폼 길이
+  const platH = 1.13; // 플랫폼 높이
+  const platW = 3.0; // 폭
+  const platZ = 0 + 200; // 세계좌표 보정(ground/rail과 일치)
+  const platMatTop = new THREE.MeshStandardMaterial({ color: 0xd8dbe1, roughness:0.95, metalness:0.0 });
+  const platMatEdge= new THREE.MeshStandardMaterial({ color: 0xf0d060, roughness:0.6, metalness:0.0 }); // 노란 라인
+
+  const plat = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
+  plat.position.set(+2.4, platH, platZ - platformLen/2);
+  plat.receiveShadow = true; plat.castShadow = false;
+  scene.add(plat);
+
+  const platLine = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
+  platLine.position.set(+1.55, platH + 0.105, platZ - platformLen/2);
+  platLine.receiveShadow = true; platLine.castShadow = false; scene.add(platLine);
+
+  const platR = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
+  platR.position.set(-2.4, platH,platZ - platformLen/2);
+  platR.receiveShadow = true; platR.castShadow = false; scene.add(platR);
+
+  const platLineR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
+  platLineR.position.set(-1.55, platH + 0.105, platZ - platformLen/2);
+  platLineR.receiveShadow = true; platLineR.castShadow = false; scene.add(platLineR);
+
+  // --- 플랫폼 기둥 및 지붕 추가 (간단한 구조로 분위기 향상) ---
+  (function addPlatformRoof(){
+    const pillarMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness:0.2, roughness:0.6 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0xf1f3f6, metalness:0.05, roughness:0.8 });
+    const pillarGeo = new THREE.BoxGeometry(0.3, 5, 0.3);
+    const roofGeo = new THREE.BoxGeometry(platW*2.5, 0.12, platformLen + 4);
+
+    const startZ = platZ - 2;
+    const endZ = platZ - platformLen + 2;
+    const spacing = 10.0; // m 사이 간격
+    for (let z = startZ; z > endZ; z -= spacing){
+      // 왼쪽 기둥
+      const pL = new THREE.Mesh(pillarGeo, pillarMat);
+      pL.position.set(2.7, 2.5, z);
+      pL.castShadow = true; pL.receiveShadow = false;
+      scene.add(pL);
+      // 오른쪽 기둥
+      const pR = new THREE.Mesh(pillarGeo, pillarMat);
+      pR.position.set(-2.7, 2.5, z);
+      pR.castShadow = true; pR.receiveShadow = false;
+      scene.add(pR);
+    }
+
+    // long roof spanning the platform
+    const roof = new THREE.Mesh(roofGeo, roofMat);
+    roof.position.set(0, platH + 3.5, platZ - platformLen/2);
+    roof.castShadow = true; roof.receiveShadow = true;
+    scene.add(roof);
+  })();
+// // --- 주변 도시 건물 (도쿄역 주변) ---
+// (function addBuildings() {
+//   const buildingCount = 10; // 👈 20 → 10 으로 절반
+//   const texLoader = new THREE.TextureLoader();
+
+//   // 사용할 텍스처 (1~2개만)
+//   const facadeList = [
+//     '/static/textures/facade.jpg',
+//     '/static/textures/facade2.jpg'
+//   ];
+
+//   const facades = facadeList.map(url => {
+//     const tex = texLoader.load(url);
+//     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+//     tex.encoding = THREE.sRGBEncoding;
+//     tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+//     return tex;
+//   });
+
+//   // 공용 재질 (Lambert → 훨씬 가벼움)
+//   const materials = facades.map(tex => new THREE.MeshLambertMaterial({ map: tex }));
+
+//   for (let i = 0; i < buildingCount; i++) {
+//     // 건물 크기 랜덤 (조금만 다양화)
+//     const bw = 8 + Math.random() * 10;
+//     const bd = 10 + Math.random() * 15;
+//     const bh = 20 + Math.random() * 10; // 👈 높이 낮춤 (GPU 부하↓)
+
+//     // 한 번 생성한 박스 재사용
+//     const box = new THREE.BoxGeometry(bw, bh, bd);
+
+//     const mat = materials[Math.floor(Math.random() * materials.length)];
+//     mat.map.repeat.set(bw / 15, bh / 20);
+
+//     const mesh = new THREE.Mesh(box, mat);
+//     mesh.castShadow = false; // 👈 그림자 제거로 큰 성능 향상
+//     mesh.receiveShadow = false;
+
+//     // 거리 간격도 넓혀서 밀도↓
+//     const side = (i % 2 === 0) ? 1 : -1;
+//     const x = side * (10 + Math.random() * 5);
+//     const z = 400 - i * (35 + Math.random() * 10);
+//     mesh.position.set(x, bh / 2, z);
+
+//     scene.add(mesh);
+//   }
+// })();
+
+  // === Red signs on platform every 50m up to 200m ===
+const signDistances = [0, 10, 50, 100, 150, 200];
+
+// 기둥(폴)과 보드(판넬) 재질/형상
+const poleMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.6, metalness: 0.2 });
+
+const poleGeo = new THREE.BoxGeometry(0.06, 1.2, 0.06); // w,h,d
+
+// Helper: create a circular sign texture with large distance text (e.g., "150m")
+function createDistanceSignTexture(distanceMeters){
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const size = 512; // base size
+  const width = size * dpr;
+  const height = size * dpr;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  // clear
+  ctx.clearRect(0, 0, width, height);
+
+  // circle background (red)
+  ctx.fillStyle = '#aa0000';
+  ctx.beginPath();
+  ctx.arc(width/2, height/2, Math.min(width, height) * 0.45, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // stroke edge
+  ctx.lineWidth = Math.max(2, Math.floor(4 * dpr));
+  ctx.strokeStyle = '#550000';
+  ctx.stroke();
+
+  // text (white, large)
+  const text = `${distanceMeters}`;
+  // choose font size to occupy most of the circle
+  const fontSize = Math.floor(Math.min(width, height) * 0.28);
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // slight black shadow for contrast
+  ctx.shadowColor = 'rgba(0,0,0,0.45)';
+  ctx.shadowBlur = Math.max(4, Math.floor(6 * dpr));
+  ctx.fillText(text, width/2, height/2 + Math.floor(fontSize*0.03));
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.encoding = THREE.sRGBEncoding;
+  tex.needsUpdate = true;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
+}
+
+// Collect sign meshes so we can make them face the camera (billboard)
+const platformSignMeshes = [];
+const platformSignRings = [];
+
+signDistances.forEach(d => {
+  const z = 200 - d; // 정차벽(0m)이 z=200 → -d만큼 뒤
+  if (z < -300) return; // 안전 차단
+
+  // 폴(기둥)
+  const pole = new THREE.Mesh(poleGeo, poleMat);
+  pole.position.set(+2.1, platH + 0.1, z); // 플랫폼 위에서 0.6m 올라온 기둥 중심
+  scene.add(pole);
+
+  // 원형 표지판: 캔버스로 텍스트를 그려 텍스처로 사용
+  const tex = createDistanceSignTexture(d);
+  const signMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
+  const signRadius = 0.55; // 미터 단위 반지름 — 화면에서 큼직하게 보이도록
+  const signGeo = new THREE.CircleGeometry(signRadius, 64);
+  const sign = new THREE.Mesh(signGeo, signMat);
+  // do not fix rotation here — we'll billboard it to the camera in the render loop
+  sign.position.set(+2.1, platH + 1.25, z);
+  scene.add(sign);
+
+  // 얇은 테두리 링을 추가해 시각적 강조
+  const ringGeo = new THREE.RingGeometry(signRadius * 0.88, signRadius * 0.99, 64);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x770000 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.copy(sign.position);
+  scene.add(ring);
+
+  // keep references for billboard updates
+  platformSignMeshes.push(sign);
+  platformSignRings.push(ring);
+});
+
+  // --- 정차벽(0m, 반투명 초록) ---
+  const wallMat = new THREE.MeshBasicMaterial({ color: 0xaa0000, transparent:true, opacity:0.28 });
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3), wallMat);
+  wall.position.set(0, 2.0, 200); // z=200이 ‘정차 0m’
+  scene.add(wall);
+  const wallEdge = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3), new THREE.MeshBasicMaterial({ color:0xff0000, wireframe:true, transparent:true, opacity:0.65 }));
+  wallEdge.position.copy(wall.position);
+  scene.add(wallEdge);
+
+  // --- 남은거리→카메라/오브젝트 동기 ---
+  // 디자인: 카메라 z_world = 200 - remaining_m
+  // 플랫폼/레일/자갈은 세계 고정. 카메라만 이동 -> 1인칭 주행.
+  function syncCameraFromState(){
+    const rem = Number(window.st?.remaining_m ?? 0);
+    const y = 2.8; // 눈높이 기관사 눈높이
+    const z = 200 - rem;
+    camera.position.set(0, y, z);
+    camera.lookAt(0, y + 0.1, z + 4.0); // 살짝 
+  }
+
+  // --- 루프 ---
+  let lastRAF = 0;
+  function tick(t){
+    if (modeSel?.value === 'on'){
+  // 진행감: 자갈/트랙 텍스처 스크롤(매 프레임 반복수 변경)
+  const rem = Number(window.st?.remaining_m ?? 0);
+  try{ ballastDiff.offset.y = (rem * 0.02) % 1; }catch(e){}
+  try{ ballastNorm.offset.y = (rem * 0.02) % 1; }catch(e){}
+  try{ if(typeof trackTex !== 'undefined') trackTex.offset.y = (rem * 0.02) % 1; }catch(e){}
+      syncCameraFromState();
+      // Make platform signs face the camera (billboard) so driver sees them
+      try{
+        if (Array.isArray(platformSignMeshes) && platformSignMeshes.length){
+          for (let i=0;i<platformSignMeshes.length;i++){
+            const m = platformSignMeshes[i];
+            if (m && m.lookAt) m.lookAt(camera.position);
+          }
+        }
+        if (Array.isArray(platformSignRings) && platformSignRings.length){
+          for (let i=0;i<platformSignRings.length;i++){
+            const r = platformSignRings[i];
+            if (r && r.lookAt) r.lookAt(camera.position);
+          }
+        }
+      }catch(e){ /* non-fatal */ }
+
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
 // Optional station melody audio 
 let stationMelody = null;
-try{
-  stationMelody = new Audio('/static/tokyo_station_melody.mp3');
+try {
+  stationMelody = new Audio('/static/tokyo_st_announcement.mp3');
   stationMelody.preload = 'auto';
-  stationMelody.volume = 0.75; // sensible default, user can adjust in browser
-}catch(e){ stationMelody = null; }
+  stationMelody.volume = 0.75;
+} catch (e) {
+  stationMelody = null;
+}
 
-function playStationMelody(times = 2){
-  // plays the melody exactly `times` times (default 2)
+function playStationMelody() {
   if (!stationMelody) return;
-  try{
-    // remove previous ended handler if present
+  try {
+    // 항상 완전 초기화
+    stationMelody.pause();
+    stationMelody.currentTime = 0;
+
+    // 반복 방지: autoplay 속성이나 loop 끄기
+    stationMelody.loop = false;
+
+    // 기존 핸들러 제거
     if (stationMelody._endedHandler) {
-      try{ stationMelody.removeEventListener('ended', stationMelody._endedHandler); }catch(e){}
+      try {
+        stationMelody.removeEventListener('ended', stationMelody._endedHandler);
+      } catch (e) {}
       stationMelody._endedHandler = null;
     }
 
-    let remaining = Math.max(0, Math.floor(times));
-    if (remaining === 0) return;
-
-    // one play will start now, so subtract one from remaining plays to schedule
-    remaining -= 1;
-
-    const handler = function(){
-      if (remaining > 0) {
-        remaining -= 1;
-        try{ stationMelody.currentTime = 0; stationMelody.play().catch(()=>{}); }catch(e){}
-      } else {
-        try{ stationMelody.removeEventListener('ended', handler); }catch(e){}
-        stationMelody._endedHandler = null;
-      }
-    };
-
-    stationMelody._endedHandler = handler;
-    stationMelody.addEventListener('ended', handler);
-
-    stationMelody.pause();
-    stationMelody.currentTime = 0;
-    stationMelody.play().catch(err=>{
+    // 안전하게 한 번만 재생
+    stationMelody.play().catch(err => {
       console.debug('stationMelody play failed:', err);
     });
-  }catch(e){ console.debug('playStationMelody error', e); }
+  } catch (e) {
+    console.debug('playStationMelody error', e);
+  }
 }
+
+
 const weatherSelect=document.getElementById("weatherSelect"),
       snowflakes=document.querySelector(".snowflakes"),
       raindrops=document.querySelector(".raindrops");
