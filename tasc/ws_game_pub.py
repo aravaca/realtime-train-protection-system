@@ -3,6 +3,8 @@ import json
 import asyncio
 import time
 import os
+import pandas as pd
+import numpy as np
 
 from dataclasses import dataclass
 from collections import deque
@@ -212,7 +214,7 @@ class StoppingSim:
         self.jerk_history: List[float] = []
 
         # ---------- TASC ----------``
-        self.tasc_enabled = False
+        self.tasc_enabled = True
         self.manual_override = False
         self.tasc_deadband_m = 0.05 #0.05
         self.tasc_hold_min_s = 0.05
@@ -478,23 +480,24 @@ class StoppingSim:
         # 저속(<=10 km/h)에서는 마찰/밸브 한계로 제동력이 감소 (0.8~1.0 범위)
         # 저속에서 제동력 계수 적용 (12->8km/h 구간 선형, 8km/h 이하 0.90, <=3km/h는 0.85)
         # 기본 factor 계산
-        # if v_kmh >= air_brake_vi:
-        #     factor = 1.0
-        # elif v_kmh > 8.0:
-        #     # 8~air_brake_vi km/h 사이 선형 보간 (8→0.95, air_brake_vi→1.0)
-        #     factor = 0.95 + (v_kmh - 8.0) * 0.05 / max(1e-6, (air_brake_vi - 8.0))
-        # elif v_kmh > 5.0:
-        #     factor = 0.95
-        # else:
-        #     # 5km/h 이하
-        #     factor = 1.0 if notch == 1 else 0.90  # B1은 특별히 더 낮게, 0.75혹은 0.8이 딱 좋다..
+        if v_kmh >= air_brake_vi:
+            factor = 1.0
+        elif v_kmh > 8.0:
+            # 8~air_brake_vi km/h 사이 선형 보간 (8→0.95, air_brake_vi→1.0)
+            factor = 0.95 + (v_kmh - 8.0) * 0.05 / max(1e-6, (air_brake_vi - 8.0))
+        elif v_kmh > 5.0:
+            factor = 0.90
+        else:
+            # 5km/h 이하
+            factor = 1.2 if notch == 1 else 1  # B1은 특별히 더 낮게, 0.75혹은 0.8이 딱 좋다..
 
-        # # base 보정
+        # base 보정
         # if notch == 1 and v_kmh <= 5.0:
         #     base = min(base * factor, -0.125)  # 지나친 미끄럼 방지 위해 최소 제동력을 -0.125로 클램핑
         # else:
         #     base *= factor
-        # base *= factor
+        base *=factor
+
 
         k_srv = 0.85
         k_eb = 0.98
@@ -1258,6 +1261,7 @@ class StoppingSim:
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
+KEYFRAMES_PATH = os.path.join(BASE_DIR, "graphic", "arr_tokyo_cleaned.csv")
 
 app = FastAPI()
 
@@ -1268,12 +1272,89 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 async def root():
     return HTMLResponse(open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8").read())
 
+# BEGIN PATCH: /api/keyframes returns rem too
+@app.get("/api/keyframes")
+async def api_keyframes():
+    try:
+        s, t, total, rem = load_keyframes_csv(KEYFRAMES_PATH)
+        payload = {"s": s, "t": t, "total_distance": total}
+        if rem is not None:
+            payload["rem"] = rem
+        return payload
+    except Exception as e:
+        return {"error": str(e)}
+# END PATCH
+
+
 from fastapi.responses import FileResponse
 
 @app.get("/favicon.ico")
 async def favicon():
     return FileResponse(os.path.join(STATIC_DIR, "favicon.ico"))
 
+
+# BEGIN PATCH: keyframes loader
+def _pick_column(df, candidates):
+    lower = {c.lower(): c for c in df.columns}
+    for name in candidates:
+        if name.lower() in lower:
+            return lower[name.lower()]
+    return None
+# BEGIN PATCH: load_keyframes_csv with rem export
+def load_keyframes_csv(path: str):
+    import pandas as pd, numpy as np, os
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Keyframes CSV not found: {path}")
+
+    df = pd.read_csv(path)
+
+    def _pick(df, names):
+        lower = {c.lower(): c for c in df.columns}
+        for n in names:
+            if n.lower() in lower:
+                return lower[n.lower()]
+        return None
+
+    # 시간
+    t_col = _pick(df, ["video_time_sec"])
+    if t_col is None:
+        raise ValueError("영상 시간 컬럼(video_time_sec 등)을 찾을 수 없습니다.")
+
+    # s 또는 rem
+    s_col = _pick(df, ["s_travelled_m"])
+    rem_col = _pick(df, ["remaining_distance_m"])
+
+    df[t_col] = pd.to_numeric(df[t_col], errors="coerce")
+    if s_col: df[s_col] = pd.to_numeric(df[s_col], errors="coerce")
+    if rem_col: df[rem_col] = pd.to_numeric(df[rem_col], errors="coerce")
+
+    # s 없으면 rem으로 s 계산
+    if not s_col:
+        if not rem_col:
+            raise ValueError("s_travelled_m 또는 remaining_distance_m 컬럼이 없습니다.")
+        total = float(np.nanmax(df[rem_col].to_numpy()))
+        df["s_travelled_m"] = total - df[rem_col]
+        s_col = "s_travelled_m"
+
+    # 클린 & 정렬
+    df = df.dropna(subset=[t_col, s_col])
+    df = df.sort_values(s_col)
+
+    s = df[s_col].to_numpy()
+    t = df[t_col].to_numpy()
+    s = np.maximum.accumulate(s) # s 단조화
+    total_distance = float(s.max()) if len(s) else 0.0
+
+    # rem은 선택적으로 함께 제공(있으면 사용)
+    rem = None
+    if rem_col and rem_col in df.columns:
+        # rem은 대개 감소 방향이므로, t와 1:1로 쓰기 위해 s 정렬 순서에 맞춰 재정렬
+        rem_series = df[rem_col].to_numpy()
+        # df가 s로 정렬된 상태이므로 동일 순서
+        rem = rem_series.astype(float)
+
+    return s.tolist(), t.tolist(), total_distance, (rem.tolist() if rem is not None else None)
+# END PATCH
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):

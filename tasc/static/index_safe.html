@@ -80,6 +80,10 @@ button:hover,.btn-primary:hover{background:linear-gradient(135deg,#0072ff,#00c6f
 @keyframes rain{0%{transform:translateY(-20px)}100%{transform:translateY(100vh)}}
 body{overflow-x:hidden;overflow-y:auto}
 @media (max-width:768px){html,body{height:100%}body{-webkit-overflow-scrolling:touch}#wrap{padding-bottom:96px}canvas#hud{height:42vh}}
+/* Hide large right ribbon on mobile for space and performance */
+@media (max-width:768px){
+  #ribbonBig{display:none !important}
+}
 /* 재시작 FAB – 최상단, 클릭 확실하게 */
 .fab{
   position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:12px 18px;font-weight:700;border-radius:999px;
@@ -151,6 +155,58 @@ body{overflow-x:hidden;overflow-y:auto}
 </style>
 </head>
 <body>
+<canvas id="ribbonBig" style="position:fixed; right:0; top:0; bottom:0; width:27px; height:100vh; pointer-events:none; z-index:10002; display:flex; align-items:right; justify-content:center;"></canvas>
+<!-- BEGIN PATCH: Cab 3D Card -->
+<style>
+/* Make the cab card tighter so the 3D view fills it with minimal padding */
+#cabCard {
+  padding: 2px 4px !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+  min-width: 0;
+  align-items: stretch;
+  /* display: fle/; Flex/ox layout to stretch the child */
+}
+
+#cabCard > #cab3d {
+  width: 50% !important;  /* Use full width of the parent */
+  margin: 0 !important;
+  padding: 0 !important;
+  aspect-ratio: 16/9 !important;
+  border-radius: 6px !important;
+  box-sizing: border-box !important;
+  display: block;
+}
+
+/* Slightly different spacing on very small screens */
+@media (max-width: 480px) {
+  #cabCard { padding: 4px !important; }
+  #cabCard > #cab3d { border-radius: 4px !important; }
+}
+</style>
+
+<script>
+/* Defensive runtime enforcement to override any inline width:50% */
+(function(){
+  const cab = document.getElementById('cab3d');
+  const cabCard = document.getElementById('cabCard');
+  if (cabCard) cabCard.style.padding = '2px 4px';
+  if (cab) {
+    cab.style.width = '100%';  /* Ensure 3D view takes up full available width */
+    cab.style.margin = '0';
+    cab.style.padding = '0';
+    cab.style.boxSizing = 'border-box';
+  }
+})();
+</script>
+<div class="card" id="cabCard" style="flex:0 1 auto;" align="center">
+  <div id="cab3d" style="background:#000;border-radius:8px;overflow:hidden"></div>
+  <div class="hint" style="font-size:12px;color:#9fc5ff;margin-top:6px">
+    <!-- 200m 지점부터 50m 간격으로 참고 표지판이 설치되어 있습니다. -->
+  </div>
+</div>
+
+<!-- END PATCH: Cab 3D Card -->
 <div id="wrap" class="row" style="flex-direction:column">
   <div class="row" style="gap:16px;flex-wrap:wrap">
 
@@ -161,6 +217,7 @@ body{overflow-x:hidden;overflow-y:auto}
     </div> -->
 
 <div class="card" style="flex:1 1 260px; position: relative">
+    
   <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal;" class="stat">차량 로딩 중...</div>
 
 <div class="line">
@@ -187,14 +244,16 @@ body{overflow-x:hidden;overflow-y:auto}
   <span class="stat value" id="notch">-</span>
 </div>
   <div style="margin-top:8px">
-    <span id="labelControls">조작:</span>
-    <span class="kbd">Space</span> <span id="labelStartKey">시작</span> ·
-    <span class="kbd">W</span> <span id="labelUp">강화</span> ·
-    <span class="kbd">S</span> <span id="labelDown">완화</span> ·
-    <span class="kbd">N</span> <span id="labelRelease">해방</span>
+    <!-- <span id="labelControls">조작:</span> -->
+    <span class="kbd">Space</span> <span id="labelStartKey">재시작</span> ·
+    <span class="kbd">W</span> <span id="labelUp">제동 체결</span> ·
+    <span class="kbd">S</span> <span id="labelDown">제동 완해</span> ·
+    <span class="kbd">A</span> <span id="labelRestart">6단 상용제동</span>
+    <!-- <span id="labelRelease">해방</span> <span class="kbd">N</span> -->
   </div>
 
   <canvas id="brakeLadder" style="position:absolute; right:10px; top:30px; width:28px; height:70%;"></canvas>
+  <!-- 큰 우측 리본: 페이지 오른쪽에 고정되어 HUD의 리본/다이아몬드를 더 크게 표시합니다 -->
 </div>
 
 <div class="card" style="flex:2 1 520px"><canvas id="hud"></canvas></div>
@@ -214,10 +273,19 @@ body{overflow-x:hidden;overflow-y:auto}
 
     <!-- TASC -->
     <div class="tasc-toggle">
-      <input type="checkbox" id="tascToggle" checked />
+      <input type="checkbox" id="tascToggle" unchecked />
       <label for="tascToggle" class="slider"></label>
       <span class="tasc-label" id="labelTASC" style="font-weight:700">TASC</span>
     </div>
+
+    <!-- BEGIN PATCH: Overlay - Sync Mode Selector (label 변경만) -->
+<label class="form-label"><span>Graphic (Beta)</span>
+  <select id="syncMode" class="form-input">
+    <option value="on" selected>ACTIVATE</option>
+    <option value="off" >DEACTIVATE</option>
+  </select>
+</label>
+<!-- END PATCH -->
 
     <!-- 전동차 / 시리즈 -->
     <label class="form-label"><span id="labelTrain">전동차</span>
@@ -242,10 +310,10 @@ body{overflow-x:hidden;overflow-y:auto}
 
     <!-- ✅ 속도/거리 입력 범위 갱신: 속도 40~130, 거리 150~900 -->
     <label class="form-label"><span id="labelInitSpeed">초기 속도 (km/h)</span>
-      <input id="inputSpeed" type="number" value="80" min="40" max="130" step="1" class="form-input">
+      <input id="inputSpeed" type="number" value="60" min="40" max="300" step="1" class="form-input">
     </label>
     <label class="form-label"><span id="labelInitDist">거리 (m)</span>
-      <input id="inputDist" type="number" value="400" min="150" max="900" step="1" class="form-input">
+      <input id="inputDist" type="number" value="250" min="150" max="900" step="1" class="form-input">
     </label>
     <label class="form-label"><span id="labelGradeInput">경사도 (‰)</span>
       <input id="inputGrade" type="number" value="0.0" min="-10" max="10" step="0.1" class="form-input">
@@ -253,7 +321,7 @@ body{overflow-x:hidden;overflow-y:auto}
 
     <label class="form-label"><span id="labelWeather">날씨</span>
       <select id="weatherSelect" class="form-input">
-        <option value="맑음">맑음</option><option value="비옴">우천</option><option value="눈옴">강설/빙판</option>
+        <option value="맑음">맑음</option><option value="눈옴">강설/빙판</option><option value="비옴">우천</option>
       </select>
     </label>
     <label class="form-label"><span id="labelLoadRate">승객 탑승률 (%)</span>
@@ -275,16 +343,19 @@ body{overflow-x:hidden;overflow-y:auto}
       <div style="animation-delay:1.6s;left:85%"></div><div style="animation-delay:1.8s;left:95%"></div>
     </div>
 
-    <div class="kbd-info"><span class="kbd">W</span> 강화 · <span class="kbd">S</span> 완화 · <span class="kbd">N</span> 해방</div>
+    <div class="kbd-info"><span class="kbd">W</span> 제동 체결 · <span class="kbd">S</span> 제동 완해 · <span class="kbd">N</span> 중립 기어 · <span class="kbd">A</span> 6단 상용제동</div>
     <button id="btnStart" class="btn-primary" type="button" style="margin-top:8px">Start (Space)</button>
   </div>
 </div>
 
+
 <!-- 재시작 FAB -->
 <button id="btnMobileRestart" class="fab hide" type="button">재시작</button>
 
-<script>
 
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
+<script>
 
 /* ===== WebSocket & TASC ===== */
 const ws = new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
@@ -378,6 +449,346 @@ const overlay=document.getElementById("overlay"),
       btnStart=document.getElementById("btnStart"),
       canvas=document.getElementById("hud"),
       ctx=canvas.getContext("2d");
+
+(() => {
+  const mount = document.getElementById('cab3d');
+  const modeSel = document.getElementById('syncMode');
+  const cabCard = document.getElementById('cabCard');
+
+  // ON/OFF → 3D 표시/숨김
+  function applyCabToggle(){
+    const on = (modeSel?.value === 'on');
+    cabCard.style.display = on ? 'block' : 'none';
+  }
+  modeSel?.addEventListener('change', applyCabToggle);
+  applyCabToggle();
+
+  // --- Three.js 기본 ---
+  const scene = new THREE.Scene(); // 배경은 검정(기본), 스카이박스 없음
+  scene.background = new
+  THREE.Color(0x999999); // 연한 회색 배경 (플랫폼 대비)
+  // use actual mount size for correct aspect ratio so canvas fills its container
+  const initialW = mount.clientWidth || Math.max(800, window.innerWidth);
+  const initialH = mount.clientHeight || Math.max(450, Math.round(initialW * 9/16));
+  const camera = new THREE.PerspectiveCamera(58, initialW / initialH, 0.1, 2000);
+
+
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  mount.appendChild(renderer.domElement);
+
+  function resize(){
+    // match renderer/camera to the mount element's actual layout size so the 3D view fills it
+    const w = Math.max(16, mount.clientWidth || window.innerWidth);
+    const h = Math.max(16, mount.clientHeight || Math.round(w * 9/16));
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
+    // ensure DOM canvas uses full container size (avoid CSS pixel mismatch)
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+  }
+  addEventListener('resize', resize);
+  // also observe mount size changes in case layout changes without window resize
+  const ro = new ResizeObserver(()=> resize());
+  ro.observe(mount);
+  resize();
+
+  // --- 라이트: 최소한만 (강철 하이라이트/플랫폼 질감용) ---
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.8);
+  scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+  dir.position.set(3, 6, 2);
+  scene.add(dir);
+
+  // --- 텍스처 로더 ---
+  const texLoader = new THREE.TextureLoader();
+
+  // 텍스처 경로 (파일 준비 권장)
+  // ballast: 자갈, sleeper: 침목, rail: 강철
+  const TX = {
+    ballast: '/static/textures/ballast_diff.jpg', // 자갈 알베도
+    ballast_n: '/static/textures/ballast_norm.jpg', // 자갈 노멀
+    sleeper: '/static/textures/sleeper_diff.jpg',
+    rail: '/static/textures/rail_diff.jpg',
+  };
+
+  function loadTex(url, opts={}){
+    const t = texLoader.load(url, (tx)=>{
+      tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+      if (opts.aniso) tx.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      if (opts.repeat) tx.repeat.set(opts.repeat.x, opts.repeat.y);
+    });
+    return t;
+  }
+
+  // --- 지반(자갈) ---
+  const ballastDiff = loadTex(TX.ballast, {aniso:true, repeat:{x:4, y:40}});
+  const ballastNorm = loadTex(TX.ballast_n, {aniso:true, repeat:{x:4, y:40}});
+  // const groundMat = new THREE.MeshStandardMaterial({
+  //   map: ballastDiff,
+  //   normalMap: ballastNorm,
+  //   roughness: 0.9,
+  //   metalness: 0.1,
+  //   color: 0xf0f0f0
+  // });
+  const groundMat = new THREE.MeshStandardMaterial({
+    map: ballastDiff,
+    normalMap: ballastNorm,
+    color: 0xb0b0b0,
+    roughness: 0.9,
+    metalness: 0.1
+  });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 1000, 1, 1), groundMat);
+  ground.rotation.x = -Math.PI/2;
+  ground.position.y = 0.0;
+  ground.position.z = 200; // 카메라가 -z에서 +z로 달려갈 구조
+  scene.add(ground);
+
+  // --- 레일 ---
+  // 궤간 ~ 1067mm(협궤) 가정: 화면상 미세 조정
+  const railMat = new THREE.MeshStandardMaterial({
+    map: loadTex(TX.rail, {aniso:true, repeat:{x:1, y:40}}),
+    metalness: 0.8, roughness: 0.35
+  });
+  const railH = 0.14, railW = 0.065, railLen = 1000;
+  const railGeo = new THREE.BoxGeometry(railW, railH, railLen);
+  const railL = new THREE.Mesh(railGeo, railMat);
+  const railR = new THREE.Mesh(railGeo, railMat);
+  // 선로 중심 기준 좌우 오프셋 (약 0.53m)
+  railL.position.set(-0.535, 0.07, 200);
+  railR.position.set( 0.535, 0.07, 200);
+  scene.add(railL, railR);
+
+//   // --- 침목(InstancedMesh) ---
+//   const sleeperMat = new THREE.MeshStandardMaterial({
+//     map: loadTex(TX.sleeper, {aniso:true, repeat:{x:1, y:1}}),
+//     roughness: 0.9, metalness: 0.0
+//   });
+//   const sleeperGeo = new THREE.BoxGeometry(2.0, 0.08, 0.22); // 길이x높이x두께(가시적)
+//   const sleeperCount = 2000; // 0.5~0.6m 간격으로 400m
+//   const sleepers = new THREE.InstancedMesh(sleeperGeo, sleeperMat, sleeperCount);
+//   sleepers.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+//   scene.add(sleepers);
+//   const pitch = 0.65;
+//   for (let i=0;i<sleeperCount;i++){
+//   const z = 200 - i*pitch; // z ∈ [200, 200-1000]
+//   if (z < -300) break; // -300m까지만 배치하면 충분
+//   const m = new THREE.Matrix4().makeTranslation(0, 0.02, z);
+//   sleepers.setMatrixAt(i, m);
+// }
+
+  // --- 플랫폼 (정차벽 기준 -platformLen ~ 0m, 오른쪽에 배치) ---
+  const platformLen = 210; // m 플랫폼 길이
+  const platH = 1.13; // 플랫폼 높이
+  const platW = 3.0; // 폭
+  const platZ = 0 + 200; // 세계좌표 보정(ground/rail과 일치)
+  const platMatTop = new THREE.MeshStandardMaterial({ color: 0xd8dbe1, roughness:0.95, metalness:0.0 });
+  const platMatEdge= new THREE.MeshStandardMaterial({ color: 0xf0d060, roughness:0.6, metalness:0.0 }); // 노란 라인
+
+  const plat = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
+  plat.position.set(+2.4, platH, platZ - platformLen/2);
+  scene.add(plat);
+
+  const platLine = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
+  platLine.position.set(+1.55, platH + 0.105, platZ - platformLen/2);
+  scene.add(platLine);
+
+  const platR = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
+  platR.position.set(-2.4, platH,platZ - platformLen/2);
+  scene.add(platR);
+
+  const platLineR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
+  platLineR.position.set(-1.55, platH + 0.105, platZ - platformLen/2);
+  scene.add(platLineR);
+
+  // === Red signs on platform every 50m up to 200m ===
+const signDistances = [0, 10, 50, 100, 150, 200];
+
+// 기둥(폴)과 보드(판넬) 재질/형상
+const poleMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.6, metalness: 0.2 });
+
+const poleGeo = new THREE.BoxGeometry(0.06, 1.2, 0.06); // w,h,d
+
+// Helper: create a circular sign texture with large distance text (e.g., "150m")
+function createDistanceSignTexture(distanceMeters){
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const size = 512; // base size
+  const width = size * dpr;
+  const height = size * dpr;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  // clear
+  ctx.clearRect(0, 0, width, height);
+
+  // circle background (red)
+  ctx.fillStyle = '#aa0000';
+  ctx.beginPath();
+  ctx.arc(width/2, height/2, Math.min(width, height) * 0.45, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // stroke edge
+  ctx.lineWidth = Math.max(2, Math.floor(4 * dpr));
+  ctx.strokeStyle = '#550000';
+  ctx.stroke();
+
+  // text (white, large)
+  const text = `${distanceMeters}`;
+  // choose font size to occupy most of the circle
+  const fontSize = Math.floor(Math.min(width, height) * 0.28);
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // slight black shadow for contrast
+  ctx.shadowColor = 'rgba(0,0,0,0.45)';
+  ctx.shadowBlur = Math.max(4, Math.floor(6 * dpr));
+  ctx.fillText(text, width/2, height/2 + Math.floor(fontSize*0.03));
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.encoding = THREE.sRGBEncoding;
+  tex.needsUpdate = true;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
+}
+
+// Collect sign meshes so we can make them face the camera (billboard)
+const platformSignMeshes = [];
+const platformSignRings = [];
+
+signDistances.forEach(d => {
+  const z = 200 - d; // 정차벽(0m)이 z=200 → -d만큼 뒤
+  if (z < -300) return; // 안전 차단
+
+  // 폴(기둥)
+  const pole = new THREE.Mesh(poleGeo, poleMat);
+  pole.position.set(+2.1, platH + 0.1, z); // 플랫폼 위에서 0.6m 올라온 기둥 중심
+  scene.add(pole);
+
+  // 원형 표지판: 캔버스로 텍스트를 그려 텍스처로 사용
+  const tex = createDistanceSignTexture(d);
+  const signMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
+  const signRadius = 0.55; // 미터 단위 반지름 — 화면에서 큼직하게 보이도록
+  const signGeo = new THREE.CircleGeometry(signRadius, 64);
+  const sign = new THREE.Mesh(signGeo, signMat);
+  // do not fix rotation here — we'll billboard it to the camera in the render loop
+  sign.position.set(+2.1, platH + 1.25, z);
+  scene.add(sign);
+
+  // 얇은 테두리 링을 추가해 시각적 강조
+  const ringGeo = new THREE.RingGeometry(signRadius * 0.88, signRadius * 0.99, 64);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x770000 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.copy(sign.position);
+  scene.add(ring);
+
+  // keep references for billboard updates
+  platformSignMeshes.push(sign);
+  platformSignRings.push(ring);
+});
+
+  // --- 정차벽(0m, 반투명 초록) ---
+  const wallMat = new THREE.MeshBasicMaterial({ color: 0xaa0000, transparent:true, opacity:0.28 });
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3), wallMat);
+  wall.position.set(0, 1.0, 200); // z=200이 ‘정차 0m’
+  scene.add(wall);
+  const wallEdge = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3), new THREE.MeshBasicMaterial({ color:0xff0000, wireframe:true, transparent:true, opacity:0.65 }));
+  wallEdge.position.copy(wall.position);
+  scene.add(wallEdge);
+
+  // --- 남은거리→카메라/오브젝트 동기 ---
+  // 디자인: 카메라 z_world = 200 - remaining_m
+  // 플랫폼/레일/자갈은 세계 고정. 카메라만 이동 -> 1인칭 주행.
+  function syncCameraFromState(){
+    const rem = Number(window.st?.remaining_m ?? 0);
+    const y = 2.8; // 눈높이 기관사 눈높이
+    const z = 200 - rem;
+    camera.position.set(0, y, z);
+    camera.lookAt(0, y + 0.1, z + 4.0); // 살짝 
+  }
+
+  // --- 루프 ---
+  let lastRAF = 0;
+  function tick(t){
+    if (modeSel?.value === 'on'){
+      // 진행감: 자갈 텍스처 스크롤(매 프레임 반복수 변경)
+      const rem = Number(window.st?.remaining_m ?? 0);
+      ballastDiff.offset.y = (rem * 0.02) % 1;
+      ballastNorm.offset.y = (rem * 0.02) % 1;
+      syncCameraFromState();
+      // Make platform signs face the camera (billboard) so driver sees them
+      try{
+        if (Array.isArray(platformSignMeshes) && platformSignMeshes.length){
+          for (let i=0;i<platformSignMeshes.length;i++){
+            const m = platformSignMeshes[i];
+            if (m && m.lookAt) m.lookAt(camera.position);
+          }
+        }
+        if (Array.isArray(platformSignRings) && platformSignRings.length){
+          for (let i=0;i<platformSignRings.length;i++){
+            const r = platformSignRings[i];
+            if (r && r.lookAt) r.lookAt(camera.position);
+          }
+        }
+      }catch(e){ /* non-fatal */ }
+
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
+// Optional station melody audio 
+let stationMelody = null;
+try{
+  stationMelody = new Audio('/static/tokyo_station_melody.mp3');
+  stationMelody.preload = 'auto';
+  stationMelody.volume = 0.75; // sensible default, user can adjust in browser
+}catch(e){ stationMelody = null; }
+
+function playStationMelody(times = 2){
+  // plays the melody exactly `times` times (default 2)
+  if (!stationMelody) return;
+  try{
+    // remove previous ended handler if present
+    if (stationMelody._endedHandler) {
+      try{ stationMelody.removeEventListener('ended', stationMelody._endedHandler); }catch(e){}
+      stationMelody._endedHandler = null;
+    }
+
+    let remaining = Math.max(0, Math.floor(times));
+    if (remaining === 0) return;
+
+    // one play will start now, so subtract one from remaining plays to schedule
+    remaining -= 1;
+
+    const handler = function(){
+      if (remaining > 0) {
+        remaining -= 1;
+        try{ stationMelody.currentTime = 0; stationMelody.play().catch(()=>{}); }catch(e){}
+      } else {
+        try{ stationMelody.removeEventListener('ended', handler); }catch(e){}
+        stationMelody._endedHandler = null;
+      }
+    };
+
+    stationMelody._endedHandler = handler;
+    stationMelody.addEventListener('ended', handler);
+
+    stationMelody.pause();
+    stationMelody.currentTime = 0;
+    stationMelody.play().catch(err=>{
+      console.debug('stationMelody play failed:', err);
+    });
+  }catch(e){ console.debug('playStationMelody error', e); }
+}
 const weatherSelect=document.getElementById("weatherSelect"),
       snowflakes=document.querySelector(".snowflakes"),
       raindrops=document.querySelector(".raindrops");
@@ -423,7 +834,7 @@ function enforceInt(el,min,max){ el.addEventListener('input',()=>{ el.value=el.v
 function enforceFloat(el,min,max,d=1){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^0-9.\-]/g,'');}); el.addEventListener('change',()=>{let v=parseFloat(el.value); if(isNaN(v)){el.value='';return;} v=clamp(v,min,max); el.value=v.toFixed(d);});}
 
 /* ✅ 범위 갱신: 속도 40~130 / 거리 150~900 */
-enforceInt(inputSpeed,40,130);
+enforceInt(inputSpeed,40,300);
 enforceInt(inputDist,150,900);
 enforceInt(inputLoadRate,0,120);
 enforceFloat(inputGrade,-10,10,1);
@@ -507,6 +918,8 @@ const enabled = document.getElementById("tascToggle").checked;
   }
   overlay.classList.add("hide"); isFinished=false; overlayShowingResult=false;
   btnMobileRestart.classList.add("hide");
+  // play station melody on start (if available)
+  try{ playStationMelody(2); }catch(e){}
 }
 btnStart.addEventListener("click", startRun);
 
@@ -812,6 +1225,8 @@ const isClear = (weatherSelect?.value === "맑음");
   ctx.closePath(); 
   ctx.fill(); 
   ctx.stroke();
+  // also draw the large right-side ribbon (fixed canvas)
+  try{ if(typeof drawRightRibbon === 'function') drawRightRibbon(st); }catch(e){}
 
 /* === TASC 경고등 (HUD 위) === */
 /* === TASC 경고등 (HUD 위) === */
@@ -1052,16 +1467,106 @@ function drawBrakeLadderMini(st) {
   
 }
 
+/* ===== 큰 우측 리본 캔버스 (고정) ===== */
+const ribbonBigCanvas = document.getElementById('ribbonBig');
+function sizeRibbonBigCanvas() {
+  if (!ribbonBigCanvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = ribbonBigCanvas.clientWidth || 72;
+  const cssH = ribbonBigCanvas.clientHeight || (window.innerHeight * 0.8);
+  ribbonBigCanvas.width = Math.max(1, Math.round(cssW * dpr));
+  ribbonBigCanvas.height = Math.max(1, Math.round(cssH * dpr));
+}
+addEventListener('resize', sizeRibbonBigCanvas);
+sizeRibbonBigCanvas();
+
+function drawRightRibbon(st){
+  if (!ribbonBigCanvas) return;
+  if (!st) return;
+  const ctxR = ribbonBigCanvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = ribbonBigCanvas.width, h = ribbonBigCanvas.height;
+  ctxR.clearRect(0,0,w,h);
+
+  // 색상/모드 재사용 (일관된 스타일)
+  const isClear = (weatherSelect?.value === "맑음");
+  const ribbonFill = isClear ? "rgba(255,255,255,0.01)" : "rgba(100,100,100,0.10)";
+  const ribbonStroke = isClear ? "rgba(255,255,255,0.35)" : "rgba(100,100,100,0.30)";
+  const centerBarFill = "rgba(16, 250, 13, 0.90)"; // 연한 초록색
+  const diamondFill= "rgba(255,241,0,0.90)";
+  const diamondStroke= "#FD0800";
+
+  // 모바일/데스크톱 보정 (원래와 비슷한 비율 유지)
+  const isMobileLocal = window.innerWidth < 768;
+  // Do not draw on mobile (CSS also hides the canvas) to save CPU
+  if (isMobileLocal) { ctxR.clearRect(0,0,w,h); return; }
+  const offsetRibbonY = isMobileLocal ? -32 : -12;
+  const offsetCenterY = isMobileLocal ? -14 : -7.5;
+
+  // 더 크게 보이게 스케일을 키움
+  const scale = 3; // 원하는 만큼 키우세요 (2~4 권장)
+  const ribbonW = Math.min(72 * dpr, 24 * dpr * scale);
+  const ribbonH = h * 0.95;
+  const ribbonX = (w - ribbonW) / 2;
+  const ribbonY = ((h - ribbonH) / 2) + offsetRibbonY * dpr;
+
+  // 배경 박스
+  ctxR.fillStyle = ribbonFill;
+  ctxR.strokeStyle = ribbonStroke;
+  ctxR.lineWidth = 1.5 * dpr;
+  ctxR.beginPath();
+  ctxR.rect(ribbonX, ribbonY, ribbonW, ribbonH);
+  ctxR.fill();
+  ctxR.stroke();
+
+  // 중앙 바
+  const centerY = (ribbonY + ribbonH / 2) + offsetCenterY * dpr;
+  // Make the center bar larger: increase height and reduce horizontal padding so it appears wider
+  const barHeightBase = 60; // px base at DPR=1 (tweak this to change size)
+  const barH = barHeightBase * dpr * scale; // taller than default
+  const horizontalPadding = 1 * dpr; // smaller padding -> wider bar
+  ctxR.fillStyle = centerBarFill;
+  ctxR.fillRect(ribbonX + horizontalPadding, centerY - barH / 2, ribbonW - horizontalPadding * 2, barH);
+
+  // 내부에 작은 반투명 흰색 박스 추가 (너비 동일, 높이만 작음)
+  (function(){
+    const innerWidth = Math.max(4 * dpr, ribbonW - horizontalPadding * 2); // same width as bar
+    const innerHeight = barH * 0.15; // smaller height
+    const innerX = ribbonX + horizontalPadding;
+    const innerY = centerY - innerHeight / 2;
+    ctxR.fillStyle = 'rgba(204, 253, 208, 0.8)';
+    ctxR.fillRect(innerX, innerY, innerWidth, innerHeight);
+  })();
+
+  // 다이아몬드 위치
+  const rem = Math.min(Math.max(st.remaining_m ?? st.L, -st.L), st.L);
+  const diamondW = 8 * dpr * scale, diamondH = 5 * dpr * scale, dX = ribbonX + ribbonW / 2;
+  const normalized = (rem - (-5)) / (5 - (-5));
+  const dY = ribbonY + (ribbonH * (1 - normalized)) - diamondH / 2;
+  const adjY = Math.min(Math.max(dY, ribbonY - 10 * dpr), ribbonY + ribbonH - diamondH + 10 * dpr);
+
+  ctxR.fillStyle = diamondFill; ctxR.strokeStyle = diamondStroke;
+  ctxR.lineWidth = 2 * dpr;
+  ctxR.beginPath();
+  ctxR.moveTo(dX, adjY - diamondH / 2);
+  ctxR.lineTo(dX + diamondW / 2, adjY);
+  ctxR.lineTo(dX, adjY + diamondH / 2);
+  ctxR.lineTo(dX - diamondW / 2, adjY);
+  ctxR.closePath();
+  ctxR.fill();
+  ctxR.stroke();
+}
+
 /* ===== 전동차/시리즈/편성 ===== */
 const TRAIN_DB={
   E233:[
-    {code:"JR EAST E233-1000", lines:"게이힌토호쿠·네기시", file:"/static/e233_1000.json", lengths:[10]},
-    {code:"JR EAST E233-2000", lines:"조반 각역·쾌속", file:"/static/e233_2000.json", lengths:[10]},
-    {code:"JR EAST E233-3000", lines:"도카이도·도호쿠·타카사키·우에노도쿄/소부쾌속·조반 직통", file:"/static/e233_3000.json", lengths:[5,10,15]}
+    {code:"JR EAST E233-1000", lines:"게이힌토호쿠선·네기시선", file:"/static/e233_1000.json", lengths:[10]},
+    {code:"JR EAST E233-2000", lines:"조반 완행선, 치요다선, 오다와라선, 타마선", file:"/static/e233_2000.json", lengths:[10]},
+    {code:"JR EAST E233-3000", lines:"우에노도쿄라인, 쇼난신주쿠라인", file:"/static/e233_3000.json", lengths:[5,10,15]}
   ],
   E235:[
-    {code:"JR EAST E235-0", lines:"야마노테", file:"/static/e235_0.json", lengths:[11]},
-    {code:"JR EAST E235-1000", lines:"요코스카·소부쾌속", file:"/static/e235_1000.json", lengths:[4,11,15]}
+    {code:"JR EAST E235-0", lines:"야마노테선", file:"/static/e235_0.json", lengths:[11]},
+    {code:"JR EAST E235-1000", lines:"요코스카선, 소부 쾌속선, 나리타선, 우치보선, 소토보선, 카시마선, 소부 본선, 힌카쿠선", file:"/static/e235_1000.json", lengths:[4,11,15]}
   ],
   JRW223: [
     { code: "JR WEST 223-0",
