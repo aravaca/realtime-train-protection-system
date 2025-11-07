@@ -1,18 +1,18 @@
 import numpy as np
 
 # 기존 notch 인덱스
-num_notch = 7
+num_notch = 13
 list = []
 for n in range(num_notch):
     list.append(n)
 
 notches = np.array(list)
 # 목표 최대값
-max_accel = -0.20
+max_accel = 0.722
 # max_accel *= (5/18)/
 # 최소값
-min_accel = -0.75
-factor = 1.3
+min_accel = 0.5
+factor = 0.8
 # 정규화 0~1
 x_norm = (notches - notches[0]) / (notches[-1] - notches[0])
 # 비선형 적용

@@ -1230,6 +1230,7 @@ class StoppingSim:
             "tasc_enabled": getattr(self, "tasc_enabled", False),
             "tasc_armed": getattr(self, "tasc_armed", False),
             "tasc_active": getattr(self, "tasc_active", False),
+            "train_name": self.veh.name,
 
             # HUD/디버그용 (업데이트된 Davis 확인 가능)
             "mu": float(self.scn.mu),
