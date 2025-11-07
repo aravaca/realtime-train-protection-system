@@ -279,7 +279,7 @@ body{overflow-x:hidden;overflow-y:auto}
     </div>
 
     <!-- BEGIN PATCH: Overlay - Sync Mode Selector (label 변경만) -->
-<label class="form-label"><span>Graphic (Beta)</span>
+<label class="form-label"><span>Graphic</span>
   <select id="syncMode" class="form-input">
     <option value="on" selected>ACTIVATE</option>
     <option value="off" >DEACTIVATE</option>
@@ -496,7 +496,7 @@ const overlay=document.getElementById("overlay"),
 
   const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1));
   mount.appendChild(renderer.domElement);
 
   function resize(){
@@ -524,9 +524,9 @@ const overlay=document.getElementById("overlay"),
   // directional: 태양광. 섀도우를 활성화해서 현실감을 높인다.
   const dir = new THREE.DirectionalLight(0xfff6e6, 1.0);
   dir.position.set(6, 20, 10);
-  dir.castShadow = true;
-  dir.shadow.mapSize.width = 2048;
-  dir.shadow.mapSize.height = 2048;
+  dir.castShadow = false;
+  dir.shadow.mapSize.width = 1024;
+  dir.shadow.mapSize.height = 1024;
   dir.shadow.camera.left = -40;
   dir.shadow.camera.right = 40;
   dir.shadow.camera.top = 40;
@@ -542,49 +542,20 @@ const overlay=document.getElementById("overlay"),
 
   // --- 텍스처 로더 ---
   const texLoader = new THREE.TextureLoader();
+// --- 지반(콘크리트 단색) ---
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x8d8d8d,   // 밝은 회색 (콘크리트 느낌)
+  roughness: 0.95,   // 표면 거칠기 높게
+  metalness: 0.0     // 금속성 없음
+});
 
-  // 텍스처 경로 (파일 준비 권장)
-  // ballast: 자갈, sleeper: 침목, rail: 강철
-  const TX = {
-    ballast: '/static/textures/ballast_diff.jpg', // 자갈 알베도
-    ballast_n: '/static/textures/ballast_norm.jpg', // 자갈 노멀
-    sleeper: '/static/textures/sleeper_diff.jpg',
-    rail: '/static/textures/rail_diff.jpg',
-  };
-
-  function loadTex(url, opts={}){
-    const t = texLoader.load(url, (tx)=>{
-      tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
-      if (opts.aniso) tx.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      if (opts.repeat) tx.repeat.set(opts.repeat.x, opts.repeat.y);
-    });
-    return t;
-  }
-
-  // --- 지반(자갈) ---
-  const ballastDiff = loadTex(TX.ballast, {aniso:true, repeat:{x:4, y:40}});
-  const ballastNorm = loadTex(TX.ballast_n, {aniso:true, repeat:{x:4, y:40}});
-  // const groundMat = new THREE.MeshStandardMaterial({
-  //   map: ballastDiff,
-  //   normalMap: ballastNorm,
-  //   roughness: 0.9,
-  //   metalness: 0.1,
-  //   color: 0xf0f0f0
-  // });
-  const groundMat = new THREE.MeshStandardMaterial({
-    map: ballastDiff,
-    normalMap: ballastNorm,
-    color: 0xb0b0b0,
-    roughness: 0.9,
-    metalness: 0.1
-  });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 1000, 1, 1), groundMat);
-  ground.rotation.x = -Math.PI/2;
-  ground.position.y = 0.0;
-  ground.position.z = 200; // 카메라가 -z에서 +z로 달려갈 구조
-  ground.receiveShadow = true;
-  ground.castShadow = false;
-  scene.add(ground);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 1000, 1, 1), groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = 0.0;
+ground.position.z = 200;
+ground.receiveShadow = true;
+ground.castShadow = false;
+scene.add(ground);
 
   // --- 트랙 텍스처(침목+레일을 하나의 텍스처로 합쳐서 처리) ---
   function createTrackCanvasTexture(){
@@ -722,7 +693,7 @@ const overlay=document.getElementById("overlay"),
 
     const startZ = platZ - 2;
     const endZ = platZ - platformLen + 2;
-    const spacing = 10.0; // m 사이 간격
+    const spacing = 20.0; // m 사이 간격
     for (let z = startZ; z > endZ; z -= spacing){
       // 왼쪽 기둥
       const pL = new THREE.Mesh(pillarGeo, pillarMat);
@@ -742,53 +713,6 @@ const overlay=document.getElementById("overlay"),
     roof.castShadow = true; roof.receiveShadow = true;
     scene.add(roof);
   })();
-// // --- 주변 도시 건물 (도쿄역 주변) ---
-// (function addBuildings() {
-//   const buildingCount = 10; // 👈 20 → 10 으로 절반
-//   const texLoader = new THREE.TextureLoader();
-
-//   // 사용할 텍스처 (1~2개만)
-//   const facadeList = [
-//     '/static/textures/facade.jpg',
-//     '/static/textures/facade2.jpg'
-//   ];
-
-//   const facades = facadeList.map(url => {
-//     const tex = texLoader.load(url);
-//     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-//     tex.encoding = THREE.sRGBEncoding;
-//     tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-//     return tex;
-//   });
-
-//   // 공용 재질 (Lambert → 훨씬 가벼움)
-//   const materials = facades.map(tex => new THREE.MeshLambertMaterial({ map: tex }));
-
-//   for (let i = 0; i < buildingCount; i++) {
-//     // 건물 크기 랜덤 (조금만 다양화)
-//     const bw = 8 + Math.random() * 10;
-//     const bd = 10 + Math.random() * 15;
-//     const bh = 20 + Math.random() * 10; // 👈 높이 낮춤 (GPU 부하↓)
-
-//     // 한 번 생성한 박스 재사용
-//     const box = new THREE.BoxGeometry(bw, bh, bd);
-
-//     const mat = materials[Math.floor(Math.random() * materials.length)];
-//     mat.map.repeat.set(bw / 15, bh / 20);
-
-//     const mesh = new THREE.Mesh(box, mat);
-//     mesh.castShadow = false; // 👈 그림자 제거로 큰 성능 향상
-//     mesh.receiveShadow = false;
-
-//     // 거리 간격도 넓혀서 밀도↓
-//     const side = (i % 2 === 0) ? 1 : -1;
-//     const x = side * (10 + Math.random() * 5);
-//     const z = 400 - i * (35 + Math.random() * 10);
-//     mesh.position.set(x, bh / 2, z);
-
-//     scene.add(mesh);
-//   }
-// })();
 
   // === Red signs on platform every 50m up to 200m ===
 const signDistances = [0, 10, 50, 100, 150, 200];
@@ -906,8 +830,8 @@ signDistances.forEach(d => {
     if (modeSel?.value === 'on'){
   // 진행감: 자갈/트랙 텍스처 스크롤(매 프레임 반복수 변경)
   const rem = Number(window.st?.remaining_m ?? 0);
-  try{ ballastDiff.offset.y = (rem * 0.02) % 1; }catch(e){}
-  try{ ballastNorm.offset.y = (rem * 0.02) % 1; }catch(e){}
+  try{ ballastDiff.offset.y = (rem * 10) % 1; }catch(e){}
+  try{ ballastNorm.offset.y = (rem * 10) % 1; }catch(e){}
   try{ if(typeof trackTex !== 'undefined') trackTex.offset.y = (rem * 0.02) % 1; }catch(e){}
       syncCameraFromState();
       // Make platform signs face the camera (billboard) so driver sees them

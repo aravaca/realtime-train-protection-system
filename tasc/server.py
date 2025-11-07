@@ -1094,10 +1094,10 @@ class StoppingSim:
                 score += 300
 
             last_notch = self.notch_history[-1] if self.notch_history else 0
-            if last_notch == 1:
+            if last_notch == 1 or last_notch == 2:
                 score += 300
                 st.issues["stop_not_b1"] = False
-                st.issues["stop_not_b1_msg"] = "정차 시 B1로 정차함 - 승차감 양호"
+                st.issues["stop_not_b1_msg"] = "정차 시 승차감 양호"
             elif last_notch == 0:
                 score -= 100
                 st.issues["stop_not_b1"] = True
@@ -1113,12 +1113,12 @@ class StoppingSim:
                 if self.tasc_enabled and not self.manual_override:
                     score += 500
 
-            err_abs = abs(st.stop_error_m or 0.0)
+            err_abs = abs(st.stop_error_m or 0.0) # 정차 오차 절대값
             error_score = max(0, 500 - int(err_abs * 500))
             score += error_score
 
-            if abs(st.stop_error_m or 0.0) < 0.01:
-                score += 400
+            if abs(st.stop_error_m or 0.0) < 0.01: # 정차 오차 0.1cm 이내
+                score += 500
 
             st.issues["early_brake_too_short"] = not self.first_brake_done
             st.issues["step_brake_incomplete"] = not self.is_stair_pattern(self.notch_history)
