@@ -1,6 +1,6 @@
 # JR Personal Type Simulator (PTS) — Lightweight Precision Stop Training Framework
 
-## Open Web  
+ 
 [Play🚆](https://jrtasc.kro.kr/) 
 ---
 
