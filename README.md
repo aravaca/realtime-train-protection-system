@@ -1,4 +1,10 @@
-# JR Personal Type Simulator — Interactive 3D Cab Operation and Precision Stop Training Framework
+# JR Personal Type Simulator (PTS) — Lightweight Precision Stop Training Framework
+
+---
+
+## Open Web  
+[Play🚆](https://jrtasc.kro.kr/) 
+---
 
 A lightweight **web-based simulation framework** replicating key control functions of **JR East/West EMUs**.  
 Unlike heavy simulations, PTS is designed for **essential driving skill training**, as it enables repetitive **braking** and **stop-point accuracy** practice.
@@ -62,12 +68,7 @@ Planned upgrades include integration with advanced railway control frameworks an
       ├── index.html # UI (3D graphics, HUD/Overlay/TASC switch/animations)
       └── xxxxx.json # Vehicle name display data
 
-
----
-
-## 🚀 Run Locally
-1. Open in browser  
-[Try it live](https://jrtasc.kro.kr/) 
+
 
 ---
 
