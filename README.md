@@ -1,8 +1,12 @@
 # JR Personal Type Simulator — Interactive 3D Cab Operation and Precision Stop Training Framework
 
-This project introduces a lightweight web-based simulation framework for **JR Series Personal Type Simulators (PTS)** — compact, function-focused train driving systems that replicate the essential control environment of JR East and JR West Electric Multiple Units (EMUs).  
+A lightweight **web-based simulation framework** replicating key control functions of **JR East/West EMUs**.  
+Designed for **essential driving skill training**, it enables repetitive **braking** and **stop-point accuracy** practice.
 
-Unlike full-cab or desk-type simulators, this **PTS platform is specifically designed for training essential driving skills**, allowing operators to repeatedly practice braking control and stop-point accuracy under a variety of simulated conditions. The system supports both **manual stop control** and **TASC (Train Automatic Stop Control)**-assisted automatic stopping, enabling side-by-side comparison between human and automated performance.
+Supports:
+- **Manual stop control**  
+- **TASC-assisted automatic stopping**  
+→ allowing direct **human vs. automation** performance comparison.
 
 Powered by **Three.js 3D visualization**, the simulator delivers an immersive driver’s POV and realistic track environment.  
 Real-time **velocity–distance** and **braking curve** rendering provides intuitive, instant feedback.
