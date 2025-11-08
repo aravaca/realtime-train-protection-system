@@ -5,7 +5,7 @@
 ---
 
 A lightweight **web-based simulation framework** replicating key control functions of **JR East/West EMUs**.  
-Unlike heavy simulations, PTS is designed for **essential driving skill training**, as it enables repetitive **braking** and **stop-point accuracy** practice.
+Unlike heavy simulations, PTS is designed for **essential driving skill training** on low-end PCs, as it enables repetitive **braking** and **stop-point accuracy** practice.
 
 Supports:
 - **Manual stop control**  
