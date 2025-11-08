@@ -1345,7 +1345,7 @@ async def ws_endpoint(ws: WebSocket):
                         # ▼ 서버 측 이중 방어(클램프) — 프론트와 동일
                         v_kmh_raw = float(speed)
                         L_raw = float(dist)
-                        v_kmh = max(40.0,  min(300.0, v_kmh_raw))
+                        v_kmh = max(40.0,  min(360.0, v_kmh_raw))
                         L_m   = max(150.0, min(900.0,  L_raw))
 
                         sim.scn.v0 = v_kmh / 3.6

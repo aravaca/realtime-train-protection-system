@@ -221,7 +221,7 @@ body{overflow-x:hidden;overflow-y:auto}
   <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal;" class="stat">차량 로딩 중...</div>
 
 <div class="line">
-  <span id="labelRemainTime">남은시간</span>
+  <span id="labelRemainTime">도쿄역</span>
   <span class="stat value" id="timer">
     <span class="min">00</span><span class="sep">:</span><span class="sec">00</span>
   </span>
@@ -541,8 +541,8 @@ const overlay=document.getElementById("overlay"),
 
   // --- 라이트: 자연광 + 소프트 섀도우 (햇빛 느낌) ---
   // hemisphere: 하늘/지면 색상으로 전체 fill을 부드럽게 해줌
-  const hemi = new THREE.HemisphereLight(0xbfdfff, 0x403020, 0.9);
-  scene.add(hemi);
+  // const hemi = new THREE.HemisphereLight(0xbfdfff, 0x403020, 0.9);
+  // scene.add(hemi);
 
   // directional: 태양광. 섀도우를 활성화해서 현실감을 높인다.
   const dir = new THREE.DirectionalLight(0xfff6e6, 1.0);
@@ -596,7 +596,7 @@ const groundMat = new THREE.MeshStandardMaterial({
   metalness: 0.0     // 금속성 없음
 });
 
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 1000, 1, 1), groundMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 2000, 1, 1), groundMat);
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = 0.0;
 ground.position.z = 200;
@@ -658,7 +658,7 @@ function createTrackCanvasTexture() {
   // track plane: a narrow strip representing sleepers+ballast; rails will still have metallic highlights
   const trackMat = new THREE.MeshStandardMaterial({ map: trackTex, roughness: 0.85, metalness: 0.05 });
   const trackWidth = 3.0;
-  const trackLen = 1000;
+  const trackLen = 2000;
   const trackGeo = new THREE.PlaneGeometry(trackWidth, trackLen, 1, 1);
   const track = new THREE.Mesh(trackGeo, trackMat);
   track.rotation.x = -Math.PI/2;
@@ -669,7 +669,7 @@ function createTrackCanvasTexture() {
 
   // rails (thin metallic extrusions) on top of the track plane for specular highlights and correct shading
   const railMat = new THREE.MeshStandardMaterial({ color:0xe0e5e5, metalness:0.95, roughness:0.28 });
-  const railH = 0.14, railW = 0.065, railLen = 1000;
+  const railH = 0.14, railW = 0.065, railLen = 2000;
   const railGeo = new THREE.BoxGeometry(railW, railH, railLen);
   const railL = new THREE.Mesh(railGeo, railMat);
   const railR = new THREE.Mesh(railGeo, railMat);
@@ -698,7 +698,8 @@ function createTrackCanvasTexture() {
 // }
 
   // --- 플랫폼 (정차벽 기준 -platformLen ~ 0m, 오른쪽에 배치) ---
-  const platformLen = 210; // m 플랫폼 길이
+
+  const platformLen = 210; // /정 길이로 설정
   const platH = 1.13; // 플랫폼 높이
   const platW = 3.0; // 폭
   const platZ = 0 + 200; // 세계좌표 보정(ground/rail과 일치)
@@ -713,6 +714,24 @@ function createTrackCanvasTexture() {
   const platLine = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
   platLine.position.set(+1.55, platH + 0.105, platZ - platformLen/2);
   platLine.receiveShadow = false; platLine.castShadow = false; scene.add(platLine);
+
+  // ✅ 플랫폼 길이 동적 변경 헬퍼
+  window.__updatePlatformLength = function(newLen){
+    try {
+      // 기존 지오메트리 정리
+      if (plat.geometry) plat.geometry.dispose();
+      if (platLine.geometry) platLine.geometry.dispose();
+
+      // 새 길이로 재생성
+      plat.geometry = new THREE.BoxGeometry(platW, 0.2, newLen);
+      plat.position.set(+2.4, platH, platZ - newLen/2);
+
+      platLine.geometry = new THREE.BoxGeometry(0.2, 0.01, newLen);
+      platLine.position.set(+1.55, platH + 0.105, platZ - newLen/2);
+    } catch(e) { /* non-fatal */ }
+  };
+
+
  // 우측 플랫폼 
   // const platR = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
   // platR.position.set(-2.4, platH,platZ - platformLen/2);
@@ -755,8 +774,8 @@ function createTrackCanvasTexture() {
 // const ambient = new THREE.AmbientLight(0xffffff, 0.05);
 // scene.add(ambient);
 
-  // === Red signs on platform every 50m up to 200m ===
-const signDistances = [0, 50, 100, 150, 200];
+  // === Red signs on platform every 50m up to 200m + 300 + 400 ===
+const signDistances = [0, 50, 100, 150, 200, 300, 400, 500]; // m 단위 거리
 
 // 기둥(폴)과 보드(판넬) 재질/형상
 const poleMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.6, metalness: 0.2 });
@@ -788,12 +807,19 @@ function createDistanceSignTexture(distanceMeters){
   ctx.lineWidth = Math.max(2, Math.floor(4 * dpr));
   ctx.strokeStyle = '#550000';
   ctx.stroke();
-
+  let text = 0;
+  let trainLength = parseInt(document.getElementById("trainLength").value, 10);
+  if (Number.isNaN(trainLength)) trainLength = 10;
   // text (white, large)
-  const text = `${distanceMeters}`;
+  if (distanceMeters == 0) {
+    text = `${trainLength}`;
+  } else {
+    text = `${distanceMeters}m`;
+  }
   // choose font size to occupy most of the circle
   const fontSize = Math.floor(Math.min(width, height) * 0.28);
-  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.font = `bold ${fontSize}px A-OTF Shin Go Pro, sans-serif`;
+
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -820,17 +846,32 @@ signDistances.forEach(d => {
 
   // 폴(기둥)
   const pole = new THREE.Mesh(poleGeo, poleMat);
-  pole.position.set(+2.1, platH + 0.1, z); // 플랫폼 위에서 0.6m 올라온 기둥 중심
+  pole.position.set(+2.1, platH + 0.1, z); // 플랫폼 위에서 0.1m 올라온 기둥 중심
+  if (d == 0) {
+    pole.position.set(-2.1, 0.4, z); // 기둥 높이 조정
+  } else {
+    pole.position.set(+2.1, platH + 0.1, z); // 기둥 높이 조정
+  }
   scene.add(pole);
 
   // 원형 표지판: 캔버스로 텍스트를 그려 텍스처로 사용
   const tex = createDistanceSignTexture(d);
   const signMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
-  const signRadius = 0.55; // 미터 단위 반지름 — 화면에서 큼직하게 보이도록
+  let signRadius = 0.55; // 미터 단위 반지름 — 화면에서 큼직하게 보이도록
+  if (d == 0) {
+    signRadius = 0.30; // 미터 단위 반지름 — 화면에서 큼직하게 보이도록
+  } else {
+    signRadius = 0.55; // 미터 단위 반지름 — 화면에서 큼직하게 보이도록
+  }
   const signGeo = new THREE.CircleGeometry(signRadius, 64);
   const sign = new THREE.Mesh(signGeo, signMat);
   // do not fix rotation here — we'll billboard it to the camera in the render loop
   sign.position.set(+2.1, platH + 1.25, z);
+  if (d == 0) {
+    sign.position.set(-2.1, 1.25, z);
+  } else {
+    sign.position.set(+2.1, platH + 1.25, z);
+  }
   scene.add(sign);
 
   // 얇은 테두리 링을 추가해 시각적 강조
@@ -844,6 +885,31 @@ signDistances.forEach(d => {
   platformSignMeshes.push(sign);
   platformSignRings.push(ring);
 });
+
+  // expose sign meshes and helper to allow runtime texture refresh when train length changes
+  window.__platformSignMeshes = platformSignMeshes;
+  window.__platformSignRings = platformSignRings;
+  window.__platformSignDistances = signDistances;
+  window.__createDistanceSignTexture = createDistanceSignTexture;
+  window.__refreshPlatformSignTextures = function(){
+    try{
+      const meshes = window.__platformSignMeshes || [];
+      const dists = window.__platformSignDistances || [];
+      const createFn = window.__createDistanceSignTexture;
+      if (!createFn) return;
+      for(let i=0;i<meshes.length;i++){
+        const mesh = meshes[i];
+        const d = dists[i] ?? 0;
+        try{
+          const newTex = createFn(d);
+          if (mesh && mesh.material) {
+            mesh.material.map = newTex;
+            mesh.material.needsUpdate = true;
+          }
+        }catch(e){}
+      }
+    }catch(e){}
+  };
 
   // --- 정차벽(0m, 반투명 초록) ---
   const wallMat = new THREE.MeshBasicMaterial({ color: 0xaa0000, transparent:true, opacity:0.28 });
@@ -974,10 +1040,13 @@ function updateTrainLength(){
     ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTrainLength", length: L } }));
   }
   sendLoadRate();
+  // refresh platform sign textures so the 0m sign shows the selected formation immediately
+  try { if (window.__refreshPlatformSignTextures) window.__refreshPlatformSignTextures(); } catch(e){}
 }
 function sendLoadRate(){
   const loadRate = parseFloat(document.getElementById("inputLoadRate").value) || 0;
-  const trainLength = parseInt(document.getElementById("trainLength").value) || 8;
+  let trainLength = parseInt(document.getElementById("trainLength").value, 10);
+  if (Number.isNaN(trainLength)) trainLength = 8;
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "cmd", payload: { name: "setLoadRate", loadRate, length: trainLength }}));
   }
@@ -994,7 +1063,7 @@ function enforceInt(el,min,max){ el.addEventListener('input',()=>{ el.value=el.v
 function enforceFloat(el,min,max,d=1){ el.addEventListener('input',()=>{ el.value=el.value.replace(/[^0-9.\-]/g,'');}); el.addEventListener('change',()=>{let v=parseFloat(el.value); if(isNaN(v)){el.value='';return;} v=clamp(v,min,max); el.value=v.toFixed(d);});}
 
 /* ✅ 범위 갱신: 속도 40~130 / 거리 150~900 */
-enforceInt(inputSpeed,40,300);
+enforceInt(inputSpeed,40,360);
 enforceInt(inputDist,150,900);
 enforceInt(inputLoadRate,0,120);
 enforceFloat(inputGrade,-10,10,1);
@@ -1141,6 +1210,20 @@ addEventListener("keydown", (e) => {
       sendCmd("setNotch", -vehicle.forward_notches); // EB 직전 notch
     }
   }
+  else if (e.key === "b" || e.key === "B") {
+  window.__brakeGuideOn = !window.__brakeGuideOn;
+
+  // 선택: 간단 피드백
+  if (fb) {
+    const msg = window.__brakeGuideOn
+      ? "제동 가이드: ON (B로 토글)"
+      : "제동 가이드: OFF (B로 토글)";
+    fb.innerHTML = `<div class="warn">${msg}</div>`;
+    setTimeout(() => {
+      if (!st || !st.finished) fb.textContent = "Space로 시작. W/S로 브레이크 조절하세요.";
+    }, 1200);
+  }
+}
 
 });
 
@@ -1300,6 +1383,7 @@ function drawHUD(st){
   ctx.lineWidth=2*dpr; 
   const maxNotch = vehicle?.notches ?? 10;   // 총 개수(0~maxIdx)
   const maxIdx   = maxNotch - 1;  // EB 인덱스
+  if (window.__brakeGuideOn) {
   for(let n=0;n<maxNotch;n++){
     const a=brakeDecels[n]??0; if(a<=0) continue;
     const s=(v0*v0)/(2*a);
@@ -1313,9 +1397,9 @@ function drawHUD(st){
     const tX=X(s); const label = (n===0) ? "N" : (n===maxIdx ? "EB" : `B${n}`);
     ctx.fillText(label, tX+5*dpr, Y(0)+12*dpr);
   }
-
   const xRed=X(remaining); ctx.strokeStyle="#f00"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(xRed,Y(0)); ctx.lineTo(xRed,Y(vmax)); ctx.stroke();
   ctx.fillStyle="#f00"; ctx.font=`${14*dpr}px 'Orbitron', sans-serif`; ctx.textAlign="center"; ctx.fillText("남은 거리", xRed, Y(vmax)-18*dpr);
+}
 
   // const ribbonW=16*dpr, ribbonH=h*.9, ribbonX=w-right-ribbonW-10*dpr+20, ribbonY=((h-ribbonH)/2)-32;
   // ctx.fillStyle="rgba(100,100,100,.1)"; ctx.strokeStyle="rgba(100,100,100,.3)"; ctx.lineWidth=1.5*dpr;
@@ -1526,7 +1610,8 @@ const isClear = (weatherSelect?.value === "맑음");
 
 /* === 편성수 표시 (정위치 버튼 왼쪽) === */
 {
-  const trainLength = parseInt(document.getElementById("trainLength").value) || 10; 
+  let trainLength = parseInt(document.getElementById("trainLength").value, 10);
+  if (Number.isNaN(trainLength)) trainLength = 10;
   const pad = 6 * dpr;
   const boxW = 32 * dpr;
   const boxH = 24.5 * dpr;
@@ -1796,6 +1881,10 @@ function setTrainLengthOptions(lengths){
     trainLengthEl.appendChild(opt);
   });
   // updateTrainLength();
+  // If the 3D scene has already created platform signs, refresh their textures
+  try {
+    if (window.__refreshPlatformSignTextures) window.__refreshPlatformSignTextures();
+  } catch (e) { /* non-fatal */ }
 }
 function loadVehicleFile(filePath){
   fetch(filePath + cacheBust(), { cache: 'no-store' })
@@ -1819,13 +1908,16 @@ function loadVehicleFile(filePath){
         
         // 🔒 순서 보장: 짧은 마이크로 딜레이 뒤 길이/탑승률 전송
         // (WebSocket ACK가 없으니 최소한의 순서 안정화)
-        const len = parseInt(document.getElementById("trainLength").value) || 8;
+        let len = parseInt(document.getElementById("trainLength").value, 10);
+        if (Number.isNaN(len)) len = 8;
         const loadRate = parseFloat(document.getElementById("inputLoadRate").value) || 0;
 
         setTimeout(() => {
           ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTrainLength", length: len } }));
           ws.send(JSON.stringify({ type: "cmd", payload: { name: "setLoadRate", loadRate, length: len } }));
         }, 10);
+        const desiredPlatLen = /n700s_3000/i.test(filePath) || /e26/i.test(filePath) ? 405 : 210;
+if (window.__updatePlatformLength) window.__updatePlatformLength(desiredPlatLen);
       }
     })
     .catch(console.error);
@@ -1866,7 +1958,7 @@ populateSeries(); // 최초 세팅
 
 <!-- ===== 10s 언어 토글 (ko <-> en), 피드백 포함 ===== -->
 <script>
-
+window.__brakeGuideOn = true;
 
 // ===== 언어 토글 =====
 (function(){
@@ -1874,7 +1966,7 @@ populateSeries(); // 최초 세팅
     ko: {
       htmlLang: "ko",
       docTitle: "TASC Simulator",
-      labelRemainTime: "남은시간",
+      labelRemainTime: "이번역: 東京",
       labelSpeed: "속도",
       labelRemainDist: "정차",
       labelGrade: "구배",
@@ -1929,7 +2021,7 @@ populateSeries(); // 최초 세팅
     en: {
       htmlLang: "en",
       docTitle: "TASC Simulator",
-      labelRemainTime: "STA",
+      labelRemainTime: "Next: Tokyo",
       labelSpeed: "Speed",
       labelRemainDist: "Distance",
       labelGrade: "Grade",
