@@ -67,7 +67,7 @@ Planned upgrades include integration with advanced railway control frameworks an
 
 ---
 
-## ⚙️ Configuration (Example)
+## ⚙️ Config
 - **e233_1000.json**
   - `notch_accels`: `[EB, B8, B7, ..., B1, N]` order
   - `tau_cmd_ms`, `tau_brk_ms`: control/brake delay constants
