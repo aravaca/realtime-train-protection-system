@@ -158,6 +158,105 @@ body{overflow-x:hidden;overflow-y:auto}
   -webkit-touch-callout: none;
 }
 
+/* ===== Cab mask frames + mini dashboard ===== */
+#cab3d { position: relative; }
+
+/* 공통 프레임 레이어 */
+.cab-frame {
+  position: absolute;
+  left: 0; right: 0;
+  pointer-events: none;
+  z-index: 5; /* WebGL 위에 */
+}
+
+/* 상단 프레임: 얇고 시야 살짝 가림 */
+.cab-frame.top {
+  top: 0;
+  height: clamp(6%, 9vh, 75px);
+  background:
+    linear-gradient(to bottom, rgba(10,14,20,.95), rgba(10,14,20,.76));
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  box-shadow: inset 0 -18px 24px rgba(0,0,0,.35);
+}
+/* 하단 프레임: 상단보다 조금 더 두껍게 */
+.cab-frame.bottom {
+  bottom: 0;
+  height: clamp(8%, 80vh, 190px);
+  background:
+    linear-gradient(to top, rgba(10,14,20,.96), rgba(10,14,20,1));
+  border-top: 1px solid rgba(255,255,255,.08);
+  box-shadow: inset 0 18px 28px rgba(0,0,0,.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 1px; /* 아래쪽 마진 추가 */
+  padding-bottom: 1px; /* 아래쪽 마진 추가 */
+}
+
+/* 대시보드 박스 (속도/노치) */
+.cab-dash {
+  width: 93%; /* 부모 요소 너비를 꽉 채우기 */
+  height: 98%; /* 부모 요소 높이를 꽉 채우기 */
+  display: flex;
+  justify-content: center;  /* 수평 중앙 정렬 */
+  align-items: center;      /* 수직 중앙 정렬 */
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(20,28,40,.55);
+  border: 1px solid rgba(0,246,255,.14);
+  box-shadow: 0 8px 20px rgba(0,0,0,.35), inset 0 0 20px rgba(0,180,255,.06);
+  pointer-events: none; /* 입력 방해 X */
+  backdrop-filter: blur(6px);
+}
+
+/* 속도 영역 (좌) */
+.cab-speed {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: 'Orbitron', system-ui, sans-serif;
+  justify-self: center;  /* 중앙 정렬 */
+}
+
+/* 속도 값 */
+.cab-speed .val {
+  font-size: clamp(26px, 5.2vw, 44px);
+  font-weight: 800;
+  color: #eaffff;
+  text-shadow: 0 0 10px rgba(0,220,255,.35);
+  letter-spacing: -1px;
+}
+
+/* 속도 단위 */
+.cab-speed .unit {
+  font-size: clamp(12px, 2.1vw, 16px);
+  opacity: .85;
+  color: #9fdcff;
+}
+
+/* 노치(우) */
+.cab-notch {
+  font-family: 'Orbitron', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: clamp(16px, 3.5vw, 22px);
+  color: #ffd88a; /* 기본 B계열 색 */
+  text-shadow: 0 0 8px rgba(255,190,60,.25);
+  justify-self: center; /* 중앙 정렬 */
+}
+
+/* EB 시 빨강, N/P 시 색상 */
+.cab-notch.eb { color:#ff6b6b; text-shadow:0 0 10px rgba(255,90,90,.35); }
+.cab-notch.neutral { color:#9effb5; text-shadow:0 0 8px rgba(140,255,190,.25); }
+.cab-notch.power { color:#add8e6; text-shadow:0 0 8px rgba(120,200,255,.25); }
+
+/* 모바일에서 약간 더 높이 */
+@media (max-width: 768px) {
+  .cab-frame.top { height: clamp(7%, 11vh, 120px); }
+  .cab-frame.bottom { height: clamp(10%, 14vh, 170px); }
+  .cab-dash { gap: 10px; padding: 9px 12px; }
+}
+
 </style>
 </head>
 <body>
@@ -523,11 +622,46 @@ const overlay=document.getElementById("overlay"),
   powerPreference: "high-performance", // 고성능 GPU 우선
   failIfMajorPerformanceCaveat: false
 });
+
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2)); // cap max DPR to 2 for performance
   mount.appendChild(renderer.domElement);
   // runtime-adjustable target DPR for the auto-scaler (initialized to current setting)
   let targetDPR = renderer.getPixelRatio();
+
+  
+// ----- Cab frames & mini dashboard overlay -----
+(function(){
+  const topMask = document.createElement('div');
+  topMask.className = 'cab-frame top';
+
+  const botMask = document.createElement('div');
+  botMask.className = 'cab-frame bottom';
+
+  const dash = document.createElement('div');
+  dash.className = 'cab-dash';
+  dash.innerHTML = `
+  <div class="cab-divider"></div>
+  <div id="cabNotch" class="cab-notch">N</div>
+    <div class="cab-speed">
+      <span id="cabSpeedVal" class="val">0.0</span>
+      <span class="unit">km/h</span>
+    </div>
+  `;
+  botMask.appendChild(dash);
+
+  // WebGL 캔버스 위에 보이도록 mount에 부착
+  mount.appendChild(topMask);
+  mount.appendChild(botMask);
+
+  // 안전: 렌더러 캔버스가 프레임 아래 깔리도록
+  try {
+    renderer.domElement.style.position = 'relative';
+    renderer.domElement.style.zIndex = '1';
+    topMask.style.zIndex = '5';
+    botMask.style.zIndex = '5';
+  } catch(e) {}
+})();
 
   function resize(){
     // match renderer/camera to the mount element's actual layout size so the 3D view fills it
@@ -950,7 +1084,7 @@ function syncCameraFromState() {
   
   const z = 200 - rem;
   camera.position.set(0, y, z);
-  camera.lookAt(0, y + 0.1, z + 4.0); // 살짝 위쪽을 바라봄
+  camera.lookAt(0, y - 0.3, z + 4.0); // 살짝 위쪽을 바라봄
 }
 
   // --- 루프 ---
@@ -1364,6 +1498,36 @@ if (Math.abs(toShowInt) <= 2) {
   // 그래프/미니 인디케이터
   drawHUD(st);
   drawBrakeLadderMini(st);
+
+  
+// ===== Update cab bottom mini dashboard =====
+(function(){
+  const spdNode = document.getElementById('cabSpeedVal');
+  const notchNode = document.getElementById('cabNotch');
+  if (!spdNode || !notchNode) return;
+
+  // 속도 (km/h, 소수1자리)
+  const vKmh = (st.v * 3.6);
+  spdNode.textContent = isFinite(vKmh) ? vKmh.toFixed(0) : '0.0';
+
+  // 노치 표시 텍스트/색상 클래스 동기화
+  // (위에서 이미 계산된 notchText / notchColor를 재사용)
+  notchNode.textContent = notchText;
+
+  // 색상 클래스 리셋
+  notchNode.classList.remove('eb', 'neutral', 'power');
+
+  if (notchText === 'N') {
+    notchNode.classList.add('neutral');
+  } else if (notchText === 'EB') {
+    notchNode.classList.add('eb');
+  } else if (/^P\d+$/i.test(notchText)) {
+    notchNode.classList.add('power');
+  } else {
+    // B계열은 기본(주황) 컬러 그대로
+  }
+})();
+
   
 
   // ⚠ 피드백(fb) UI는 여기서 건드리지 마세요 (언어 토글은 setLang에서 처리)
@@ -1996,7 +2160,7 @@ window.__brakeGuideOn = true;
     ko: {
       htmlLang: "ko",
       docTitle: "TASC Simulator",
-      labelRemainTime: "이번역: 東京",
+      labelRemainTime: "이번역: 도쿄",
       labelSpeed: "속도",
       labelRemainDist: "정차",
       labelGrade: "구배",
@@ -2054,7 +2218,7 @@ window.__brakeGuideOn = true;
       labelRemainTime: "Next: Tokyo",
       labelSpeed: "Speed",
       labelRemainDist: "Distance",
-      labelGrade: "Grade",
+      labelGrade: "Gradient",
       labelNotch: "Notch",
       labelStartKey: "Start",
       labelUp: "B+",
