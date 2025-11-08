@@ -248,7 +248,8 @@ body{overflow-x:hidden;overflow-y:auto}
     <span class="kbd">Space</span> <span id="labelStartKey">재시작</span> ·
     <span class="kbd">W</span> <span id="labelUp">제동 체결</span> ·
     <span class="kbd">S</span> <span id="labelDown">제동 완해</span> ·
-    <span class="kbd">A</span> <span id="labelRestart">6단 상용제동</span>
+    <span class="kbd">A</span> <span id="labelRestart">6단 제동</span> ·
+    <span class="kbd">B</span> <span id="labelRestart">제동곡선 표시</span>
     <!-- <span id="labelRelease">해방</span> <span class="kbd">N</span> -->
   </div>
 
@@ -266,7 +267,7 @@ body{overflow-x:hidden;overflow-y:auto}
   <div class="card">
     <h2 class="title">
       <img id="trainIcon" src="/static/logos/e233_logo.png" alt="E233" class="emoji"> 
-      JR TASC Simulator
+      JR Personal Type Simulator
     </h2>
 
     <p class="subtitle" id="subtitleIntro">초기값 입력 후 <b>TASC(자동정차)</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요. TASC가 활성화된 상태에서도, 운전자는 수동 조작으로 운전에 개입할 수 있습니다.</p>
@@ -279,7 +280,7 @@ body{overflow-x:hidden;overflow-y:auto}
     </div>
 
     <!-- BEGIN PATCH: Overlay - Sync Mode Selector (label 변경만) -->
-<label class="form-label"><span>Graphic</span>
+<label class="form-label"><span>3D Graphics</span>
   <select id="syncMode" class="form-input">
     <option value="on" selected>Enable (Recommended for PC Only)</option>
     <option value="off" >Disable</option>
@@ -343,7 +344,7 @@ body{overflow-x:hidden;overflow-y:auto}
       <div style="animation-delay:1.6s;left:85%"></div><div style="animation-delay:1.8s;left:95%"></div>
     </div>
 
-    <div class="kbd-info"><span class="kbd">W</span> 제동 체결 · <span class="kbd">S</span> 제동 완해 · <span class="kbd">N</span> 중립 기어 · <span class="kbd">A</span> 6단 상용제동</div>
+    <div class="kbd-info"><span class="kbd">W</span> 제동 체결 · <span class="kbd">S</span> 제동 완해 · <span class="kbd">N</span> 중립 기어 · <span class="kbd">A</span> 6단 상용제동 · <span class="kbd">B</span> 제동곡선 표시</div>
     <button id="btnStart" class="btn-primary" type="button" style="margin-top:8px">Start (Space)</button>
   </div>
 </div>
