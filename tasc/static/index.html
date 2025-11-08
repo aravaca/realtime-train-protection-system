@@ -221,7 +221,7 @@ body{overflow-x:hidden;overflow-y:auto}
   <div id="carName" style="font-size:20px; font-family: 'A-OTF Shin Go Pro', sans-serif; font-style: normal;" class="stat">차량 로딩 중...</div>
 
 <div class="line">
-  <span id="labelRemainTime">남은시간</span>
+  <span id="labelRemainTime">도쿄역</span>
   <span class="stat value" id="timer">
     <span class="min">00</span><span class="sep">:</span><span class="sec">00</span>
   </span>
@@ -698,7 +698,8 @@ function createTrackCanvasTexture() {
 // }
 
   // --- 플랫폼 (정차벽 기준 -platformLen ~ 0m, 오른쪽에 배치) ---
-  const platformLen = 210; // m 플랫폼 길이
+
+  const platformLen = 210; // /정 길이로 설정
   const platH = 1.13; // 플랫폼 높이
   const platW = 3.0; // 폭
   const platZ = 0 + 200; // 세계좌표 보정(ground/rail과 일치)
@@ -713,6 +714,24 @@ function createTrackCanvasTexture() {
   const platLine = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
   platLine.position.set(+1.55, platH + 0.105, platZ - platformLen/2);
   platLine.receiveShadow = false; platLine.castShadow = false; scene.add(platLine);
+
+  // ✅ 플랫폼 길이 동적 변경 헬퍼
+  window.__updatePlatformLength = function(newLen){
+    try {
+      // 기존 지오메트리 정리
+      if (plat.geometry) plat.geometry.dispose();
+      if (platLine.geometry) platLine.geometry.dispose();
+
+      // 새 길이로 재생성
+      plat.geometry = new THREE.BoxGeometry(platW, 0.2, newLen);
+      plat.position.set(+2.4, platH, platZ - newLen/2);
+
+      platLine.geometry = new THREE.BoxGeometry(0.2, 0.01, newLen);
+      platLine.position.set(+1.55, platH + 0.105, platZ - newLen/2);
+    } catch(e) { /* non-fatal */ }
+  };
+
+
  // 우측 플랫폼 
   // const platR = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
   // platR.position.set(-2.4, platH,platZ - platformLen/2);
@@ -756,7 +775,7 @@ function createTrackCanvasTexture() {
 // scene.add(ambient);
 
   // === Red signs on platform every 50m up to 200m ===
-const signDistances = [0, 50, 100, 150, 200];
+const signDistances = [0, 50, 100, 150, 200, 300, 400];
 
 // 기둥(폴)과 보드(판넬) 재질/형상
 const poleMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.6, metalness: 0.2 });
@@ -1141,6 +1160,20 @@ addEventListener("keydown", (e) => {
       sendCmd("setNotch", -vehicle.forward_notches); // EB 직전 notch
     }
   }
+  else if (e.key === "b" || e.key === "B") {
+  window.__brakeGuideOn = !window.__brakeGuideOn;
+
+  // 선택: 간단 피드백
+  if (fb) {
+    const msg = window.__brakeGuideOn
+      ? "제동 가이드: ON (B로 토글)"
+      : "제동 가이드: OFF (B로 토글)";
+    fb.innerHTML = `<div class="warn">${msg}</div>`;
+    setTimeout(() => {
+      if (!st || !st.finished) fb.textContent = "Space로 시작. W/S로 브레이크 조절하세요.";
+    }, 1200);
+  }
+}
 
 });
 
@@ -1300,6 +1333,7 @@ function drawHUD(st){
   ctx.lineWidth=2*dpr; 
   const maxNotch = vehicle?.notches ?? 10;   // 총 개수(0~maxIdx)
   const maxIdx   = maxNotch - 1;  // EB 인덱스
+  if (window.__brakeGuideOn) {
   for(let n=0;n<maxNotch;n++){
     const a=brakeDecels[n]??0; if(a<=0) continue;
     const s=(v0*v0)/(2*a);
@@ -1313,7 +1347,7 @@ function drawHUD(st){
     const tX=X(s); const label = (n===0) ? "N" : (n===maxIdx ? "EB" : `B${n}`);
     ctx.fillText(label, tX+5*dpr, Y(0)+12*dpr);
   }
-
+  }
   const xRed=X(remaining); ctx.strokeStyle="#f00"; ctx.lineWidth=1.5*dpr; ctx.beginPath(); ctx.moveTo(xRed,Y(0)); ctx.lineTo(xRed,Y(vmax)); ctx.stroke();
   ctx.fillStyle="#f00"; ctx.font=`${14*dpr}px 'Orbitron', sans-serif`; ctx.textAlign="center"; ctx.fillText("남은 거리", xRed, Y(vmax)-18*dpr);
 
@@ -1826,6 +1860,8 @@ function loadVehicleFile(filePath){
           ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTrainLength", length: len } }));
           ws.send(JSON.stringify({ type: "cmd", payload: { name: "setLoadRate", loadRate, length: len } }));
         }, 10);
+        const desiredPlatLen = /n700s_3000/i.test(filePath) || /e26/i.test(filePath) ? 405 : 210;
+if (window.__updatePlatformLength) window.__updatePlatformLength(desiredPlatLen);
       }
     })
     .catch(console.error);
@@ -1866,7 +1902,7 @@ populateSeries(); // 최초 세팅
 
 <!-- ===== 10s 언어 토글 (ko <-> en), 피드백 포함 ===== -->
 <script>
-
+window.__brakeGuideOn = true;
 
 // ===== 언어 토글 =====
 (function(){
@@ -1874,7 +1910,7 @@ populateSeries(); // 최초 세팅
     ko: {
       htmlLang: "ko",
       docTitle: "TASC Simulator",
-      labelRemainTime: "남은시간",
+      labelRemainTime: "이번역: 東京",
       labelSpeed: "속도",
       labelRemainDist: "정차",
       labelGrade: "구배",
@@ -1929,7 +1965,7 @@ populateSeries(); // 최초 세팅
     en: {
       htmlLang: "en",
       docTitle: "TASC Simulator",
-      labelRemainTime: "STA",
+      labelRemainTime: "Next: Tokyo",
       labelSpeed: "Speed",
       labelRemainDist: "Distance",
       labelGrade: "Grade",
