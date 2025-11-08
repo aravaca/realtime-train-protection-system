@@ -38,7 +38,7 @@ Planned upgrades include integration with advanced railway control frameworks an
 
 ---
 
-## 🧠 Why TASC?
+## 🧠 Why TASC (Train Automatic Stopping Control)?
 - **Reduces driver workload & fatigue**: automatically executes initial, stair-step braking and relaxing → reduces cognitive load and control fatigue.
 - **Higher stopping accuracy & consistent ride comfort**: deadband and hold time prevent unnecessary notch hunting; always produces a **similar braking profile**.
 - **Training efficiency**:
@@ -46,32 +46,7 @@ Planned upgrades include integration with advanced railway control frameworks an
   - Quantitative feedback and scoring allows self-assessment of braking habits.
 - **Educational/verification use**: various scenarios (distance/slope/speed/friction), simultaneous evaluation of ride comfort (jerk) and stopping precision.
 - **Low-cost and low-risk**: cheaper than ATO systems; TASC allows manual override if equipment malfunctions.
-
----
-
-## 🧪 How TASC Works (Algorithm Overview)
-
-- **TASC Activation**:  
-  - Activating TASC before starting sets it to **armed**.  
-  - In armed state, using manual brakes (B1/B2) reduces speed to ≤ 60 km/h before 150m mark.  
-  - At the **150m P3 trackside signal**, TASC switches to **active**.  
-  - TASC then **automatically controls the brake lever** to assist precision stop (±35cm),  
-    but any manual input immediately switches it **OFF** (in reality, TASC applies the higher notch of calculated or manual lever).
-
-- **Initial Brake (B1/B2)**:
-  - Optional; in manual operation contributes to scoring.
-
-- **N-Step Build (Stair-Step Braking)**:
-  - If current notch stop distance `s_cur` > `(rem - deadband)`, increase notch (↑).  
-  - Switch to relax phase when sufficient.
-
-- **Stair-Step Relax**:
-  - If `s_dn` ≤ `(rem + deadband)`, decrease notch (↓).  
-  - Repeat until finishing at **B1**.
-
-- **Stabilization**:
-  - Deadband (±m) and minimum hold time applied → prevent hunting and jerkiness.  
-  - Soft linear B1 stop below 5 km/h → improved ride comfort.
+
 
 ---
 
@@ -80,7 +55,7 @@ Planned upgrades include integration with advanced railway control frameworks an
 ├── vehicle.json # Vehicle specs (mass, notch_accels, time constants, etc.)
 ├── server.py # FastAPI + WebSocket server, including TASC logic
 └── static/
-      ├── index.html # UI (HUD/Overlay/TASC switch/animations)
+      ├── index.html # UI (3D graphics, HUD/Overlay/TASC switch/animations)
       └── xxxxx.json # Vehicle name display data
 
 
@@ -103,13 +78,7 @@ Planned upgrades include integration with advanced railway control frameworks an
 ---
 
 ## 📄 License
-MIT License © 2025 Hyungsuk Choi, University of Maryland
+MIT License © 2025 Hyungsuk Choi, University of Maryland
 
----
-
-## 📌 Training Tips
-- On the **brake navigation canvas**, watch where the red line intersects curves → read **stair-step braking & relaxing timing**.  
-- Observe TASC ON autopilot profiles, then try to **replicate manually** for skill improvement.  
-- Aim for **0cm stop bonus** and **on-time arrival bonus**, while monitoring jerk score for **both accuracy and ride comfort**.
 
 
