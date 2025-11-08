@@ -47,7 +47,7 @@ Planned upgrades include integration with advanced railway control frameworks an
 
 ---
 
-## 🧠 Why TASC (Train Automatic Stopping Control)?
+## 🧠 Why TASC?
 - **Reduces driver workload & fatigue**: automatically executes initial, stair-step braking and relaxing → reduces cognitive load and control fatigue.
 - **Higher stopping accuracy & consistent ride comfort**: useful when stopping at stations with PSDs (platform doors); always produces a **similar braking profile**.
 - **Low-cost and low-risk**: cheaper than ATO systems; TASC allows manual override if equipment malfunctions.
