@@ -24,8 +24,8 @@ By replicating authentic **EMU physics**, it enables:
 ## 🚆 Application Scenarios
 
 - **Operator Training:** Repetitive personal-level stopping practice using simplified simulator hardware  
-- **Educational Demonstrations:** Visualization of train dynamics and signal-response logic  
-- **Research & Development:** Testing human–automation interaction (TASC) and control adaptation strategies  
+- **Educational Demonstrations:** Visualization of efficient brake curves 
+- **Research & Development:** Testing human–automation interaction (TASC) algorithms    
 
 ---
 
