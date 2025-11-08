@@ -4,10 +4,13 @@ This project introduces a lightweight web-based simulation framework for **JR Se
 
 Unlike full-cab or desk-type simulators, this **PTS platform is specifically designed for training essential driving skills**, allowing operators to repeatedly practice braking control and stop-point accuracy under a variety of simulated conditions. The system supports both **manual stop control** and **TASC (Train Automatic Stop Control)**-assisted automatic stopping, enabling side-by-side comparison between human and automated performance.
 
-Powered by **Three.js-based 3D visualization**, the simulator provides a minimalistic yet immersive representation of the driver’s point of view and external track environment. Real-time rendering of velocity–distance trajectories and braking curves offers immediate, intuitive feedback for both trainee drivers and research users.  
+Powered by **Three.js 3D visualization**, the simulator delivers an immersive driver’s POV and realistic track environment.  
+Real-time **velocity–distance** and **braking curve** rendering provides intuitive, instant feedback.
 
-By emulating the authentic physical behavior of EMUs, the platform enables comprehensive **repetitive stop training**, **scenario-based evaluation**, and **quantitative performance scoring/feedback** across varying track conditions.
-
+By replicating authentic **EMU physics**, it enables:
+- **Repetitive stop training**  
+- **Scenario-based evaluation**  
+- **Quantitative performance scoring** under diverse track conditions
 ---
 
 ## 🚆 Application Scenarios
