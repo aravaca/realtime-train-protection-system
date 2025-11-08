@@ -248,7 +248,8 @@ body{overflow-x:hidden;overflow-y:auto}
     <span class="kbd">Space</span> <span id="labelStartKey">재시작</span> ·
     <span class="kbd">W</span> <span id="labelUp">제동 체결</span> ·
     <span class="kbd">S</span> <span id="labelDown">제동 완해</span> ·
-    <span class="kbd">A</span> <span id="labelRestart">6단 상용제동</span>
+    <span class="kbd">A</span> <span id="labelRestart">6단 제동</span> ·
+    <span class="kbd">B</span> <span id="labelRestart">제동곡선 표시</span>
     <!-- <span id="labelRelease">해방</span> <span class="kbd">N</span> -->
   </div>
 
@@ -266,7 +267,7 @@ body{overflow-x:hidden;overflow-y:auto}
   <div class="card">
     <h2 class="title">
       <img id="trainIcon" src="/static/logos/e233_logo.png" alt="E233" class="emoji"> 
-      JR TASC Simulator
+      JR Personal Type Simulator
     </h2>
 
     <p class="subtitle" id="subtitleIntro">초기값 입력 후 <b>TASC(자동정차)</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요. TASC가 활성화된 상태에서도, 운전자는 수동 조작으로 운전에 개입할 수 있습니다.</p>
@@ -279,7 +280,7 @@ body{overflow-x:hidden;overflow-y:auto}
     </div>
 
     <!-- BEGIN PATCH: Overlay - Sync Mode Selector (label 변경만) -->
-<label class="form-label"><span>Graphic</span>
+<label class="form-label"><span>3D Graphics</span>
   <select id="syncMode" class="form-input">
     <option value="on" selected>Enable (Recommended for PC Only)</option>
     <option value="off" >Disable</option>
@@ -343,7 +344,7 @@ body{overflow-x:hidden;overflow-y:auto}
       <div style="animation-delay:1.6s;left:85%"></div><div style="animation-delay:1.8s;left:95%"></div>
     </div>
 
-    <div class="kbd-info"><span class="kbd">W</span> 제동 체결 · <span class="kbd">S</span> 제동 완해 · <span class="kbd">N</span> 중립 기어 · <span class="kbd">A</span> 6단 상용제동</div>
+    <div class="kbd-info"><span class="kbd">W</span> 제동 체결 · <span class="kbd">S</span> 제동 완해 · <span class="kbd">N</span> 중립 기어 · <span class="kbd">A</span> 6단 상용제동 · <span class="kbd">B</span> 제동곡선 표시</div>
     <button id="btnStart" class="btn-primary" type="button" style="margin-top:8px">Start (Space)</button>
   </div>
 </div>
@@ -376,11 +377,11 @@ ws.addEventListener('open', () => {
     payload: {
       name: "setTimerCalib",
       points: [
-        { v: 40, L: 150, t: 27 },
-        { v: 60, L: 200, t: 29 },
-        { v: 70, L: 300, t: 32 },
-        { v: 90, L: 500, t: 40 },
-        { v: 130, L: 900, t: 49 }
+        { v: 40, L: 150, t: 35 },
+        { v: 60, L: 200, t: 37 },
+        { v: 70, L: 300, t: 40 },
+        { v: 90, L: 500, t: 48 },
+        { v: 130, L: 900, t: 57 }
       ],
       norm_v: 100,
       norm_L: 300,
@@ -504,12 +505,12 @@ const overlay=document.getElementById("overlay"),
   // use actual mount size for correct aspect ratio so canvas fills its container
   const initialW = mount.clientWidth || Math.max(800, window.innerWidth);
   const initialH = mount.clientHeight || Math.max(450, Math.round(initialW * 9/16));
-  const camera = new THREE.PerspectiveCamera(58, initialW / initialH, 0.1, 2000);
+  const camera = new THREE.PerspectiveCamera(58, initialW / initialH, 0.1, 300);
 
 
   // const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
   const renderer = new THREE.WebGLRenderer({
-  antialias: false, // 저사양에서 큰 효과
+  antialias: true, // 저사양에서 큰 효과
   alpha: false,
   depth: true,
   stencil: false, // 스텐실 끄기
@@ -517,7 +518,7 @@ const overlay=document.getElementById("overlay"),
   failIfMajorPerformanceCaveat: false
 });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2)); // cap max DPR to 2 for performance
   mount.appendChild(renderer.domElement);
   // runtime-adjustable target DPR for the auto-scaler (initialized to current setting)
   let targetDPR = renderer.getPixelRatio();
@@ -567,25 +568,29 @@ const overlay=document.getElementById("overlay"),
 let lastFpsCheck = performance.now();
 let frames = 0;
 
-function autoScaleDPR() {
-  frames++;
-  const now = performance.now();
-  if (now - lastFpsCheck >= 1000) {
-    const fps = frames * 1000 / (now - lastFpsCheck);
-    // 목표 60fps 근처 유지: 낮으면 해상도 살짝 내리고, 높으면 올림
-    if (fps < 50 && targetDPR > 0.75) {
-      targetDPR = Math.max(0.75, targetDPR - 0.05);
-      renderer.setPixelRatio(targetDPR);
-      resize();
-    } else if (fps > 62 && targetDPR < 1.0) {
-      targetDPR = Math.min(1.0, targetDPR + 0.05);
-      renderer.setPixelRatio(targetDPR);
-      resize();
+  // Conservative DPR autoscaler: check less frequently and change in larger steps to avoid
+  // frequent renderer reconfiguration which can cause frame hitches.
+  function autoScaleDPR() {
+    frames++;
+    const now = performance.now();
+    // check every 1500ms
+    if (now - lastFpsCheck < 1500) return;
+    const fps = frames * 1000 / (now - lastFpsCheck || 1);
+    // compute desired DPR: be conservative to avoid rapid toggles
+    let desired = targetDPR;
+    if (fps < 45) desired = 0.75;        // degrade to low DPR on sustained low FPS
+    else if (fps > 65) desired = 1;    // upgrade to full DPR when comfortably above target
+
+    // only apply when change is meaningful to avoid repeated reflows
+    if (Math.abs(desired - targetDPR) >= 0.1) {
+      targetDPR = desired;
+      try { renderer.setPixelRatio(targetDPR); } catch(e) {}
+      try { resize(); } catch(e) {}
     }
+
     frames = 0;
     lastFpsCheck = now;
   }
-}
 
   // --- 텍스처 로더 ---
   const texLoader = new THREE.TextureLoader();
@@ -901,6 +906,13 @@ signDistances.forEach(d => {
         const mesh = meshes[i];
         const d = dists[i] ?? 0;
         try{
+          // dispose previous texture (if any) to avoid accumulating GPU memory and GC spikes
+          try{
+            const oldMap = mesh && mesh.material && mesh.material.map;
+            if (oldMap && typeof oldMap.dispose === 'function') {
+              oldMap.dispose();
+            }
+          }catch(e){}
           const newTex = createFn(d);
           if (mesh && mesh.material) {
             mesh.material.map = newTex;
@@ -943,30 +955,42 @@ function syncCameraFromState() {
   const rem = Number(window.st?.remaining_m ?? 0);
   // only update texture offsets if the textures exist (avoid per-frame exceptions)
   if (typeof ballastDiff !== 'undefined' && ballastDiff && ballastDiff.offset) {
-    ballastDiff.offset.y = (rem * 10) % 1;
+    ballastDiff.offset.y = (rem * 100) % 1;
   }
   if (typeof ballastNorm !== 'undefined' && ballastNorm && ballastNorm.offset) {
-    ballastNorm.offset.y = (rem * 10) % 1;
+    ballastNorm.offset.y = (rem * 100) % 1;
   }
   if (typeof trackTex !== 'undefined' && trackTex && trackTex.offset) {
     trackTex.offset.y = (rem * 0.02) % 1;
   }
       syncCameraFromState();
-      // Make platform signs face the camera (billboard) so driver sees them
-      try{
-        if (Array.isArray(platformSignMeshes) && platformSignMeshes.length){
-          for (let i=0;i<platformSignMeshes.length;i++){
-            const m = platformSignMeshes[i];
-            if (m && m.lookAt) m.lookAt(camera.position);
-          }
-        }
-        if (Array.isArray(platformSignRings) && platformSignRings.length){
-          for (let i=0;i<platformSignRings.length;i++){
-            const r = platformSignRings[i];
-            if (r && r.lookAt) r.lookAt(camera.position);
-          }
-        }
-      }catch(e){ /* non-fatal */ }
+          // Make platform signs face the camera (billboard) so driver sees them
+          // Throttle lookAt updates to avoid many small matrix updates per-frame which can
+          // create jank on lower-end devices. Update when camera moves noticeably or every
+          // 120ms as a fallback.
+          try{
+            if (!window.__lastSignCamPos) window.__lastSignCamPos = new THREE.Vector3();
+            if (!window.__lastSignUpdate) window.__lastSignUpdate = 0;
+            const nowSign = performance.now();
+            const camPos = camera.position;
+            const needUpdate = (nowSign - window.__lastSignUpdate) > 120 || camPos.distanceToSquared(window.__lastSignCamPos) > 0.0004;
+            if (needUpdate) {
+              window.__lastSignCamPos.copy(camPos);
+              window.__lastSignUpdate = nowSign;
+              if (Array.isArray(platformSignMeshes) && platformSignMeshes.length){
+                for (let i=0;i<platformSignMeshes.length;i++){
+                  const m = platformSignMeshes[i];
+                  if (m && m.lookAt) m.lookAt(camPos);
+                }
+              }
+              if (Array.isArray(platformSignRings) && platformSignRings.length){
+                for (let i=0;i<platformSignRings.length;i++){
+                  const r = platformSignRings[i];
+                  if (r && r.lookAt) r.lookAt(camPos);
+                }
+              }
+            }
+          }catch(e){ /* non-fatal */ }
 
       renderer.render(scene, camera);
       // lightweight DPR autoscaler: periodically adjust renderer pixel ratio based on observed FPS

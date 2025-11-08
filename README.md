@@ -1,45 +1,41 @@
-# JR TASC Simulator — Advanced Precision Stop Simulation Framework for JR Series EMUs
+# JR Personal Type Simulator — Interactive 3D Cab Operation and Precision Stop Training Framework
 
+This project introduces a lightweight simulation framework for **JR Series Personal Type Simulators (PTS)** — compact, function-focused train driving systems that replicate the essential control environment of JR East and JR West Electric Multiple Units (EMUs).  
 
-This project presents an advanced simulation framework for **Train Automatic Stop Control (TASC) systems**, designed to replicate and evaluate the braking and precision stop performance of JR East and JR West Electric Multiple Units (EMUs). The simulator integrates a real-time control and visualization environment, combining a FastAPI-based backend with HTML/CSS/JavaScript front-end modules for dynamic rendering of distance–velocity trajectories and automatic brake navigation.
+Unlike full-cab or desk-type simulators, this **PTS platform is specifically designed for training essential driving skills**, allowing operators to repeatedly practice braking control and stop-point accuracy under a variety of simulated conditions. The system supports both **manual stop control** and **TASC (Train Automatic Stop Control)**-assisted automatic stopping, enabling side-by-side comparison between human and automated performance.
 
-By emulating authentic TASC logic, the system enables precise stop-point training, adaptive feedback analysis, and quantitative scoring for operator performance assessment. The platform serves as both a training and research tool, bridging theoretical control algorithms with real-world railway operations.
+Powered by **Three.js-based 3D visualization**, the simulator provides a minimalistic yet immersive representation of the driver’s point of view and external track environment. Real-time rendering of velocity–distance trajectories and braking curves offers immediate, intuitive feedback for both trainee drivers and research users.  
 
-Future development aims to extend the simulation scope to encompass modern train protection and supervision systems, including Automatic Train Control (ATC), Automatic Train Protection (ATP), and Automatic Train Stop (ATS). This expansion will establish a comprehensive framework for comparative studies on safety-critical railway automation and human-in-the-loop control dynamics.
+By emulating the authentic physical behavior of EMUs, the platform enables comprehensive **repetitive stop training**, **scenario-based evaluation**, and **quantitative performance scoring/feedback** across varying track conditions.
 
 ---
 
-## ✨ What’s New (Key Updates 2025.08.31)
-- Expanded train series: JR East (E233, E235) commuter trains as well as special express, sleeper, and retired trains with different braking profiles.
-- Auto-restriction of options by series/composition: train selection automatically limits series/formation.
-- Weather & load simulation: friction coefficient (sunny/rainy/snowy) + passenger load (formation × mass) reflected in real-time.
-- **TASC Autopilot**:
-  - Activates automatically at 150m when passing P3 trackside signal → N-step braking (build) and M-step relaxing → B1 soft stop for ride comfort.
-  - **Stair-step build**: compares red "remaining distance" line with brake-distance curves; increases brake step if needed.
-  - **Stair-step relax**: decreases brake step gradually if stopping is possible with a lower notch, finishing at **B1**.
-  - **Deadband & minimum hold time** prevent hunting; improve ride comfort.
-  - Manual intervention (keyboard/touch) immediately switches to **Manual**.
-- **Brake Navigation Canvas**:
-  - Visualizes brake-distance curves and remaining distance in real-time → intuitive guidance for when to brake/relax.
-- **Scoring Improvements**:
-  - Extra points for initial braking (B1/B2 1s) during manual operation.
-  - Bonus for last B1 stop.
-  - **0cm stop (+400 points)** bonus added.
-  - **00:00s on-time arrival (+100 points)** bonus.
-  - Jerk-based ride comfort scoring.
-  - TASC ON allows initial braking omission.
-- **Environment Simulation**: snow/rain animation, slope/friction reflection, total mass adjusted by passenger load.
+## 🚆 Application Scenarios
+
+- **Operator Training:** Repetitive personal-level stopping practice using simplified simulator hardware  
+- **Educational Demonstrations:** Visualization of train dynamics and signal-response logic  
+- **Research & Development:** Testing human–automation interaction (TASC) and control adaptation strategies  
+
+---
+
+## 🔭 Future Development
+
+Planned upgrades include integration with advanced railway control frameworks and signals such as:
+
+- **ATC (Automatic Train Control)**  
+- **ATP (Automatic Train Protection)**  
+- **ATS (Automatic Train Stop)**  
 
 ---
 
 ## ⚙️ Tech Stack
-- **Backend**: Python 3.12, FastAPI, WebSocket
-- **Frontend**: HTML, CSS, JavaScript (Canvas-based HUD)
-- **Deployment**: AWS EC2 (Amazon Linux), Nginx, Route53
+- **Backend**: Python (FastAPI, WebSocket)
+- **Frontend**: HTML, CSS, JavaScript (Three.JS for BVE-style graphic)
+- **Deployment**: AWS EC2 (Amazon Linux), Nginx, Route53, 내도메인.한국
 
 ---
 
-## 🧠 Why TASC? (Value of TASC)
+## 🧠 Why TASC?
 - **Reduces driver workload & fatigue**: automatically executes initial, stair-step braking and relaxing → reduces cognitive load and control fatigue.
 - **Higher stopping accuracy & consistent ride comfort**: deadband and hold time prevent unnecessary notch hunting; always produces a **similar braking profile**.
 - **Training efficiency**:
@@ -76,88 +72,6 @@ Future development aims to extend the simulation scope to encompass modern train
 
 ---
 
-## 🖥 UI & Controls (Operation & Visualization)
-
-### 1. Displayed Metrics
-- **Remaining distance**: distance to target stop; displayed on HUD & brake navigation canvas in real-time.  
-- **Current speed**: km/h, brake curves adjust according to speed.  
-- **Elapsed time**: simulation time since start; color indicates status:
-  - ±2s: **green highlight**
-  - Time exceeded (positive): **red warning**
-- **Current notch**: driver brake/traction lever state.
-- **Gradient**: slope percentage of the track.
-
----
-
-### 2. Brake Curve Canvas
-- **X-axis**: distance, **Y-axis**: speed  
-- Intersection of notch brake curves and **red vertical line (remaining distance)** shows **brake/relax timing** intuitively.  
-- Curve colors highlight current notch:
-  - Selected notch: `#ffae00`  
-  - Unselected notch: `#3fa9ff`  
-- EB (Emergency Brake) is shown in red.
-
----
-
-### 3. TASC Indicator (HUD Top)
-- **Automation status**:
-  - Idle/inactive: gray (`#444`)  
-  - Active: yellow (`#fec670`)  
-  - Armed blinking: 0.25s intervals to indicate readiness  
-- **Text label**: `TASC\nAUTO`  
-- **Text color**:
-  - Active: black (`#000`)  
-  - Inactive/idle: white (`#fff`)  
-
----
-
-### 4. Precision Stop Button (HUD Top)
-- **Position**: left of TASC indicator  
-- **State color**:
-  - Default: gray (`#444`)  
-  - Precision stop achieved: green (`#9be071`)  
-- **Text**: `TASC\nSTOP`  
-  - Text turns black when precision achieved (`#000`)  
-- **Design**: rounded rectangle with gradient border for 3D effect.
-
----
-
-### 5. Brake Mini Indicator
-- **Function**: displays current notch as a mini bar graph.  
-- **Composition**:
-  - Total blocks = number of notches (including EB)  
-  - Block colors:  
-    - Active notch: yellow (`#ffd34d`)  
-    - EB: red (`#ff5757`)  
-    - Inactive: gray (`rgba(60,80,100,0.35)`)
-
----
-
-### 6. Keyboard / Mobile Controls
-- **Keyboard**:
-  - `Space`: Start/Restart  
-  - `W`: Increase brake notch  
-  - `S`: Decrease brake notch  
-  - `N`: Release brakes  
-  - `E`: Emergency brake  
-  - `A`: Maximum service brake  
-  - `D`: Minimum service brake  
-- **Mobile Touch**:
-  - Top touch → Increase brake notch  
-  - Bottom touch → Decrease brake notch  
-- **TASC Toggle**:
-  - HUD top-right ON/OFF switch  
-  - **ON** → manual initial braking followed by automatic control (see algorithm)  
-  - **OFF** → fully manual operation  
-
----
-
-### 7. HUD & Brake Navigation Feedback
-- Real-time visualization of remaining distance, notch, and speed curve intersections → intuitive brake/relax timing.  
-- TASC indicator/button color changes upon precision stop completion.
-
----
-
 ## 🔧 Project Structure
 ├── scenario.json # Scenario (distance L, initial speed v0, slope, friction, etc.)
 ├── vehicle.json # Vehicle specs (mass, notch_accels, time constants, etc.)
@@ -175,8 +89,8 @@ Future development aims to extend the simulation scope to encompass modern train
 
 ---
 
-## ⚙️ Configuration
-- **vehicle.json**
+## ⚙️ Configuration (Example)
+- **e233_1000.json**
   - `notch_accels`: `[EB, B8, B7, ..., B1, N]` order
   - `tau_cmd_ms`, `tau_brk_ms`: control/brake delay constants
   - `mass_t`: single car mass (total mass = formation × passenger load)
