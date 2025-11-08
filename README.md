@@ -21,6 +21,13 @@ By replicating authentic **EMU physics**, it enables:
 - **Quantitative performance scoring** under diverse track conditions
 ---
 
+## ⚙️ Tech Stack
+- **Backend**: Python (FastAPI, WebSocket)
+- **Frontend**: HTML, CSS, JavaScript (Three.JS for BVE-style graphic)
+- **Deployment**: AWS EC2 (Amazon Linux), Nginx, Route53, 내도메인.한국
+
+---
+
 ## 🚆 Application Scenarios
 
 - **Operator Training:** Repetitive personal-level stopping practice using simplified simulator hardware  
@@ -37,12 +44,6 @@ Planned upgrades include integration with advanced railway control frameworks an
 - **ATP (Automatic Train Protection)**  
 - **ATS (Automatic Train Stop)**  
 
----
-
-## ⚙️ Tech Stack
-- **Backend**: Python (FastAPI, WebSocket)
-- **Frontend**: HTML, CSS, JavaScript (Three.JS for BVE-style graphic)
-- **Deployment**: AWS EC2 (Amazon Linux), Nginx, Route53, 내도메인.한국
 
 ---
 
