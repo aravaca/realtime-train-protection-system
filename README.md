@@ -1,7 +1,7 @@
 # JR Personal Type Simulator (PTS) — Lightweight Precision Stop Training Framework
 
  
-[Try PTS🚆](https://jrtasc.kro.kr/) 
+[Try PTS! 🚆](https://jrtasc.kro.kr/) 
 ---
 
 A lightweight **web-based simulation framework** replicating key control functions of **JR East/West EMUs**.  
