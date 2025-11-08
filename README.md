@@ -23,7 +23,7 @@ By replicating authentic **EMU physics**, it enables:
 
 ## ⚙️ Tech Stack
 - **Backend**: Python (FastAPI, WebSocket)
-- **Frontend**: HTML, CSS, JavaScript (Three.JS for BVE-style graphic)
+- **Frontend**: HTML, CSS, JavaScript (Three.js for BVE1-style graphics)
 - **Deployment**: AWS EC2 (Amazon Linux), Nginx, Route53, 내도메인.한국
 
 ---
