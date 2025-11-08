@@ -1,5 +1,5 @@
 git add .
-git commit -m "update readme/ui"
+git commit -m "update title ui"
 git push origin main
 
 pip install fastapi uvicorn[standard]
