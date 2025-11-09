@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1, maximum-scale=1, user-scalable=no"/>
-  <title>TASC Simulator</title>
+  <title>JR Personal Type Simulator</title>
   <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
   <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
 
@@ -741,7 +741,7 @@ const groundMat = new THREE.MeshStandardMaterial({
   metalness: 0.0     // 금속성 없음
 });
 
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 2000, 1, 1), groundMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(20, 2000, 1, 1), groundMat);
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = 0.0;
 ground.position.z = 200;
@@ -812,6 +812,14 @@ function createTrackCanvasTexture() {
   track.receiveShadow = false;
   scene.add(track);
 
+  const track2 = new THREE.Mesh(trackGeo, trackMat);
+  track2.position.set(4, 0.01, 200);
+  track2.rotation.x = -Math.PI/2;
+  track2.position.y = 0.01;
+  track2.position.z = 200;
+  track2.receiveShadow = false;
+  scene.add(track2);
+
   // rails (thin metallic extrusions) on top of the track plane for specular highlights and correct shading
   const railMat = new THREE.MeshStandardMaterial({ color:0xe0e5e5, metalness:0.95, roughness:0.28 });
   const railH = 0.14, railW = 0.065, railLen = 2000;
@@ -823,6 +831,14 @@ function createTrackCanvasTexture() {
   railL.castShadow = false; railL.receiveShadow = false;
   railR.castShadow = false; railR.receiveShadow = false;
   scene.add(railL, railR);
+  
+  const railL2 = new THREE.Mesh(railGeo, railMat);
+  const railR2 = new THREE.Mesh(railGeo, railMat);
+  railL2.position.set(-0.535+4, railH/2 + 0.01, 200);
+  railR2.position.set( 0.535+4, railH/2 + 0.01, 200);
+  railL2.castShadow = false; railL2.receiveShadow = false;
+  railR2.castShadow = false; railR2.receiveShadow = false;
+  scene.add(railL2, railR2);
 
 //   // --- 침목(InstancedMesh) ---
 //   const sleeperMat = new THREE.MeshStandardMaterial({
@@ -843,81 +859,95 @@ function createTrackCanvasTexture() {
 // }
 
   // --- 플랫폼 (정차벽 기준 -platformLen ~ 0m, 오른쪽에 배치) ---
+const platformLen = 210; // 플랫폼 길이
+const platH = 1.13; // 플랫폼 높이 (1.13m로 설정)
+const platW = 3.0; // 플랫폼 폭
+const platZ = 0 + 200; // 세계좌표 보정 (ground/rail과 일치)
 
-  const platformLen = 210; // /정 길이로 설정
-  const platH = 1.13; // 플랫폼 높이
-  const platW = 3.0; // 폭
-  const platZ = 0 + 200; // 세계좌표 보정(ground/rail과 일치)
-  const platMatTop = new THREE.MeshStandardMaterial({ color: 0xd8dbe1, roughness:0.95, metalness:0.0 });
-  const platMatEdge= new THREE.MeshStandardMaterial({ color: 0xf0d060, roughness:0.6, metalness:0.0 }); // 노란 라인
+// Materials
+const platMatTop = new THREE.MeshStandardMaterial({ color: 0xd8dbe1, roughness: 0.95, metalness: 0.0 });
+const platMatEdge = new THREE.MeshStandardMaterial({ color: 0xf0d060, roughness: 0.6, metalness: 0.0 }); // 노란 라인
 
-  const plat = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
-  plat.position.set(+2.4, platH, platZ - platformLen/2);
-  plat.receiveShadow = false; plat.castShadow = false;
-  scene.add(plat);
+// 좌측 플랫폼 (높이는 그대로 1.13m로 유지)
+const plat = new THREE.Mesh(new THREE.BoxGeometry(platW, platH, platformLen), platMatTop);
+plat.position.set(+2.4 + 4.9415, platH / 2, platZ - platformLen / 2); // 바닥에서 1.13m로 설정, 높이는 그대로 유지
+plat.receiveShadow = false; plat.castShadow = false;
+scene.add(plat);
 
-  const platLine = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
-  platLine.position.set(+1.55, platH + 0.105, platZ - platformLen/2);
-  platLine.receiveShadow = false; platLine.castShadow = false; scene.add(platLine);
+// 좌측 노란 라인
+const platLine = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
+platLine.position.set(+1.55 + 4.9415, platH+ 0.01, platZ - platformLen / 2); // 노란 라인 위치도 길이에 맞춰 조정
+platLine.receiveShadow = false; platLine.castShadow = false; 
+scene.add(platLine);
 
-  // ✅ 플랫폼 길이 동적 변경 헬퍼
-  window.__updatePlatformLength = function(newLen){
-    try {
-      // 기존 지오메트리 정리
-      if (plat.geometry) plat.geometry.dispose();
-      if (platLine.geometry) platLine.geometry.dispose();
+// 우측 플랫폼 (좌측과 동일한 높이와 Y축 길이 유지)
+const platR = new THREE.Mesh(new THREE.BoxGeometry(platW, platH, platformLen), platMatTop);
+platR.position.set(-2.9415, platH / 2, platZ - platformLen / 2); // 바닥에서 1.13m로 설정, 좌측과 동일한 높이로 설정
+platR.receiveShadow = false; platR.castShadow = false; scene.add(platR);
 
-      // 새 길이로 재생성
-      plat.geometry = new THREE.BoxGeometry(platW, 0.2, newLen);
-      plat.position.set(+2.4, platH, platZ - newLen/2);
-
-      platLine.geometry = new THREE.BoxGeometry(0.2, 0.01, newLen);
-      platLine.position.set(+1.55, platH + 0.105, platZ - newLen/2);
-    } catch(e) { /* non-fatal */ }
-  };
+// 우측 노란 라인
+const platLineR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
+platLineR.position.set(-2.0915, platH +0.01, platZ - platformLen / 2); // 좌측과 동일한 높이로 설정
+platLineR.receiveShadow = false; platLineR.castShadow = false; scene.add(platLineR);
 
 
- // 우측 플랫폼 
-  // const platR = new THREE.Mesh(new THREE.BoxGeometry(platW, 0.2, platformLen), platMatTop);
-  // platR.position.set(-2.4, platH,platZ - platformLen/2);
-  // platR.receiveShadow = false; platR.castShadow = false; scene.add(platR);
+// 플랫폼 길이 동적 변경 헬퍼
+window.__updatePlatformLength = function(newLen) {
+  try {
+    // 좌측 플랫폼 길이와 라인 업데이트
+    if (plat.geometry) plat.geometry.dispose();
+    if (platLine.geometry) platLine.geometry.dispose();
 
-  // const platLineR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
-  // platLineR.position.set(-1.55, platH + 0.105, platZ - platformLen/2);
-  // platLineR.receiveShadow = false; platLineR.castShadow = false; scene.add(platLineR);
+    plat.geometry = new THREE.BoxGeometry(platW, platH, newLen);
+    plat.position.set(+2.4 + 4.9415, platH / 2, platZ - newLen / 2);
 
+    platLine.geometry = new THREE.BoxGeometry(0.2, 0.01, newLen);
+    platLine.position.set(+1.55 + 4.9415, platH + 0.01, platZ - newLen / 2);
+
+    // 우측 플랫폼 길이와 라인 업데이트
+    if (platR.geometry) platR.geometry.dispose();
+    if (platLineR.geometry) platLineR.geometry.dispose();
+
+    platR.geometry = new THREE.BoxGeometry(platW, platH, newLen);
+    platR.position.set(-2.9415, platH / 2, platZ - newLen / 2);
+
+    platLineR.geometry = new THREE.BoxGeometry(0.2, 0.01, newLen);
+    platLineR.position.set(-2.0915, platH + 0.01, platZ - newLen / 2);
+
+  } catch(e) { /* non-fatal */ }
+};
   // --- 플랫폼 기둥 및 지붕 추가 (간단한 구조로 분위기 향상) ---
-//   (function addPlatformRoof(){
-//     const pillarMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness:0.2, roughness:0.6 });
-//     const roofMat = new THREE.MeshStandardMaterial({ color: 0xf1f3f6, metalness:0.05, roughness:0.8 });
-//     const pillarGeo = new THREE.BoxGeometry(0.3, 5, 0.3);
-//     const roofGeo = new THREE.BoxGeometry(platW*2.5, 0.12, platformLen + 4);
+    (function addPlatformRoof(){
+    const pillarMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness:0.2, roughness:0.6 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0xf1f3f6, metalness:0.05, roughness:0.8 });
+    const pillarGeo = new THREE.BoxGeometry(0.3, 5, 0.3);
+    const roofGeo = new THREE.BoxGeometry(platW*5 , 0.12, platformLen + 6);
 
-//     const startZ = platZ - 2;
-//     const endZ = platZ - platformLen + 2;
-//     const spacing = 20.0; // m 사이 간격
-//     for (let z = startZ; z > endZ; z -= spacing){
-//       // 왼쪽 기둥
-//       const pL = new THREE.Mesh(pillarGeo, pillarMat);
-//       pL.position.set(2.7, 2.5, z);
-//       pL.castShadow = false; pL.receiveShadow = false;
-//       scene.add(pL);
-//       // 오른쪽 기둥
-//       const pR = new THREE.Mesh(pillarGeo, pillarMat);
-//       pR.position.set(-2.7, 2.5, z);
-//       pR.castShadow = false; pR.receiveShadow = false;
-//       scene.add(pR);
-//     }
+    const startZ = platZ - 2;
+    const endZ = platZ - platformLen + 2;
+    const spacing = 20.0; // m 사이 간격
+    for (let z = startZ; z > endZ; z -= spacing){
+      // 왼쪽 기둥
+      const pL = new THREE.Mesh(pillarGeo, pillarMat);
+      pL.position.set(2.7+4, 2.5, z);
+      pL.castShadow = false; pL.receiveShadow = false;
+      scene.add(pL);
+      // 오른쪽 기둥
+      const pR = new THREE.Mesh(pillarGeo, pillarMat);
+      pR.position.set(-2.7, 2.5, z);
+      pR.castShadow = false; pR.receiveShadow = false;
+      scene.add(pR);
+    }
 
-//     // long roof spanning the platform
-//     const roof = new THREE.Mesh(roofGeo, roofMat);
-//     roof.position.set(0, platH + 3.5, platZ - platformLen/2);
-//     roof.castShadow = false; roof.receiveShadow = false;
-//     scene.add(roof);
-//   })();
+    // long roof spanning the platform
+    const roof = new THREE.Mesh(roofGeo, roofMat);
+    roof.position.set(1.75, platH + 3.5, platZ - platformLen/2);
+    roof.castShadow = false; roof.receiveShadow = false;
+    scene.add(roof);
+  })();
 
-// const ambient = new THREE.AmbientLight(0xffffff, 0.05);
-// scene.add(ambient);
+const ambient = new THREE.AmbientLight(0xffffff, 0.05);
+scene.add(ambient);
 
   // === Red signs on platform every 50m up to 200m + 300 + 400 ===
 const signDistances = [0, 50, 100, 150, 200, 300, 400, 500]; // m 단위 거리
@@ -991,11 +1021,11 @@ signDistances.forEach(d => {
 
   // 폴(기둥)
   const pole = new THREE.Mesh(poleGeo, poleMat);
-  pole.position.set(+2.1, platH + 0.1, z); // 플랫폼 위에서 0.1m 올라온 기둥 중심
+  pole.position.set(-2.1, platH + 0.1, z); // 플랫폼 위에서 0.1m 올라온 기둥 중심
   if (d == 0) {
-    pole.position.set(-2.1, 0.4, z); // 기둥 높이 조정
+    pole.position.set(+2.1, 0.4, z); // 기둥 높이 조정
   } else {
-    pole.position.set(+2.1, platH + 0.1, z); // 기둥 높이 조정
+    pole.position.set(-2.1, platH + 0.1, z); // 기둥 높이 조정
   }
   scene.add(pole);
 
@@ -1011,11 +1041,11 @@ signDistances.forEach(d => {
   const signGeo = new THREE.CircleGeometry(signRadius, 64);
   const sign = new THREE.Mesh(signGeo, signMat);
   // do not fix rotation here — we'll billboard it to the camera in the render loop
-  sign.position.set(+2.1, platH + 1.25, z);
+  sign.position.set(-2.1, platH + 1.25, z);
   if (d == 0) {
-    sign.position.set(-2.1, 1.25, z);
+    sign.position.set(+2.1, 1.25, z);
   } else {
-    sign.position.set(+2.1, platH + 1.25, z);
+    sign.position.set(-2.1, platH + 1.25, z);
   }
   scene.add(sign);
 
@@ -1078,13 +1108,23 @@ signDistances.forEach(d => {
 function syncCameraFromState() {
   const rem = Number(window.st?.remaining_m ?? 0);
   
-  // train_name에 'n700s'가 포함되어 있으면 높이를 3.5로
+  // train_name에 'n700s'가 포함되어 있으면 높이를 3.1로
   const trainName = window.st?.train_name ?? '';
-  const y = trainName.toLowerCase().includes('n700s') || trainName.toLowerCase().includes('e26') ? 3.1 : 2.8; // 대소문자 무시
+  const y = trainName.toLowerCase().includes('n700s') || trainName.toLowerCase().includes('e26') ? 3.1: 2.8; // 대소문자 무시
   
-  const z = 200 - rem;
-  camera.position.set(0, y, z);
-  camera.lookAt(0, y - 0.3, z + 4.0); // 살짝 위쪽을 바라봄
+const z = 200 - rem;
+
+// 카메라를 살짝 왼쪽으로 이동시키고, 살짝 아래쪽을 바라보게 설정
+const xOffset = 0.3;  // 카메라를 왼쪽으로 1.5 단위 이동
+const yOffset = y - 0.3; // 기존보다 살짝 더 아래쪽을 바라보도록 설정
+const zOffset = z + 4.0;  // 기존 z에 조정값 추가
+
+// 카메라 위치 설정 (왼쪽으로 이동, z와 y값 유지 또는 조정)
+camera.position.set(xOffset, y, z);
+
+// 카메라는 살짝 아래쪽을 바라보도록 조정
+camera.lookAt(xOffset, yOffset, zOffset);
+
 }
 
   // --- 루프 ---
@@ -2159,7 +2199,7 @@ window.__brakeGuideOn = true;
   const dict = {
     ko: {
       htmlLang: "ko",
-      docTitle: "TASC Simulator",
+      docTitle: "JR Personal Type Simulator",
       labelRemainTime: "이번역: 도쿄",
       labelSpeed: "속도",
       labelRemainDist: "정차",
@@ -2214,7 +2254,7 @@ window.__brakeGuideOn = true;
     },
     en: {
       htmlLang: "en",
-      docTitle: "TASC Simulator",
+      docTitle: "JR Personal Type Simulator",
       labelRemainTime: "Next: Tokyo",
       labelSpeed: "Speed",
       labelRemainDist: "Distance",

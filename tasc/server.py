@@ -315,9 +315,9 @@ class StoppingSim:
         그 외는 기존 기본값(self.tasc_relax_margin_m)을 사용.
         """
         if notch >= 6:
-            return 7.0 #10.0
+            return 5.0  #relax margin 릴랙스 마진
         if notch >= 5:
-            return 4.0
+            return 3.0
         if notch >= 4:
             return 2.0
         return float(self.tasc_relax_margin_m)
