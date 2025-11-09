@@ -192,14 +192,13 @@ body{overflow-x:hidden;overflow-y:auto}
   padding-top: 1px; /* 아래쪽 마진 추가 */
   padding-bottom: 1px; /* 아래쪽 마진 추가 */
 }
-
 /* 대시보드 박스 (속도/노치) */
 .cab-dash {
   width: 93%; /* 부모 요소 너비를 꽉 채우기 */
   height: 98%; /* 부모 요소 높이를 꽉 채우기 */
   display: flex;
   justify-content: center;  /* 수평 중앙 정렬 */
-  align-items: center;      /* 수직 중앙 정렬 */
+  align-items: flex-start;  /* 수직 정렬을 위로 설정 */
   gap: 12px;
   padding: 10px 14px;
   border-radius: 10px;
@@ -210,39 +209,35 @@ body{overflow-x:hidden;overflow-y:auto}
   backdrop-filter: blur(6px);
 }
 
+.cab-dash.has-inst {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 /* 속도 영역 (좌) */
 .cab-speed {
+  position: absolute;
+  bottom: 23px;   /* 아래에서 24px 떨어짐 */
+  left: 223px;     /* 왼쪽에서 38px 떨어짐 */
   display: flex;
   align-items: baseline;
   gap: 8px;
   font-family: 'Orbitron', system-ui, sans-serif;
-  justify-self: center;  /* 중앙 정렬 */
 }
+
 
 /* 속도 값 */
 .cab-speed .val {
-  font-size: clamp(26px, 5.2vw, 44px);
+  font-size: clamp(13px, 5.2vw, 22px);
   font-weight: 800;
   color: #eaffff;
   text-shadow: 0 0 10px rgba(0,220,255,.35);
   letter-spacing: -1px;
-}
-
-/* 속도 단위 */
-.cab-speed .unit {
-  font-size: clamp(12px, 2.1vw, 16px);
-  opacity: .85;
-  color: #9fdcff;
-}
-
-/* 노치(우) */
-.cab-notch {
-  font-family: 'Orbitron', system-ui, sans-serif;
-  font-weight: 800;
-  font-size: clamp(16px, 3.5vw, 22px);
-  color: #ffd88a; /* 기본 B계열 색 */
-  text-shadow: 0 0 8px rgba(255,190,60,.25);
-  justify-self: center; /* 중앙 정렬 */
+  font-style: italic;
+  display: inline-block;
+  width: 3ch; /* 숫자 3자리 공간 확보 (ch 단위는 글자 폭 기준) */
+  text-align: right; /* 숫자 폭 내에서 오른쪽 정렬 */
 }
 
 /* EB 시 빨강, N/P 시 색상 */
@@ -615,7 +610,7 @@ const overlay=document.getElementById("overlay"),
 
   // const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
   const renderer = new THREE.WebGLRenderer({
-  antialias: true, // 저사양에서 큰 효과
+  antialias: false, // 저사양에서 큰 효과
   alpha: false,
   depth: true,
   stencil: false, // 스텐실 끄기
@@ -640,15 +635,27 @@ const overlay=document.getElementById("overlay"),
 
   const dash = document.createElement('div');
   dash.className = 'cab-dash';
-  dash.innerHTML = `
-  <div class="cab-divider"></div>
-  <div id="cabNotch" class="cab-notch">N</div>
+dash.innerHTML = `
+  <img id="cabInst" alt="instruction"
+       style="position:absolute; inset:0; width:100%; height:100%;
+             display:none; pointer-events:none; border-radius:12px;" />
+  <!-- mini ladder + speed: sits just above the cab dash -->
+  <div class="cab-mini-ladder" style="position:absolute; top:113px; left:14%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:6px; pointer-events:none;">
+
+    <canvas id="cabBrakeLadder" style="width:20px; height:72px; border-radius:6px; background:transparent;"></canvas>
+  </div>
+
+  <div id="cabOverlay"
+       style="position:absolute; inset:0; display:flex; align-items:center;
+              justify-content:center; gap:12px; pointer-events:none;">
+    <div id="cabNotch" class="cab-notch"></div>
     <div class="cab-speed">
-      <span id="cabSpeedVal" class="val">0.0</span>
-      <span class="unit">km/h</span>
+      <span id="cabSpeedVal" class="val" style="font-style: italic;">0</span>
+
     </div>
-  `;
-  botMask.appendChild(dash);
+  </div>
+`;
+botMask.appendChild(dash);
 
   // WebGL 캔버스 위에 보이도록 mount에 부착
   mount.appendChild(topMask);
@@ -882,12 +889,12 @@ scene.add(platLine);
 
 // 우측 플랫폼 (좌측과 동일한 높이와 Y축 길이 유지)
 const platR = new THREE.Mesh(new THREE.BoxGeometry(platW, platH, platformLen), platMatTop);
-platR.position.set(-2.9415, platH / 2, platZ - platformLen / 2); // 바닥에서 1.13m로 설정, 좌측과 동일한 높이로 설정
+platR.position.set(-2.9415-0.3, platH / 2, platZ - platformLen / 2); // 바닥에서 1.13m로 설정, 좌측과 동일한 높이로 설정
 platR.receiveShadow = false; platR.castShadow = false; scene.add(platR);
 
 // 우측 노란 라인
 const platLineR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.01, platformLen), platMatEdge);
-platLineR.position.set(-2.0915, platH +0.01, platZ - platformLen / 2); // 좌측과 동일한 높이로 설정
+platLineR.position.set(-2.0915-0.3, platH +0.01, platZ - platformLen / 2); // 좌측과 동일한 높이로 설정
 platLineR.receiveShadow = false; platLineR.castShadow = false; scene.add(platLineR);
 
 
@@ -1094,13 +1101,13 @@ signDistances.forEach(d => {
   };
 
   // --- 정차벽(0m, 반투명 초록) ---
-  const wallMat = new THREE.MeshBasicMaterial({ color: 0xaa0000, transparent:true, opacity:0.28 });
-  const wall = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3), wallMat);
-  wall.position.set(0, 2.0, 200); // z=200이 ‘정차 0m’
-  scene.add(wall);
-  const wallEdge = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3), new THREE.MeshBasicMaterial({ color:0xff0000, wireframe:true, transparent:true, opacity:0.65 }));
-  wallEdge.position.copy(wall.position);
-  scene.add(wallEdge);
+  // const wallMat = new THREE.MeshBasicMaterial({ color: 0xaa0000, transparent:true, opacity:0.28 });
+  // const wall = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3), wallMat);
+  // wall.position.set(0, 2.0, 200); // z=200이 ‘정차 0m’
+  // scene.add(wall);
+  // const wallEdge = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3), new THREE.MeshBasicMaterial({ color:0xff0000, wireframe:true, transparent:true, opacity:0.65 }));
+  // wallEdge.position.copy(wall.position);
+  // scene.add(wallEdge);
 
   // --- 남은거리→카메라/오브젝트 동기 ---
   // 디자인: 카메라 z_world = 200 - remaining_m
@@ -1110,13 +1117,13 @@ function syncCameraFromState() {
   
   // train_name에 'n700s'가 포함되어 있으면 높이를 3.1로
   const trainName = window.st?.train_name ?? '';
-  const y = trainName.toLowerCase().includes('n700s') || trainName.toLowerCase().includes('e26') ? 3.1: 2.8; // 대소문자 무시
+  const y = trainName.toLowerCase().includes('n700s') || trainName.toLowerCase().includes('e26') ? 2.9: 2.6; // 대소문자 무시
   
 const z = 200 - rem;
 
 // 카메라를 살짝 왼쪽으로 이동시키고, 살짝 아래쪽을 바라보게 설정
-const xOffset = 0.3;  // 카메라를 왼쪽으로 1.5 단위 이동
-const yOffset = y - 0.3; // 기존보다 살짝 더 아래쪽을 바라보도록 설정
+const xOffset = 0.8;  // 카메라를 왼쪽으로 1.5 단위 이동
+const yOffset = y - 0.4; // 기존보다 살짝 더 아래쪽을 바라보도록 설정
 const zOffset = z + 4.0;  // 기존 z에 조정값 추가
 
 // 카메라 위치 설정 (왼쪽으로 이동, z와 y값 유지 또는 조정)
@@ -1538,34 +1545,35 @@ if (Math.abs(toShowInt) <= 2) {
   // 그래프/미니 인디케이터
   drawHUD(st);
   drawBrakeLadderMini(st);
+  // small cab mini ladder (above cab dash)
+  if (typeof drawCabBrakeLadder === 'function') drawCabBrakeLadder(st);
 
   
-// ===== Update cab bottom mini dashboard =====
 (function(){
   const spdNode = document.getElementById('cabSpeedVal');
   const notchNode = document.getElementById('cabNotch');
-  if (!spdNode || !notchNode) return;
+  const instImg = document.getElementById('cabInst');
+  const dashBox = document.querySelector('.cab-dash');
+  if (!spdNode || !notchNode || !instImg || !dashBox) return;
 
-  // 속도 (km/h, 소수1자리)
-  const vKmh = (st.v * 3.6);
-  spdNode.textContent = isFinite(vKmh) ? vKmh.toFixed(0) : '0.0';
+  // 현재 차량명 (서버 state 우선, 없으면 vehicle.name)
+  const trainName = String(st?.train_name || vehicle?.name || '').toLowerCase();
 
-  // 노치 표시 텍스트/색상 클래스 동기화
-  // (위에서 이미 계산된 notchText / notchColor를 재사용)
-  notchNode.textContent = notchText;
-
-  // 색상 클래스 리셋
-  notchNode.classList.remove('eb', 'neutral', 'power');
-
-  if (notchText === 'N') {
-    notchNode.classList.add('neutral');
-  } else if (notchText === 'EB') {
-    notchNode.classList.add('eb');
-  } else if (/^P\d+$/i.test(notchText)) {
-    notchNode.classList.add('power');
+  // ✅ E233/E235만 inst.png 표시
+  // const showInst = trainName.includes('e233') || trainName.includes('e235');
+  const showInst = true;
+  if (showInst) {
+    if (!instImg.src) instImg.src = '/static/inst.png';
+    instImg.style.display = 'block';
+    dashBox.classList.add('has-inst');
   } else {
-    // B계열은 기본(주황) 컬러 그대로
+    instImg.style.display = 'none';
+    dashBox.classList.remove('has-inst');
   }
+
+  // (이 아래는 기존 속도/노치 동기화 코드 그대로 유지)
+  const vKmh = (st.v * 3.6);
+  spdNode.textContent = isFinite(vKmh) ? vKmh.toFixed(0) : '0';
 })();
 
   
@@ -1902,6 +1910,19 @@ function sizeLadderCanvas() {
 addEventListener('resize', sizeLadderCanvas);
 sizeLadderCanvas();
 
+// Cab mini ladder (small canvas above cab dash)
+const cabLadderCanvas = document.getElementById('cabBrakeLadder');
+function sizeCabLadderCanvas() {
+  if (!cabLadderCanvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = cabLadderCanvas.clientWidth || 44;
+  const cssH = cabLadderCanvas.clientHeight || 72;
+  cabLadderCanvas.width  = Math.max(1, Math.round(cssW * dpr));
+  cabLadderCanvas.height = Math.max(1, Math.round(cssH * dpr));
+}
+addEventListener('resize', sizeCabLadderCanvas);
+sizeCabLadderCanvas();
+
 function drawBrakeLadderMini(st) {
   const ctx2 = ladderCanvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
@@ -1944,6 +1965,51 @@ function drawBrakeLadderMini(st) {
   ctx2.strokeRect(x, yEB, bW, bH);
 
   
+}
+
+function drawCabBrakeLadder(st) {
+  if (!cabLadderCanvas) return;
+  const ctx2 = cabLadderCanvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = cabLadderCanvas.width, h = cabLadderCanvas.height;
+  if (!w || !h) return;
+  ctx2.clearRect(0, 0, w, h);
+
+  const accArr  = (vehicle && Array.isArray(vehicle.notch_accels)) ? vehicle.notch_accels : null;
+  const notches = accArr ? accArr.length : (vehicle && Number.isInteger(vehicle.notches) ? vehicle.notches : 10);
+  const ebIdx   = accArr ? Math.max(1, accArr.length - 1) : Math.max(1, notches - 1);
+  const blocks  = ebIdx;
+  const cur     = Math.max(0, Math.min(ebIdx, st.lever_notch|0));
+
+  // light background
+  ctx2.fillStyle = "rgba(0,0,0,0.0)";
+  ctx2.fillRect(0, 0, w, h);
+
+  const pad  = Math.max(1 * dpr, Math.round(w * 0.04));
+  const gap  = Math.max(1 * dpr, Math.round(h * 0.02));
+  const bH   = (h - pad*2 - gap*(blocks-1)) / blocks;
+  const bW   = w - pad*2;
+  const x    = pad;
+
+  for (let k = 1; k <= ebIdx - 1; k++) {
+    const i = k - 1;
+    const y = h - pad - (i + 1) * bH - i * gap;
+    ctx2.fillStyle = "rgba(60,80,100,0.35)";
+    ctx2.fillRect(x, y, bW, bH);
+    if (cur !== ebIdx && k <= cur) { ctx2.fillStyle = "#ffd34d"; ctx2.fillRect(x, y, bW, bH); }
+    ctx2.strokeStyle = "rgba(20,30,45,0.6)";
+    ctx2.lineWidth   = 1 * dpr;
+    ctx2.strokeRect(x, y, bW, bH);
+  }
+
+  const yEB = h - pad - (ebIdx) * bH - (ebIdx - 1) * gap;
+  ctx2.fillStyle = "rgba(60,80,100,0.35)";
+  ctx2.fillRect(x, yEB, bW, bH);
+  if (cur === ebIdx) { ctx2.fillStyle = "#ff5757"; ctx2.fillRect(x, yEB, bW, bH); }
+  ctx2.strokeStyle = "rgba(20,30,45,0.6)";
+  ctx2.lineWidth   = 1 * dpr;
+  ctx2.strokeRect(x, yEB, bW, bH);
+
 }
 
 /* ===== 큰 우측 리본 캔버스 (고정) ===== */
@@ -2188,6 +2254,8 @@ trainSeriesEl.addEventListener('change',(e)=>{
 });
 trainFamilyEl.addEventListener('change', populateSeries);
 populateSeries(); // 최초 세팅
+
+
 </script>
 
 <!-- ===== 10s 언어 토글 (ko <-> en), 피드백 포함 ===== -->
