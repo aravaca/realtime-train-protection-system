@@ -3,6 +3,9 @@
  
 [Try PTS!🚆 (PC Recommended)](https://jrtasc.kro.kr/) 
 ---
+<img width="1094" height="950" alt="menu" src="https://github.com/user-attachments/assets/6baa3ad4-a169-40bf-afd9-c1962c91fae8" />
+<img width="1058" height="925" alt="play" src="https://github.com/user-attachments/assets/431e6f5a-529b-4c37-b692-c95b9d554b07" />
+<img width="980" height="265" alt="feedback" src="https://github.com/user-attachments/assets/b523694b-a208-4161-b031-6abb18f66f38" />
 
 A lightweight **web-based simulation framework** replicating key control functions of **JR East/West EMUs**.  
 Unlike heavy simulations, PTS is designed for **essential driving skill training** on low-end PCs, as it enables repetitive **braking** and **stop-point accuracy** practice.
@@ -51,7 +54,8 @@ Planned upgrades include integration with advanced railway control frameworks an
 - **Reduces driver workload & fatigue**: automatically executes initial, stair-step braking and relaxing → reduces cognitive load and control fatigue.
 - **Higher stopping accuracy & consistent ride comfort**: useful when stopping at stations with PSDs (platform doors); always produces a **similar braking profile**.
 - **Low-cost and low-risk**: cheaper than ATO systems; TASC allows manual override if equipment malfunctions.
-
+
+
 
 ---
 
@@ -63,7 +67,8 @@ Planned upgrades include integration with advanced railway control frameworks an
       ├── index.html # UI (3D graphics, HUD/Overlay/TASC switch/animations)
       └── xxxxx.json # Vehicle name display data
 
-
+
+
 
 ---
 
@@ -78,7 +83,9 @@ Planned upgrades include integration with advanced railway control frameworks an
 ---
 
 ## 📄 License
-MIT License © 2025 Hyungsuk Choi, University of Maryland
+MIT License © 2025 Hyungsuk Choi, University of Maryland
+
+
 
 
 
