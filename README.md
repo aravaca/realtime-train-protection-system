@@ -89,10 +89,5 @@ Permission is hereby granted to use and modify this software for personal or int
 Redistribution, reproduction, resale, public posting, or sharing of this software or any modified versions  
 is strictly prohibited without the express written permission of the author.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,  
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF  
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-
-
 
 
