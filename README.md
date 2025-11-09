@@ -1,7 +1,7 @@
 # JR Personal Type Simulator (PTS) — Lightweight Precision Stop Training Framework
 
  
-[Try PTS!🚆 (PC Recommended)](https://jrtasc.kro.kr/) 
+[Try PTS!🚆 (Use full screen on PC) ](https://jrtasc.kro.kr/) 
 ---
 <img width="1007" height="917" alt="play" src="https://github.com/user-attachments/assets/cf3570ee-706d-4444-a5ea-c88aaaff68ad" />
 <img width="980" height="265" alt="feedback" src="https://github.com/user-attachments/assets/b523694b-a208-4161-b031-6abb18f66f38" />
