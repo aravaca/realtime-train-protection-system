@@ -218,8 +218,6 @@ body{overflow-x:hidden;overflow-y:auto}
 /* 속도 영역 (좌) */
 .cab-speed {
   position: absolute;
-  bottom: 23px;   /* 아래에서 24px 떨어짐 */
-  left: 223px;     /* 왼쪽에서 38px 떨어짐 */
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -229,7 +227,7 @@ body{overflow-x:hidden;overflow-y:auto}
 
 /* 속도 값 */
 .cab-speed .val {
-  font-size: clamp(13px, 5.2vw, 22px);
+  font-size: 18px;
   font-weight: 800;
   color: #eaffff;
   text-shadow: 0 0 10px rgba(0,220,255,.35);
@@ -283,6 +281,37 @@ body{overflow-x:hidden;overflow-y:auto}
   #cabCard { padding: 4px !important; }
   #cabCard > #cab3d { border-radius: 4px !important; }
 }
+/* *******************************************************************
+   FIXED LAYOUT: when you want the 3D view to remain the same size/pos
+   regardless of browser resizing, add the `fixed-3d` class to #cabCard.
+   This forces a fixed pixel width/height and pins the card to the
+   viewport so it won't scale with responsive layout changes.
+   *******************************************************************/
+#cabCard.fixed-3d {
+  position: fixed !important;
+  left: 50% !important;
+  top: 80px !important;             /* tweak this to change vertical position */
+  transform: translateX(-50%) !important;
+  width: 800px !important;          /* fixed width */
+  height: 450px !important;         /* fixed height */
+  z-index: 10003 !important;
+  padding: 2px !important;
+  margin: 0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6) !important;
+}
+
+/* ensure inner 3D mount fills the fixed card exactly */
+#cabCard.fixed-3d > #cab3d {
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: unset !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  box-sizing: border-box !important;
+  display: block !important;
+}
 </style>
 
 <script>
@@ -296,6 +325,8 @@ body{overflow-x:hidden;overflow-y:auto}
     cab.style.margin = '0';
     cab.style.padding = '0';
     cab.style.boxSizing = 'border-box';
+    // mark dataset to indicate whether fixed layout is enabled
+    try { cab.dataset.fixed = cabCard && cabCard.classList.contains('fixed-3d') ? 'true' : 'false'; } catch(e){}
   }
 })();
 </script>
@@ -305,6 +336,42 @@ body{overflow-x:hidden;overflow-y:auto}
     <!-- 200m 지점부터 50m 간격으로 참고 표지판이 설치되어 있습니다. -->
   </div>
 </div>
+
+<!-- Runtime: lock current pixel size so the card and 3D mount stop resizing with viewport
+     This sets inline width/height in pixels (no visual change) and exposes
+     window.__cab3d_forced_fixed used by the renderer's resize() to keep renderer size stable. -->
+<script>
+  (function(){
+    try {
+      const cabCard = document.getElementById('cabCard');
+      const cab = document.getElementById('cab3d');
+      if (!cabCard || !cab) return;
+      // measure current layout size (includes padding/border box due to box-sizing)
+      const rect = cabCard.getBoundingClientRect();
+      const w = Math.max(16, Math.round(rect.width));
+      const h = Math.max(16, Math.round(rect.height));
+
+      // Lock the card to this pixel size without changing its visual placement
+      cabCard.style.width = w + 'px';
+      cabCard.style.height = h + 'px';
+      // prevent flex container from shrinking/growing it
+      cabCard.style.flex = '0 0 ' + w + 'px';
+      cabCard.style.minWidth = w + 'px';
+      cabCard.style.maxWidth = w + 'px';
+      cabCard.style.boxSizing = 'border-box';
+
+      // ensure internal mount fills the card
+      cab.style.width = '100%';
+      cab.style.height = '100%';
+      cab.style.boxSizing = 'border-box';
+
+      // let three.js resize() use this fixed size
+      window.__cab3d_forced_fixed = { width: w, height: h };
+    } catch (e) {
+      console.debug('cab3d lock failed', e);
+    }
+  })();
+</script>
 
 <!-- END PATCH: Cab 3D Card -->
 <div id="wrap" class="row" style="flex-direction:column">
@@ -649,7 +716,7 @@ dash.innerHTML = `
        style="position:absolute; inset:0; display:flex; align-items:center;
               justify-content:center; gap:12px; pointer-events:none;">
     <div id="cabNotch" class="cab-notch"></div>
-    <div class="cab-speed">
+    <div class="cab-speed" style="position:absolute; top:76.5%; left:25.2%;">
       <span id="cabSpeedVal" class="val" style="font-style: italic;">0</span>
 
     </div>
@@ -671,6 +738,38 @@ botMask.appendChild(dash);
 })();
 
   function resize(){
+    // If a runtime-forced fixed size exists, use it (we lock size without changing UI)
+    try {
+      const forced = window.__cab3d_forced_fixed;
+      if (forced && Number.isFinite(forced.width) && Number.isFinite(forced.height)) {
+        const w = Math.max(16, mount.clientWidth || window.innerWidth);
+    const h = Math.max(16, mount.clientHeight || Math.round(w * 9/16));
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
+    // ensure DOM canvas uses full container size (avoid CSS pixel mismatch)
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+        return;
+      }
+      // Backwards-compatible: also respect explicit CSS class if present
+      const cabCardEl = document.getElementById('cabCard');
+      const isFixed = cabCardEl && cabCardEl.classList.contains('fixed-3d');
+      if (isFixed) {
+        const cs = getComputedStyle(cabCardEl);
+        const w = Math.max(16, Math.round(parseFloat(cs.width) || 800));
+        const h = Math.max(16, Math.round(parseFloat(cs.height) || 450));
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h, false);
+        renderer.domElement.style.width = w + 'px';
+        renderer.domElement.style.height = h + 'px';
+        return;
+      }
+    } catch (e) {
+      // fall back to responsive behavior below
+    }
+
     // match renderer/camera to the mount element's actual layout size so the 3D view fills it
     const w = Math.max(16, mount.clientWidth || window.innerWidth);
     const h = Math.max(16, mount.clientHeight || Math.round(w * 9/16));
