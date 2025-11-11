@@ -1,4 +1,4 @@
-# JR Personal Type Simulator (PTS) — Lightweight Precision Stop Training Framework
+# JR Compact Train Driver Training Simulator (PTS): Lightweight Precision Stopping Trainer
 
  
 [Try PTS!⛅️ → Play full screen on PC](https://jrtasc.kro.kr/) 
@@ -88,6 +88,7 @@ Copyright © 2025 Hyungsuk Choi, University of Maryland
 Permission is hereby granted to use and modify this software for personal or internal purposes only.  
 Redistribution, reproduction, resale, public posting, or sharing of this software or any modified versions  
 is strictly prohibited without the express written permission of the author.
+
 
 
 
