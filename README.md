@@ -18,7 +18,7 @@ Powered by **Three.js 3D visualization**, the simulator delivers an immersive dr
 Real-time **velocity–distance** and **braking curve** rendering provides intuitive, instant feedback.
 
 By replicating authentic **EMU physics**, it enables:
-- **Repetitive stop training**  
+- **Repetitive stop training** using the random function
 - **Scenario-based evaluation**  
 - **Quantitative performance scoring** under diverse track conditions
 ---
