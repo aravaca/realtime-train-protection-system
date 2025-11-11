@@ -1,5 +1,5 @@
 git add .
-git commit -m "graphic svg"
+git commit -m "add random"
 git push origin main
 
 pip install fastapi uvicorn[standard]

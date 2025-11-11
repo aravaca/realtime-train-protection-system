@@ -312,6 +312,36 @@ body{overflow-x:hidden;overflow-y:auto}
   box-sizing: border-box !important;
   display: block !important;
 }
+/* 두 토글을 한 줄에 오른쪽 상단 배치 */
+.toggle-bar{
+  position:absolute;
+  right: 110px;
+  top:140px !important; /* 기존 TASC 위치 그대로 */
+  display:flex;
+  align-items:center;
+  font-size:12px;font-weight:600;color:#9fc5ff;user-select:none;
+   gap:10px;
+  z-index:1001;
+}
+@media (max-width:768px){
+  .toggle-bar{ top:140px !important; };
+
+}
+
+/* 랜덤 토글은 TASC와 동일한 모양 재사용 */
+.rnd-toggle{ display:flex; align-items:center; gap:6px; font-family:'Orbitron',sans-serif; }
+.rnd-toggle input{ display:none; }
+.rnd-toggle .slider{
+  position:relative; display:inline-block; width:46px; height:24px;
+  background:rgba(255,255,255,.25); border-radius:24px; cursor:pointer; transition:background-color .3s;
+  box-shadow:inset 0 0 4px rgba(0,0,0,.3)
+}
+.rnd-toggle .slider::before{
+  content:""; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%;
+  transition:transform .3s; box-shadow:0 1px 3px rgba(0,0,0,.4)
+}
+.rnd-toggle input:checked + .slider{ background:linear-gradient(135deg,#00c6ff,#0072ff) }
+.rnd-toggle input:checked + .slider::before{ transform:translateX(22px) }
 </style>
 
 <script>
@@ -438,13 +468,22 @@ body{overflow-x:hidden;overflow-y:auto}
     </h2>
 
     <p class="subtitle" id="subtitleIntro">초기값 입력 후 <b>TASC(자동정차)</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요. TASC가 활성화된 상태에서도, 운전자는 수동 조작으로 운전에 개입할 수 있습니다.</p>
+<!-- 토글 바: 랜덤 + TASC 나란히 -->
+<div class="toggle-bar">
+  <!-- ✅ 랜덤 토글 (왼쪽) -->
+  <div class="rnd-toggle">
+    <input type="checkbox" id="rndToggle" />
+    <label for="rndToggle" class="slider"></label>
+    <span class="tasc-label" style="font-weight:700">Random</span>
+  </div>
+</div>
 
-    <!-- TASC -->
-    <div class="tasc-toggle">
-      <input type="checkbox" id="tascToggle" unchecked />
-      <label for="tascToggle" class="slider"></label>
-      <span class="tasc-label" id="labelTASC" style="font-weight:700">TASC</span>
-    </div>
+  <!-- 기존 TASC 토글 (오른쪽) -->
+  <div class="tasc-toggle">
+    <input type="checkbox" id="tascToggle" unchecked />
+    <label for="tascToggle" class="slider"></label>
+    <span class="tasc-label" id="labelTASC" style="font-weight:700">TASC</span>
+  </div>
 
     <!-- BEGIN PATCH: Overlay - Sync Mode Selector (label 변경만) -->
 <label class="form-label"><span>3D Graphics</span>
@@ -1528,8 +1567,66 @@ function updateWeatherUI(){
 weatherSelect.addEventListener("change",()=>{updateWeatherUI();const mu=muFromWeather(weatherSelect.value); if(ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({type:"cmd",payload:{name:"setMu",value:mu}}));}});
 updateWeatherUI();
 
+
+
+// ===== Random start helpers =====
+function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function randFloat(min, max, step=0.1){
+  const n = Math.round((Math.random()*(max-min)+min)/step)*step;
+  return Number(n.toFixed(String(step).split('.')[1]?.length || 0));
+}
+function pickWeather(){
+  const r = Math.random();
+  if (r < 0.60) return "맑음";
+  if (r < 0.85) return "비옴";
+  return "눈옴";
+}
+
+/** 입력칸을 무작위로 채우고 change 이벤트를 발생시켜 UI/검증을 동기화 */
+function randomizeInputs(){
+  // 1) 속도
+  const v = randInt(40, 120);
+  inputSpeed.value = String(v);
+
+  // 2) 거리: 속도별 최소거리 규칙 준수 (기존 함수 재사용)
+  const minD = Math.max(150, minDistForSpeed(v));
+  const d = randInt(minD, 900);
+  inputDist.value = String(d);
+
+  // 3) 구배(‰)
+  const g = randFloat(-10, 10, 0.1);
+  inputGrade.value = String(g.toFixed(1));
+
+  // 4) 날씨
+  const w = pickWeather();
+  weatherSelect.value = w;
+  updateWeatherUI(); // 배경/이펙트 동기화
+
+  // 5) 탑승률(%)
+  const load = randInt(20, 120);
+  inputLoadRate.value = String(load);
+
+  // 디스패치: 기존 검증/하위 로직을 그대로 타게 함
+  inputSpeed.dispatchEvent(new Event('change'));
+  inputDist.dispatchEvent(new Event('change'));
+  inputGrade.dispatchEvent(new Event('change'));
+  inputLoadRate.dispatchEvent(new Event('change'));
+
+  // 힌트(선택)
+  if (fb){
+    fb.innerHTML = `<div class="ok">랜덤 시작값: v=${v} km/h, d=${d} m, g=${g.toFixed(1)}‰, 날씨=${w}, 탑승률=${load}%</div>`;
+    setTimeout(()=>{ if(!window.st || !window.st.finished) fb.textContent = "Space로 시작. W/S로 브레이크 조절하세요."; }, 5000);
+  }
+}
+
 /* ===== 시작/재시작 ===== */
 function startRun(){
+
+    // ✅ 랜덤 토글이 켜져 있다면 값 먼저 섞기
+  const rndEl = document.getElementById('rndToggle');
+  if (rndEl && rndEl.checked) {
+    randomizeInputs();
+  }
   inputSpeed.dispatchEvent(new Event('change'));
   inputDist.dispatchEvent(new Event('change'));
   inputGrade.dispatchEvent(new Event('change'));
