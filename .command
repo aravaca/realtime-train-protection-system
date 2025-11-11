@@ -1,5 +1,5 @@
 git add .
-git commit -m "graphic fixed ratio"
+git commit -m "graphic svg"
 git push origin main
 
 pip install fastapi uvicorn[standard]

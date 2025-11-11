@@ -132,150 +132,7 @@ body{overflow-x:hidden;overflow-y:auto}
 }
 .line .value {
   text-align: right;
-  padding-right: 40px;  /* 👈 오른쪽에 여백 주기 (라더캔버스+간격) */
-  min-width: 100px;     /* 👈 숫자 칸 최소 너비 잡아주면 더 안정적 */
 }
-.line .unit {
-  margin-left: 4px;
-  opacity: 0.8;
-  font-size: 14px;
-  letter-spacing:-2px;
-}
-
-#timer .sep {
-  margin: 0 8px; /* 콜론 좌우 간격만 조정 */
-}
-
-@media (max-width:768px){
-  .line .value { padding-right: 50px; }
-}
-
-#hud, #brakeLadder {
-  touch-action: none; /* iOS 13+ / 최신 사파리 */
-  -ms-touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-}
-
-/* ===== Cab mask frames + mini dashboard ===== */
-#cab3d { position: relative; }
-
-/* 공통 프레임 레이어 */
-.cab-frame {
-  position: absolute;
-  left: 0; right: 0;
-  pointer-events: none;
-  z-index: 5; /* WebGL 위에 */
-}
-
-/* 상단 프레임: 얇고 시야 살짝 가림 */
-.cab-frame.top {
-  top: 0;
-  height: clamp(6%, 9vh, 75px);
-  background:
-    linear-gradient(to bottom, rgba(10,14,20,.95), rgba(10,14,20,.76));
-  border-bottom: 1px solid rgba(255,255,255,.08);
-  box-shadow: inset 0 -18px 24px rgba(0,0,0,.35);
-}
-/* 하단 프레임: 상단보다 조금 더 두껍게 */
-.cab-frame.bottom {
-  bottom: 0;
-  height: clamp(8%, 80vh, 190px);
-  background:
-    linear-gradient(to top, rgba(10,14,20,.96), rgba(10,14,20,1));
-  border-top: 1px solid rgba(255,255,255,.08);
-  box-shadow: inset 0 18px 28px rgba(0,0,0,.42);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-top: 1px; /* 아래쪽 마진 추가 */
-  padding-bottom: 1px; /* 아래쪽 마진 추가 */
-}
-/* 대시보드 박스 (속도/노치) */
-.cab-dash {
-  width: 90%; /* 부모 요소 너비를 꽉 채우기 */
-  height: 98%; /* 부모 요소 높이를 꽉 채우기 */
-  display: flex;
-  justify-content: center;  /* 수평 중앙 정렬 */
-  align-items: flex-start;  /* 수직 정렬을 위로 설정 */
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(20,28,40,.55);
-  border: 1px solid rgba(0,246,255,.14);
-  box-shadow: 0 8px 20px rgba(0,0,0,.35), inset 0 0 20px rgba(0,180,255,.06);
-  pointer-events: none; /* 입력 방해 X */
-  backdrop-filter: blur(6px);
-}
-
-.cab-dash.has-inst {
-  background: transparent !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-}
-
-/* 속도 영역 (좌) */
-.cab-speed {
-  position: absolute;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-family: 'Orbitron', system-ui, sans-serif;
-}
-
-
-/* 속도 값 */
-.cab-speed .val {
-  font-size: 18px;
-  font-weight: 800;
-  color: #eaffff;
-  text-shadow: 0 0 10px rgba(0,220,255,.35);
-  letter-spacing: -1px;
-  font-style: italic;
-  display: inline-block;
-  width: 3ch; /* 숫자 3자리 공간 확보 (ch 단위는 글자 폭 기준) */
-  text-align: right; /* 숫자 폭 내에서 오른쪽 정렬 */
-}
-
-/* EB 시 빨강, N/P 시 색상 */
-.cab-notch.eb { color:#ff6b6b; text-shadow:0 0 10px rgba(255,90,90,.35); }
-.cab-notch.neutral { color:#9effb5; text-shadow:0 0 8px rgba(140,255,190,.25); }
-.cab-notch.power { color:#add8e6; text-shadow:0 0 8px rgba(120,200,255,.25); }
-
-/* 모바일에서 약간 더 높이 */
-@media (max-width: 768px) {
-  .cab-frame.top { height: clamp(7%, 11vh, 120px); }
-  .cab-frame.bottom { height: clamp(10%, 14vh, 170px); }
-  .cab-dash { gap: 10px; padding: 9px 12px; }
-}
-
-</style>
-</head>
-<body>
-<canvas id="ribbonBig" style="position:fixed; right:0; top:0; bottom:0; width:27px; height:100vh; pointer-events:none; z-index:10002; display:flex; align-items:right; justify-content:center;"></canvas>
-<!-- BEGIN PATCH: Cab 3D Card -->
-<style>
-/* Make the cab card tighter so the 3D view fills it with minimal padding */
-#cabCard {
-  padding: 2px 4px !important;
-  margin: 0 !important;
-  box-sizing: border-box;
-  min-width: 0;
-  align-items: stretch;
-  /* display: fle/; Flex/ox layout to stretch the child */
-}
-
-#cabCard > #cab3d {
-  width: 50% !important;  /* Use full width of the parent */
-  margin: 0 !important;
-  padding: 0 !important;
-  aspect-ratio: 16/9 !important;
-  border-radius: 6px !important;
-  box-sizing: border-box !important;
-  display: block;
-}
-
 /* Slightly different spacing on very small screens */
 @media (max-width: 480px) {
   #cabCard { padding: 4px !important; }
@@ -576,6 +433,68 @@ tascToggle.addEventListener("change", () => {
 //   }
 // }
 
+// ----- state buffer / interpolation for smooth rendering -----
+// We buffer server 'state' messages with timestamps and render a time-interpolated
+// state ~INTERP_MS in the past to hide network jitter and small timing irregularities.
+const __stateBuffer = []; // entries: { t: performance.now(), s: state }
+const INTERP_MS = 120; // choose between 100..150ms depending on latency
+function pushServerState(s){
+  try{
+    const t = performance.now();
+    __stateBuffer.push({t, s});
+    // keep buffer bounded (drop entries older than ~3s)
+    const cutoff = t - 3000;
+    while(__stateBuffer.length && __stateBuffer[0].t < cutoff) __stateBuffer.shift();
+  }catch(e){}
+}
+
+function getRenderState(targetTime){
+  if(!__stateBuffer.length) return st || {};
+  if(targetTime <= __stateBuffer[0].t) return __stateBuffer[0].s;
+  const last = __stateBuffer[__stateBuffer.length-1];
+  if(targetTime >= last.t) return last.s;
+  for(let i=0;i<__stateBuffer.length-1;i++){
+    const a = __stateBuffer[i], b = __stateBuffer[i+1];
+    if(a.t <= targetTime && targetTime <= b.t){
+      const span = b.t - a.t || 1;
+      const alpha = (targetTime - a.t) / span;
+      const sa = a.s, sb = b.s;
+      const lerp = (x,y,t)=> (1-t)*x + t*y;
+      const out = {};
+      out.v = (typeof sa.v === 'number' && typeof sb.v === 'number') ? lerp(sa.v, sb.v, alpha) : (sb.v ?? sa.v);
+      out.remaining_m = (typeof sa.remaining_m === 'number' && typeof sb.remaining_m === 'number') ? lerp(sa.remaining_m, sb.remaining_m, alpha) : (sb.remaining_m ?? sa.remaining_m);
+      out.pos = (typeof sa.pos === 'number' && typeof sb.pos === 'number') ? lerp(sa.pos, sb.pos, alpha) : (sb.pos ?? sa.pos);
+      out.grade_percent = (typeof sa.grade_percent === 'number' && typeof sb.grade_percent === 'number') ? lerp(sa.grade_percent, sb.grade_percent, alpha) : (sb.grade_percent ?? sa.grade_percent);
+      out.time_remaining_s = (typeof sa.time_remaining_s === 'number' && typeof sb.time_remaining_s === 'number') ? lerp(sa.time_remaining_s, sb.time_remaining_s, alpha) : (sb.time_remaining_s ?? sa.time_remaining_s);
+      // discrete/flag fields — pick nearest (prefer older for stability)
+      out.lever_notch = (Math.abs(targetTime - a.t) <= Math.abs(b.t - targetTime)) ? (sa.lever_notch ?? sb.lever_notch) : (sb.lever_notch ?? sa.lever_notch);
+      out.tasc_enabled = sb.tasc_enabled ?? sa.tasc_enabled;
+      out.tasc_active = sb.tasc_active ?? sa.tasc_active;
+      out.tasc_armed = sb.tasc_armed ?? sa.tasc_armed;
+      out.train_name = sb.train_name ?? sa.train_name;
+      out.running = sb.running ?? sa.running;
+      out.finished = sb.finished ?? sa.finished;
+      out.time_budget_s = sb.time_budget_s ?? sa.time_budget_s;
+      out.time_remaining_int = Math.round(out.time_remaining_s ?? (sb.time_remaining_int ?? sa.time_remaining_int ?? 0));
+      out._server_time = lerp(a.t, b.t, alpha);
+      return out;
+    }
+  }
+  return last.s;
+}
+
+// Replace the default ws.onmessage handler with one that buffers states.
+ws.onmessage = (ev) => {
+  try{
+    const msg = JSON.parse(ev.data);
+    if (msg.type !== 'state') return;
+    st = msg.payload; window.st = st; // keep authoritative latest
+    pushServerState(st);
+    // keep toggle visually synced quickly (still fine to set directly)
+    try{ const serverEnabled = !!st.tasc_enabled; if(tascToggle && tascToggle.checked !== serverEnabled) tascToggle.checked = serverEnabled; }catch(e){}
+  }catch(e){}
+};
+
 /* ===== 날씨 이펙트 ===== */
 const snowflakesContainer=document.querySelector('.snowflakes');
 function generateSnowflake(){
@@ -677,7 +596,7 @@ const overlay=document.getElementById("overlay"),
 
   // const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
   const renderer = new THREE.WebGLRenderer({
-  antialias: true, // 저사양에서 큰 효과
+  antialias: false, // 저사양에서 큰 효과
   alpha: false,
   depth: true,
   stencil: false, // 스텐실 끄기
@@ -703,125 +622,33 @@ const overlay=document.getElementById("overlay"),
   const dash = document.createElement('div');
   dash.className = 'cab-dash';
 dash.innerHTML = `
-  <!-- inst.png를 SVG viewBox 위에 깔고, 좌표 고정 텍스트를 올릴 래퍼 -->
-  <div id="cabInstWrap"
+  <img id="cabInst" alt="instruction"
        style="position:absolute; inset:0; width:100%; height:100%;
-              pointer-events:none; border-radius:12px; overflow:hidden;"></div>
+             display:none; pointer-events:none; border-radius:12px;" />
+  <!-- mini ladder + speed: sits just above the cab dash -->
+  <div class="cab-mini-ladder" style="position:absolute; top:113px; left:14%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:6px; pointer-events:none;">
 
-  <!-- mini ladder는 그대로 유지 -->
-  <div class="cab-mini-ladder"
-       style="position:absolute; top:113px; left:14%; transform:translateX(-50%);
-              display:flex; flex-direction:column; align-items:center; gap:6px; pointer-events:none;">
     <canvas id="cabBrakeLadder" style="width:20px; height:72px; border-radius:6px; background:transparent;"></canvas>
   </div>
+
+  <div id="cabOverlay"
+       style="position:absolute; inset:0; display:flex; align-items:center;
+              justify-content:center; gap:12px; pointer-events:none;">
+    <div id="cabNotch" class="cab-notch"></div>
+    <div class="cab-speed" style="position:absolute; top:76.5%; left:25.2%;">
+      <span id="cabSpeedVal" class="val" style="font-style: italic;">0</span>
+
+    </div>
+  </div>
 `;
-
-
-// --- inst.png를 SVG viewBox로 감싸기: PNG 원본 사이즈를 반드시 맞춰주세요 ---
-const INST_SRC = '/static/inst.png';
-const INST_SIZE = { width: 7560, height: 1760 }; // ← inst.png 원본 픽셀 크기로 교체하세요
-
-// 텍스트 배치 좌표 (모두 PNG 원본 좌표계 기준)
-const INST_MARKERS = {
-  speed: { x: 2195, y: 1520 }, // 속도 숫자
-};
-
-// 네온 느낌 필터
-const SVG_FILTER_DEF = `
-<defs>
-  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-    <feGaussianBlur stdDeviation="3" result="blur"/>
-    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    </defs>
-    `;
-    
-    function mountInstrumentSVG() {
-      const wrap = document.getElementById('cabInstWrap');
-      if (!wrap) return;
-      
-      // SVG 생성
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', `0 0 ${INST_SIZE.width} ${INST_SIZE.height}`);
-      svg.setAttribute('width', '100%');
-      svg.setAttribute('height', '100%');
-      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet'); // 비율 유지, 레터박스
-      
-      // 필터 추가
-      svg.insertAdjacentHTML('beforeend', SVG_FILTER_DEF);
-      
-      // PNG 깔기
-      const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-      img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', INST_SRC);
-      img.setAttribute('x', '0');
-      img.setAttribute('y', '0');
-      img.setAttribute('width', INST_SIZE.width);
-      img.setAttribute('height', INST_SIZE.height);
-      svg.appendChild(img);
-      
-      // 공통 텍스트 스타일
-      const base = {
-        fill: '#eaffff',
-    'font-family': `'Orbitron', system-ui, sans-serif`,
-    'font-weight': '550',
-    'letter-spacing': '12px',
-    'font-size':'150px',
-    // filter: 'url(#glow)',
-  };
-  const makeText = (id, x, y, size, txt, extra = {}) => {
-    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    t.setAttribute('id', id);
-    t.setAttribute('x', x);
-    t.setAttribute('y', y);
-    t.setAttribute('font-size', size); // viewBox 기준 px → 스케일 연동
-    for (const [k, v] of Object.entries({ ...base, ...extra })) t.setAttribute(k, v);
-    t.textContent = txt;
-    return t;
-  };
-  
-  // 속도 (끝정렬: 숫자 폭 변해도 끝점 고정)
-  svg.appendChild(makeText('svgSpeed',
-  INST_MARKERS.speed.x, INST_MARKERS.speed.y, 48, '0', { 'text-anchor': 'end', 'font-style': 'italic' }
-));
-wrap.innerHTML = '';
-wrap.appendChild(svg);
-}
-
-function updateInstrumentHUD({ speed, notch }) {
-  const s = document.getElementById('svgSpeed');
-  const n = document.getElementById('svgNotch');
-  if (s) s.textContent = String(Math.round(speed ?? 0));
-  
-  if (n) {
-    const label = notch ?? '-';
-    n.textContent = label;
-    // 색상 규칙
-    if (label === 'EB') n.setAttribute('fill', '#ff6b6b');
-    else if (label === 'N') n.setAttribute('fill', '#9effb5');
-    else if (label.startsWith('P')) n.setAttribute('fill', '#add8e6'); // 역행
-    else n.setAttribute('fill', '#ed9a09'); // 제동 B1..Bn
-  }
-}
-
-// expose mount/update helpers to global scope so ws.onmessage (outside this IIFE)
-// can call them without throwing a ReferenceError
-try {
-  window.mountInstrumentSVG = mountInstrumentSVG;
-  window.updateInstrumentHUD = updateInstrumentHUD;
-} catch (e) {}
-
 botMask.appendChild(dash);
 
-// WebGL 캔버스 위에 보이도록 mount에 부착
-mount.appendChild(topMask);
-mount.appendChild(botMask);
+  // WebGL 캔버스 위에 보이도록 mount에 부착
+  mount.appendChild(topMask);
+  mount.appendChild(botMask);
 
-
-
-
-try { mountInstrumentSVG(); } catch(e) { console.debug(e); }
-// 안전: 렌더러 캔버스가 프레임 아래 깔리도록
-try {
+  // 안전: 렌더러 캔버스가 프레임 아래 깔리도록
+  try {
     renderer.domElement.style.position = 'relative';
     renderer.domElement.style.zIndex = '1';
     topMask.style.zIndex = '5';
@@ -908,27 +735,27 @@ let frames = 0;
 
   // Conservative DPR autoscaler: check less frequently and change in larger steps to avoid
   // frequent renderer reconfiguration which can cause frame hitches.
-  // function autoScaleDPR() {
-  //   frames++;
-  //   const now = performance.now();
-  //   // check every 1500ms
-  //   if (now - lastFpsCheck < 1500) return;
-  //   const fps = frames * 1000 / (now - lastFpsCheck || 1);
-  //   // compute desired DPR: be conservative to avoid rapid toggles
-  //   let desired = targetDPR;
-  //   if (fps < 45) desired = 1;        // degrade to low DPR on sustained low FPS
-  //   else if (fps > 65) desired = 1;    // upgrade to full DPR when comfortably above target
+  function autoScaleDPR() {
+    frames++;
+    const now = performance.now();
+    // check every 1500ms
+    if (now - lastFpsCheck < 1500) return;
+    const fps = frames * 1000 / (now - lastFpsCheck || 1);
+    // compute desired DPR: be conservative to avoid rapid toggles
+    let desired = targetDPR;
+    if (fps < 45) desired = 0.75;        // degrade to low DPR on sustained low FPS
+    else if (fps > 65) desired = 1;    // upgrade to full DPR when comfortably above target
 
-  //   // only apply when change is meaningful to avoid repeated reflows
-  //   if (Math.abs(desired - targetDPR) >= 0.1) {
-  //     targetDPR = desired;
-  //     try { renderer.setPixelRatio(targetDPR); } catch(e) {}
-  //     try { resize(); } catch(e) {}
-  //   }
+    // only apply when change is meaningful to avoid repeated reflows
+    if (Math.abs(desired - targetDPR) >= 0.1) {
+      targetDPR = desired;
+      try { renderer.setPixelRatio(targetDPR); } catch(e) {}
+      try { resize(); } catch(e) {}
+    }
 
-  //   frames = 0;
-  //   lastFpsCheck = now;
-  // }
+    frames = 0;
+    lastFpsCheck = now;
+  }
 
   // --- 텍스처 로더 ---
   const texLoader = new THREE.TextureLoader();
@@ -1304,75 +1131,113 @@ signDistances.forEach(d => {
   // 디자인: 카메라 z_world = 200 - remaining_m
   // 플랫폼/레일/자갈은 세계 고정. 카메라만 이동 -> 1인칭 주행.
 function syncCameraFromState() {
-  const rem = Number(window.st?.remaining_m ?? 0);
-  
-  // train_name에 'n700s'가 포함되어 있으면 높이를 3.1로
-  const trainName = window.st?.train_name ?? '';
-  const y = trainName.toLowerCase().includes('n700s') || trainName.toLowerCase().includes('e26') ? 2.9: 2.6; // 대소문자 무시
-  
-const z = 200 - rem;
-
-// 카메라를 살짝 왼쪽으로 이동시키고, 살짝 아래쪽을 바라보게 설정
-const xOffset = 0.8;  // 카메라를 왼쪽으로 1.5 단위 이동
-const yOffset = y - 0.4; // 기존보다 살짝 더 아래쪽을 바라보도록 설정
-const zOffset = z + 4.0;  // 기존 z에 조정값 추가
-
-// 카메라 위치 설정 (왼쪽으로 이동, z와 y값 유지 또는 조정)
-camera.position.set(xOffset, y, z);
-
-// 카메라는 살짝 아래쪽을 바라보도록 조정
-camera.lookAt(xOffset, yOffset, zOffset);
-
+  // Deprecated: now handled via updateCameraFromRenderState in the render loop.
 }
 
   // --- 루프 ---
-  let lastRAF = 0;
+  let lastRAF = performance.now();
+  // camera smoothing state
+  const __camSmoothedPos = new THREE.Vector3();
+  const __camSmoothedLookAt = new THREE.Vector3();
+  const CAMERA_TAU_MS = 130;
+
+  function updateCameraFromRenderState(rs, dtMs){
+    if(!rs) return;
+    const rem = Number(rs?.remaining_m ?? 0);
+    const trainName = String(rs?.train_name ?? '').toLowerCase();
+    const y = (trainName.includes('n700s') || trainName.includes('e26')) ? 2.9 : 2.6;
+    const z = 200 - rem;
+    const xOffset = 0.8;
+    const yOffset = y - 0.4;
+    const zOffset = z + 4.0;
+    const targetPos = new THREE.Vector3(xOffset, y, z);
+    const targetLook = new THREE.Vector3(xOffset, yOffset, zOffset);
+    const tau = Math.max(1, CAMERA_TAU_MS);
+    const alpha = 1 - Math.exp(- (dtMs || 16) / tau);
+    __camSmoothedPos.lerpVectors(__camSmoothedPos, targetPos, alpha);
+    __camSmoothedLookAt.lerpVectors(__camSmoothedLookAt, targetLook, alpha);
+    camera.position.copy(__camSmoothedPos);
+    camera.lookAt(__camSmoothedLookAt);
+  }
+
   function tick(t){
+    const now = t || performance.now();
+    const dtMs = Math.max(0, now - (lastRAF || now));
+    lastRAF = now;
+
     if (modeSel?.value === 'on'){
-  // 진행감: 자갈/트랙 텍스처 스크롤(매 프레임 반복수 변경)
-  const rem = Number(window.st?.remaining_m ?? 0);
-  // only update texture offsets if the textures exist (avoid per-frame exceptions)
-  if (typeof ballastDiff !== 'undefined' && ballastDiff && ballastDiff.offset) {
-    ballastDiff.offset.y = (rem * 100) % 1;
-  }
-  if (typeof ballastNorm !== 'undefined' && ballastNorm && ballastNorm.offset) {
-    ballastNorm.offset.y = (rem * 100) % 1;
-  }
-  if (typeof trackTex !== 'undefined' && trackTex && trackTex.offset) {
-    trackTex.offset.y = (rem * 0.02) % 1;
-  }
-      syncCameraFromState();
-          // Make platform signs face the camera (billboard) so driver sees them
-          // Throttle lookAt updates to avoid many small matrix updates per-frame which can
-          // create jank on lower-end devices. Update when camera moves noticeably or every
-          // 120ms as a fallback.
-          try{
-            if (!window.__lastSignCamPos) window.__lastSignCamPos = new THREE.Vector3();
-            if (!window.__lastSignUpdate) window.__lastSignUpdate = 0;
-            const nowSign = performance.now();
-            const camPos = camera.position;
-            const needUpdate = (nowSign - window.__lastSignUpdate) > 120 || camPos.distanceToSquared(window.__lastSignCamPos) > 0.0004;
-            if (needUpdate) {
-              window.__lastSignCamPos.copy(camPos);
-              window.__lastSignUpdate = nowSign;
-              if (Array.isArray(platformSignMeshes) && platformSignMeshes.length){
-                for (let i=0;i<platformSignMeshes.length;i++){
-                  const m = platformSignMeshes[i];
-                  if (m && m.lookAt) m.lookAt(camPos);
-                }
-              }
-              if (Array.isArray(platformSignRings) && platformSignRings.length){
-                for (let i=0;i<platformSignRings.length;i++){
-                  const r = platformSignRings[i];
-                  if (r && r.lookAt) r.lookAt(camPos);
-                }
-              }
-            }
-          }catch(e){ /* non-fatal */ }
+      const targetTime = performance.now() - INTERP_MS;
+      const rs = getRenderState(targetTime);
+
+      const rem = Number(rs?.remaining_m ?? 0);
+      if (typeof ballastDiff !== 'undefined' && ballastDiff && ballastDiff.offset) ballastDiff.offset.y = (rem * 100) % 1;
+      if (typeof ballastNorm !== 'undefined' && ballastNorm && ballastNorm.offset) ballastNorm.offset.y = (rem * 100) % 1;
+      if (typeof trackTex !== 'undefined' && trackTex && trackTex.offset) trackTex.offset.y = (rem * 0.02) % 1;
+
+      try{ updateCameraFromRenderState(rs, dtMs); }catch(e){}
+
+      try{
+        if (!window.__lastSignCamPos) window.__lastSignCamPos = new THREE.Vector3();
+        if (!window.__lastSignUpdate) window.__lastSignUpdate = 0;
+        const nowSign = performance.now();
+        const camPos = camera.position;
+        const needUpdate = (nowSign - window.__lastSignUpdate) > 120 || camPos.distanceToSquared(window.__lastSignCamPos) > 0.0004;
+        if (needUpdate) {
+          window.__lastSignCamPos.copy(camPos);
+          window.__lastSignUpdate = nowSign;
+          if (Array.isArray(platformSignMeshes) && platformSignMeshes.length){
+            for (let i=0;i<platformSignMeshes.length;i++){ const m = platformSignMeshes[i]; if (m && m.lookAt) m.lookAt(camPos); }
+          }
+          if (Array.isArray(platformSignRings) && platformSignRings.length){
+            for (let i=0;i<platformSignRings.length;i++){ const r = platformSignRings[i]; if (r && r.lookAt) r.lookAt(camPos); }
+          }
+        }
+      }catch(e){ }
 
       renderer.render(scene, camera);
-      // lightweight DPR autoscaler: periodically adjust renderer pixel ratio based on observed FPS
-      // try { autoScaleDPR(); } catch (e) { /* non-fatal */ }
+      try { autoScaleDPR(); } catch (e) { }
+
+      // update HUD and mini indicators using interpolated state
+      try{
+        if(rs){
+          // distance
+          const remVal = rs.remaining_m;
+          if (typeof remVal === 'number'){
+            if (remVal >= 0) remEl.textContent = (remVal<=2? Math.round(remVal*100)+" cm" : remVal.toFixed(0)+" m");
+            else remEl.textContent = (remVal>=-2? "-"+Math.round(Math.abs(remVal)*100)+" cm" : "-"+Math.abs(remVal).toFixed(0)+" m");
+            remEl.style.color = (Math.abs(remVal) <= 0.35) ? "#9effb5" : "";
+          }
+          if (typeof rs.v === 'number') spdEl.textContent = (rs.v * 3.6).toFixed(1);
+          // notch
+          try{
+            const maxIdx = (vehicle?.notches ?? 10) - 1;
+            let notchText = 'N', notchColor = '#9effb5';
+            if (typeof rs.lever_notch === 'number'){
+              if (rs.lever_notch === 0){ notchText='N'; notchColor='#9effb5'; }
+              else if (rs.lever_notch < 0){ const idx = -rs.lever_notch - 1; notchText = `P${idx+1}`; notchColor='#ADD8E6'; }
+              else if (rs.lever_notch === maxIdx){ notchText='EB'; notchColor='#ff5757'; }
+              else { notchText = `B${rs.lever_notch}`; notchColor='#ed9a09'; }
+            }
+            notchEl.textContent = notchText; notchEl.style.color = notchColor;
+          }catch(e){}
+          try{ grade_percentEl.textContent = (10 * (rs.grade_percent??0)).toFixed(1); }catch(e){}
+
+          try{
+            const running = !!rs.running; const finished = !!rs.finished; const budget = Number(rs.time_budget_s ?? 0);
+            const remainI = Number(rs.time_remaining_int ?? Math.round(rs.time_remaining_s ?? 0));
+            let toShowInt = (running || finished) ? remainI : Math.round(budget);
+            if (!Number.isFinite(toShowInt)) { toShowInt = Math.floor(Number(rs.t) || 0); }
+            timerEl.innerHTML = formatTimeSec(toShowInt);
+            if (Math.abs(toShowInt) <= 2) { timerEl.style.color = '#9effb5'; timerEl.classList.remove('bad'); }
+            else if (toShowInt < 0) { timerEl.style.color = ''; timerEl.classList.add('bad'); }
+            else { timerEl.style.color = ''; timerEl.classList.remove('bad'); }
+          }catch(e){}
+
+          try{ drawHUD(rs); }catch(e){}
+          try{ drawBrakeLadderMini(rs); }catch(e){}
+          try{ if (typeof drawCabBrakeLadder === 'function') drawCabBrakeLadder(rs); }catch(e){}
+        }
+      }catch(e){}
     }
     requestAnimationFrame(tick);
   }
@@ -1632,7 +1497,7 @@ addEventListener("keydown", (e) => {
 /* ===== HUD & 상태 ===== */
 const grade_percentEl=document.getElementById("grade_percent");
 let isFinished=false, overlayShowingResult=false, st=null, lastTimestamp=0, prevMaxDistance=0;
-function loop(ts){ if(!lastTimestamp) lastTimestamp=ts; lastTimestamp=ts; if(st) drawHUD(st); requestAnimationFrame(loop); }
+function loop(ts){ if(!lastTimestamp) lastTimestamp=ts; lastTimestamp=ts; /* HUD drawing handled in three.js tick (interpolated) */ requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 
 function formatTimeSec(secInt) {
@@ -1653,10 +1518,6 @@ ws.onmessage = (ev) => {
   st = msg.payload;
   window.st = st;
 
-  // st, window.st 세팅 직후에 추가
-if (!document.getElementById('svgSpeed')) {
-  try { mountInstrumentSVG(); } catch (e) { console.debug(e); }
-}
   // 숫자 HUD 갱신
   const remRaw = st.remaining_m;
   const rem = (typeof remRaw === "number") ? remRaw : parseFloat(remRaw);
@@ -1744,20 +1605,32 @@ if (Math.abs(toShowInt) <= 2) {
   if (typeof drawCabBrakeLadder === 'function') drawCabBrakeLadder(st);
 
   
-// ws.onmessage 내부, st 갱신 이후 적당한 곳에 추가
-{
-  const vKmh = Number(st.v * 3.6) || 0;
+(function(){
+  const spdNode = document.getElementById('cabSpeedVal');
+  const notchNode = document.getElementById('cabNotch');
+  const instImg = document.getElementById('cabInst');
+  const dashBox = document.querySelector('.cab-dash');
+  if (!spdNode || !notchNode || !instImg || !dashBox) return;
 
-  // 레버 노치 → 표시 문자열
-  const maxIdx = (vehicle?.notches ?? 10) - 1;
-  let notchLabel = 'N';
-  if (st.lever_notch === 0) notchLabel = 'N';
-  else if (st.lever_notch < 0) notchLabel = `P${-st.lever_notch}`; // 역행
-  else if (st.lever_notch === maxIdx) notchLabel = 'EB';
-  else notchLabel = `B${st.lever_notch}`;
+  // 현재 차량명 (서버 state 우선, 없으면 vehicle.name)
+  const trainName = String(st?.train_name || vehicle?.name || '').toLowerCase();
 
-  updateInstrumentHUD({ speed: vKmh, notch: notchLabel });
-}
+  // ✅ E233/E235만 inst.png 표시
+  // const showInst = trainName.includes('e233') || trainName.includes('e235');
+  const showInst = true;
+  if (showInst) {
+    if (!instImg.src) instImg.src = '/static/inst.png';
+    instImg.style.display = 'block';
+    dashBox.classList.add('has-inst');
+  } else {
+    instImg.style.display = 'none';
+    dashBox.classList.remove('has-inst');
+  }
+
+  // (이 아래는 기존 속도/노치 동기화 코드 그대로 유지)
+  const vKmh = (st.v * 3.6);
+  spdNode.textContent = isFinite(vKmh) ? vKmh.toFixed(0) : '0';
+})();
 
   
 
@@ -2516,7 +2389,7 @@ window.__brakeGuideOn = true;
       labelDown: "B-",
       labelRelease: "Release",
       subtitleIntro: 
-  "Apply B1/B2 braking and slow down to below 60 km/h by 150 m remaining (P3 TASC beacon). Then, TASC (autopilot) takes over brake control.",
+  "Begin braking with B1/B2 and reduce speed to below <b>60km/h</b> by <b>150m</b> remaining (P3 TASC beacon). After that, <b>TASC (Autopilot)</b> takes over brake control.",
 
 
       labelTASC: "TASC",
