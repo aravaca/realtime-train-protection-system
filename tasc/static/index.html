@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1, maximum-scale=1, user-scalable=no"/>
-  <title>JR Personal Type Simulator</title>
+  <title>JR Train Simulator</title>
   <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
   <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
 
@@ -464,7 +464,7 @@ body{overflow-x:hidden;overflow-y:auto}
   <div class="card">
     <h2 class="title">
       <img id="trainIcon" src="/static/logos/e233_logo.png" alt="E233" class="emoji"> 
-      JR Personal Type Simulator
+      JR Train Simulator
     </h2>
 
     <p class="subtitle" id="subtitleIntro">초기값 입력 후 <b>TASC(자동정차)</b> 설정하고 <b>Space</b> 또는 아래 버튼으로 시작하세요. TASC가 활성화된 상태에서도, 운전자는 수동 조작으로 운전에 개입할 수 있습니다.</p>
@@ -506,9 +506,9 @@ body{overflow-x:hidden;overflow-y:auto}
         <option value="JRW323">323계</option>
         <option value="JR103">103계</option>
         <option value="K3000">케이세이 3000계</option>
+        <option value="EF510">EF510형 전기기관차 + E26계 객차</option>
         <option value="T5300">도쿄도 교통국 5300계</option> -->
         <option value="N700S">신칸센 N700S계</option> 
-        <option value="EF510">EF510형 전기기관차 + E26계 객차</option>
       </select>
     </label>
     <label class="form-label"><span id="labelSeries">시리즈</span>
@@ -1594,7 +1594,7 @@ function randomizeInputs(){
   inputDist.value = String(d);
 
   // 3) 구배(‰)
-  const g = randFloat(-10, 10, 0.1);
+  const g = randFloat(-5, 5, 0.1);
   inputGrade.value = String(g.toFixed(1));
 
   // 4) 날씨
@@ -2547,7 +2547,7 @@ window.__brakeGuideOn = true;
   const dict = {
     ko: {
       htmlLang: "ko",
-      docTitle: "JR Personal Type Simulator",
+      docTitle: "JR Train Simulator",
       labelRemainTime: "이번역: 도쿄",
       labelSpeed: "속도",
       labelRemainDist: "정차",
@@ -2602,7 +2602,7 @@ window.__brakeGuideOn = true;
     },
     en: {
       htmlLang: "en",
-      docTitle: "JR Personal Type Simulator",
+      docTitle: "JR Train Simulator",
       labelRemainTime: "Next: Tokyo",
       labelSpeed: "Speed",
       labelRemainDist: "Distance",
