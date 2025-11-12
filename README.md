@@ -55,30 +55,12 @@ Planned upgrades include integration with advanced railway control frameworks an
 - **Low-cost and low-risk**: cheaper than ATO systems; TASC allows manual override if equipment malfunctions.
 
 
-
----
-
-## 🔧 Project Structure
-├── scenario.json # Scenario (distance L, initial speed v0, slope, friction, etc.)
-├── vehicle.json # Vehicle specs (mass, notch_accels, time constants, etc.)
-├── server.py # FastAPI + WebSocket server, including TASC logic
-└── static/
-      ├── index.html # UI (3D graphics, HUD/Overlay/TASC switch/animations)
-      └── xxxxx.json # Vehicle name display data
-
-
-
-
 ---
 
 ## ⚙️ Config
 - **e233_1000.json**
   - `notch_accels`: `[EB, B8, B7, ..., B1, N]` order
   - `tau_cmd_ms`, `tau_brk_ms`: control/brake delay constants
-  - `mass_t`: single car mass (total mass = formation × passenger load)
-- **scenario.json**
-  - `L` (target stop distance), `v0` (initial speed), `grade_percent`, `mu` (friction)
-
 ---
 
 ## 📄 License
@@ -88,6 +70,7 @@ Copyright © 2025 Hyungsuk Choi, University of Maryland
 Permission is hereby granted to use and modify this software for personal or internal purposes only.  
 Redistribution, reproduction, resale, public posting, or sharing of this software or any modified versions  
 is strictly prohibited without the express written permission of the author.
+
 
 
 
