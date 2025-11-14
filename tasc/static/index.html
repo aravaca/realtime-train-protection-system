@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1, maximum-scale=1, user-scalable=no"/>
-  <title>JR Train Simulator</title>
+  <title >JR Train Simulator</title>
   <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
   <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
 
@@ -488,7 +488,7 @@ body{overflow-x:hidden;overflow-y:auto}
     <!-- BEGIN PATCH: Overlay - Sync Mode Selector (label 변경만) -->
 <label class="form-label"><span>3D Graphics</span>
   <select id="syncMode" class="form-input">
-    <option value="on" selected>Enable (Recommended for PC Only)</option>
+    <option value="on" selected>Enable (PC Recommended)</option>
     <option value="off" >Disable</option>
   </select>
 </label>
@@ -507,8 +507,8 @@ body{overflow-x:hidden;overflow-y:auto}
         <option value="JR103">103계</option>
         <option value="K3000">케이세이 3000계</option>
         <option value="EF510">EF510형 전기기관차 + E26계 객차</option>
-        <option value="T5300">도쿄도 교통국 5300계</option> -->
         <option value="N700S">신칸센 N700S계</option> 
+        <option value="T5300">도쿄도 교통국 5300계</option> -->
       </select>
     </label>
     <label class="form-label"><span id="labelSeries">시리즈</span>
@@ -746,23 +746,19 @@ dash.innerHTML = `
   <div id="cabInstWrap"
        style="position:absolute; inset:0; width:100%; height:100%;
               pointer-events:none; border-radius:12px; overflow:hidden;"></div>
-
-  <!-- mini ladder는 그대로 유지 -->
-  <div class="cab-mini-ladder"
-       style="position:absolute; top:113px; left:14%; transform:translateX(-50%);
-              display:flex; flex-direction:column; align-items:center; gap:6px; pointer-events:none;">
-    <canvas id="cabBrakeLadder" style="width:20px; height:72px; border-radius:6px; background:transparent;"></canvas>
   </div>
 `;
 
 
+
 // --- inst.png를 SVG viewBox로 감싸기: PNG 원본 사이즈를 반드시 맞춰주세요 ---
 const INST_SRC = '/static/inst.png';
-const INST_SIZE = { width: 7560, height: 1760 }; // ← inst.png 원본 픽셀 크기로 교체하세요
+const INST_SIZE = { width: 7560, height: 1760 }; // inst.png 원본 픽셀 크기
 
-// 텍스트 배치 좌표 (모두 PNG 원본 좌표계 기준)
+// 텍스트/라더 배치 좌표 (모두 PNG 원본 좌표 기준)
 const INST_MARKERS = {
   speed: { x: 2195, y: 1520 }, // 속도 숫자
+  ladder: { x: 970, y: 940, width: 150, height: 630 } // mini ladder 영역
 };
 
 // 네온 느낌 필터
@@ -771,94 +767,239 @@ const SVG_FILTER_DEF = `
   <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
     <feGaussianBlur stdDeviation="3" result="blur"/>
     <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    </defs>
-    `;
-    
-    function mountInstrumentSVG() {
-      const wrap = document.getElementById('cabInstWrap');
-      if (!wrap) return;
-      
-      // SVG 생성
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', `0 0 ${INST_SIZE.width} ${INST_SIZE.height}`);
-      svg.setAttribute('width', '100%');
-      svg.setAttribute('height', '100%');
-      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet'); // 비율 유지, 레터박스
-      
-      // 필터 추가
-      svg.insertAdjacentHTML('beforeend', SVG_FILTER_DEF);
-      
-      // PNG 깔기
-      const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-      img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', INST_SRC);
-      img.setAttribute('x', '0');
-      img.setAttribute('y', '0');
-      img.setAttribute('width', INST_SIZE.width);
-      img.setAttribute('height', INST_SIZE.height);
-      svg.appendChild(img);
-      
-      // 공통 텍스트 스타일
-      const base = {
-        fill: '#eaffff',
+  </filter>
+</defs>
+`;
+
+/** 계기판 위에 inst.png + 속도 텍스트를 한 번 세팅 */
+function mountInstrumentSVG() {
+  const wrap = document.getElementById('cabInstWrap');
+  if (!wrap) return;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${INST_SIZE.width} ${INST_SIZE.height}`);
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', '100%');
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+  // 필터 추가
+  svg.insertAdjacentHTML('beforeend', SVG_FILTER_DEF);
+
+  // inst.png 이미지 배경
+  const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+  img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', INST_SRC);
+  img.setAttribute('x', '0');
+  img.setAttribute('y', '0');
+  img.setAttribute('width', INST_SIZE.width);
+  img.setAttribute('height', INST_SIZE.height);
+  svg.appendChild(img);
+
+  // 공통 텍스트 스타일
+  const baseTextAttrs = {
+    fill: '#eaffff',
     'font-family': `'Orbitron', system-ui, sans-serif`,
     'font-weight': '550',
     'letter-spacing': '12px',
-    'font-size':'150px',
+    'font-size': '150px',
     // filter: 'url(#glow)',
   };
+
   const makeText = (id, x, y, size, txt, extra = {}) => {
     const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     t.setAttribute('id', id);
     t.setAttribute('x', x);
     t.setAttribute('y', y);
-    t.setAttribute('font-size', size); // viewBox 기준 px → 스케일 연동
-    for (const [k, v] of Object.entries({ ...base, ...extra })) t.setAttribute(k, v);
+    t.setAttribute('font-size', size);
+    for (const [k, v] of Object.entries({ ...baseTextAttrs, ...extra })) {
+      t.setAttribute(k, v);
+    }
     t.textContent = txt;
     return t;
   };
-  
-  // 속도 (끝정렬: 숫자 폭 변해도 끝점 고정)
-  svg.appendChild(makeText('svgSpeed',
-  INST_MARKERS.speed.x, INST_MARKERS.speed.y, 48, '0', { 'text-anchor': 'end', 'font-style': 'italic' }
-));
-wrap.innerHTML = '';
-wrap.appendChild(svg);
+
+  // 속도 텍스트 (오른쪽 끝 정렬)
+  svg.appendChild(
+    makeText(
+      'svgSpeed',
+      INST_MARKERS.speed.x,
+      INST_MARKERS.speed.y,
+      48,
+      '0',
+      { 'text-anchor': 'end', 'font-style': 'italic' }
+    )
+  );
+
+  wrap.innerHTML = '';
+  wrap.appendChild(svg);
+
+  // 처음 한 번은 현재 vehicle.notches 기준으로 라더 생성
+  buildInstrumentLadder(window.vehicle?.notches || 10);
 }
 
+/** 현재 cabInstWrap 안의 SVG를 찾아서 mini brake ladder rect들을 다시 만듦 */
+function buildInstrumentLadder(notchCount) {
+  const wrap = document.getElementById('cabInstWrap');
+  if (!wrap) return;
+  const svg = wrap.querySelector('svg');
+  if (!svg) return;
+
+  const ladderInfo = INST_MARKERS.ladder;
+  if (!ladderInfo) return;
+
+  // ✅ drawBrakeLadderMini와 동일한 방식으로 EB 인덱스 계산
+  const accArr = (window.vehicle && Array.isArray(window.vehicle.notch_accels))
+    ? window.vehicle.notch_accels
+    : null;
+
+  const notches = accArr
+    ? accArr.length
+    : (Number.isInteger(notchCount)
+        ? notchCount
+        : (window.vehicle && Number.isInteger(window.vehicle.notches)
+            ? window.vehicle.notches
+            : 10));
+
+  const ebIdx = accArr
+    ? Math.max(1, accArr.length - 1)
+    : Math.max(1, notches - 1);
+
+  const blocks = ebIdx;
+
+  // 이전 그룹 제거
+  const oldGroup = svg.querySelector('#svgLadderGroup');
+  if (oldGroup) oldGroup.remove();
+
+  const pad = 10;
+  const gap = 12;
+  const totalH = ladderInfo.height - pad * 2 - gap * (blocks - 1);
+  const blockH = totalH / blocks;
+  const blockW = ladderInfo.width - pad * 2;
+  const x0 = ladderInfo.x + pad;
+  const yBottom = ladderInfo.y + ladderInfo.height - pad;
+
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('id', 'svgLadderGroup');
+
+  const baseFill = '#3c5064';
+  const baseStroke = '#141e2d';
+
+  // B1 ~ B(EB-1)
+  for (let k = 1; k <= ebIdx - 1; k++) {
+    const i = k - 1;
+    const y = yBottom - (i + 1) * blockH - i * gap;
+
+    const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    r.setAttribute('id', `svgLadderB${k}`);
+    r.setAttribute('x', x0);
+    r.setAttribute('y', y);
+    r.setAttribute('width', blockW);
+    r.setAttribute('height', blockH);
+    r.setAttribute('rx', 12);
+    r.setAttribute('ry', 12);
+    r.setAttribute('fill', baseFill);
+    r.setAttribute('fill-opacity', '0.7');
+    r.setAttribute('stroke', baseStroke);
+    r.setAttribute('stroke-width', '4');
+    g.appendChild(r);
+  }
+
+  // EB 블록
+  const yEB = yBottom - blocks * blockH - (blocks - 1) * gap;
+  const ebRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  ebRect.setAttribute('id', 'svgLadderEB');
+  ebRect.setAttribute('x', x0);
+  ebRect.setAttribute('y', yEB);
+  ebRect.setAttribute('width', blockW);
+  ebRect.setAttribute('height', blockH);
+  ebRect.setAttribute('rx', 12);
+  ebRect.setAttribute('ry', 12);
+  ebRect.setAttribute('fill', baseFill);
+  ebRect.setAttribute('fill-opacity', '0.7');
+  ebRect.setAttribute('stroke', baseStroke);
+  ebRect.setAttribute('stroke-width', '4');
+  g.appendChild(ebRect);
+
+  svg.appendChild(g);
+}
+
+/** 속도/노치 숫자 업데이트 (기존과 동일) */
 function updateInstrumentHUD({ speed, notch }) {
   const s = document.getElementById('svgSpeed');
-  const n = document.getElementById('svgNotch');
+  const n = document.getElementById('svgNotch'); // 노치 텍스트를 나중에 추가할 수도 있음
   if (s) s.textContent = String(Math.round(speed ?? 0));
-  
+
   if (n) {
     const label = notch ?? '-';
     n.textContent = label;
-    // 색상 규칙
     if (label === 'EB') n.setAttribute('fill', '#ff6b6b');
     else if (label === 'N') n.setAttribute('fill', '#9effb5');
-    else if (label.startsWith('P')) n.setAttribute('fill', '#add8e6'); // 역행
-    else n.setAttribute('fill', '#ed9a09'); // 제동 B1..Bn
+    else if (label.startsWith('P')) n.setAttribute('fill', '#add8e6');
+    else n.setAttribute('fill', '#ed9a09');
   }
 }
 
-// expose mount/update helpers to global scope so ws.onmessage (outside this IIFE)
-// can call them without throwing a ReferenceError
+/** 상태에 따라 mini ladder 색만 업데이트 */
+
+function updateInstrumentLadder(state) {
+  const accArr = (window.vehicle && Array.isArray(window.vehicle.notch_accels))
+    ? window.vehicle.notch_accels
+    : null;
+  const notches = accArr
+    ? accArr.length
+    : (window.vehicle && Number.isInteger(window.vehicle.notches)
+        ? window.vehicle.notches
+        : 10);
+  const ebIdx = accArr
+    ? Math.max(1, accArr.length - 1)
+    : Math.max(1, notches - 1);
+
+  const cur = Math.max(0, Math.min(ebIdx, state.lever_notch | 0));
+
+  const baseFill = '#3c5064';
+  const baseOp = '0.7';
+
+  // B1~B(n-1)
+  for (let k = 1; k <= ebIdx - 1; k++) {
+    const r = document.getElementById(`svgLadderB${k}`);
+    if (!r) continue;
+
+    if (cur !== ebIdx && k <= cur) {
+      r.setAttribute('fill', '#ffd34d');
+      r.setAttribute('fill-opacity', '1');
+    } else {
+      r.setAttribute('fill', baseFill);
+      r.setAttribute('fill-opacity', baseOp);
+    }
+  }
+
+  // EB
+  const ebRect = document.getElementById('svgLadderEB');
+  if (ebRect) {
+    if (cur === ebIdx) {
+      ebRect.setAttribute('fill', '#ff5757');
+      ebRect.setAttribute('fill-opacity', '1');
+    } else {
+      ebRect.setAttribute('fill', baseFill);
+      ebRect.setAttribute('fill-opacity', baseOp);
+    }
+  }
+}
+
+// 전역으로 노출
 try {
   window.mountInstrumentSVG = mountInstrumentSVG;
   window.updateInstrumentHUD = updateInstrumentHUD;
+  window.buildInstrumentLadder = buildInstrumentLadder;
+  window.updateInstrumentLadder = updateInstrumentLadder;
 } catch (e) {}
 
-botMask.appendChild(dash);
 
-// WebGL 캔버스 위에 보이도록 mount에 부착
+botMask.appendChild(dash);
 mount.appendChild(topMask);
 mount.appendChild(botMask);
-
-
-
-
 try { mountInstrumentSVG(); } catch(e) { console.debug(e); }
+
+
 // 안전: 렌더러 캔버스가 프레임 아래 깔리도록
 try {
     renderer.domElement.style.position = 'relative';
@@ -1185,6 +1326,58 @@ window.__updatePlatformLength = function(newLen) {
 
 const ambient = new THREE.AmbientLight(0xffffff, 0.05);
 scene.add(ambient);
+
+// // --- 주변 도시 건물 (도쿄역 주변) ---
+// (function addBuildings() {
+//   const buildingCount = 100; // 👈 20 → 10 으로 절반
+//   const texLoader = new THREE.TextureLoader();
+
+//   // 사용할 텍스처 (1~2개만)
+//   const facadeList = [
+//     '/static/textures/facade.jpg',
+//     '/static/textures/facade2.jpg',
+//     '/static/textures/facade5.jpg',
+//     '/static/textures/facade6.jpg',
+//     '/static/textures/facade8.jpg',
+//     '/static/textures/facade9.jpg',
+//   ];
+
+//   const facades = facadeList.map(url => {
+//     const tex = texLoader.load(url);
+//     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+//     tex.encoding = THREE.sRGBEncoding;
+//     tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+//     return tex;
+//   });
+
+//   // 공용 재질 (Lambert → 훨씬 가벼움)
+//   const materials = facades.map(tex => new THREE.MeshLambertMaterial({ map: tex }));
+
+//   for (let i = 0; i < buildingCount; i++) {
+//     // 건물 크기 랜덤 (조금만 다양화)
+//     const bw = 8 + Math.random() * 10;
+//     const bd = 10 + Math.random() * 15;
+//     const bh = 20 + Math.random() * 10; // 👈 높이 낮춤 (GPU 부하↓)
+
+//     // 한 번 생성한 박스 재사용
+//     const box = new THREE.BoxGeometry(bw, bh, bd);
+
+//     const mat = materials[Math.floor(Math.random() * materials.length)];
+//     mat.map.repeat.set(bw / 15, bh / 20);
+
+//     const mesh = new THREE.Mesh(box, mat);
+//     mesh.castShadow = false; // 👈 그림자 제거로 큰 성능 향상
+//     mesh.receiveShadow = false;
+
+//     // 거리 간격도 넓혀서 밀도↓
+//     const side = (i % 2 === 0) ? 1 : -1;
+//     const x = side * (20 + Math.random() * 5);
+//     const z = 400 - i * (10 + Math.random() * 10);
+//     mesh.position.set(x, bh / 2, z);
+
+//     scene.add(mesh);
+//   }
+// })();
 
   // === Red signs on platform every 50m up to 200m + 300 + 400 ===
 const signDistances = [0, 50, 100, 150, 200, 300, 400, 500]; // m 단위 거리
@@ -1802,18 +1995,12 @@ if (st.lever_notch === 0) {
 
 notchEl.textContent = notchText;
 notchEl.style.color = notchColor;
+grade_percentEl.textContent = (10 * st.grade_percent).toFixed(1);
 
-
-
-
-  grade_percentEl.textContent = (10 * st.grade_percent).toFixed(1);
-
-
-
-  const running  = !!st.running;
-  const finished = !!st.finished;
-  const budget   = Number(st.time_budget_s ?? 0);
-  const remainI  = Number(st.time_remaining_int ?? 0);
+const running  = !!st.running;
+const finished = !!st.finished;
+const budget   = Number(st.time_budget_s ?? 0);
+const remainI  = Number(st.time_remaining_int ?? 0);
 let toShowInt = (running || finished) ? remainI : Math.round(budget);
 if (!Number.isFinite(toShowInt)) {
   const remainF = Number(st.time_remaining_s);
@@ -1843,18 +2030,22 @@ if (Math.abs(toShowInt) <= 2) {
   
 // ws.onmessage 내부, st 갱신 이후 적당한 곳에 추가
 {
-  const vKmh = Number(st.v * 3.6) || 0;
-
-  // 레버 노치 → 표시 문자열
+ const vKmh = Number(st.v * 3.6) || 0;
   const maxIdx = (vehicle?.notches ?? 10) - 1;
   let notchLabel = 'N';
   if (st.lever_notch === 0) notchLabel = 'N';
-  else if (st.lever_notch < 0) notchLabel = `P${-st.lever_notch}`; // 역행
+  else if (st.lever_notch < 0) notchLabel = `P${-st.lever_notch}`;
   else if (st.lever_notch === maxIdx) notchLabel = 'EB';
   else notchLabel = `B${st.lever_notch}`;
 
   updateInstrumentHUD({ speed: vKmh, notch: notchLabel });
+
+  // 🔹 여기 한 줄 추가
+  if (window.updateInstrumentLadder) {
+    try { window.updateInstrumentLadder(st); } catch(e) {}
+  }
 }
+
 
   
 
@@ -2165,14 +2356,7 @@ const isClear = (weatherSelect?.value === "맑음");
   ctx.textBaseline = "middle";
   ctx.fillText(trainLength, boxX + boxW/2, boxY + boxH/2);
 }
-
-
-
-
-  
 }
-
-
 
 }
 
@@ -2466,6 +2650,8 @@ function setTrainLengthOptions(lengths){
     if (window.__refreshPlatformSignTextures) window.__refreshPlatformSignTextures();
   } catch (e) { /* non-fatal */ }
 }
+
+
 function loadVehicleFile(filePath){
   fetch(filePath + cacheBust(), { cache: 'no-store' })
     .then(res => res.json())
@@ -2481,13 +2667,17 @@ function loadVehicleFile(filePath){
         }
       }
 
+      // 🔹 여기! 차량 notch 수에 맞춰 계기판 mini ladder 다시 생성
+      try {
+        if (window.buildInstrumentLadder) {
+          window.buildInstrumentLadder(vehicle.notches);
+        }
+      } catch (e) { console.debug(e); }
+
+      // 아래는 원래 있던 WebSocket 전송, 플랫폼 길이 조정 등 그대로 유지
       if (ws.readyState === WebSocket.OPEN) {
-        // 서버에 차량 교체(파일명만 권장)
         const justName = filePath.split('/').pop();
         ws.send(JSON.stringify({ type: "cmd", payload: { name: "setVehicleFile", file: justName } }));
-        
-        // 🔒 순서 보장: 짧은 마이크로 딜레이 뒤 길이/탑승률 전송
-        // (WebSocket ACK가 없으니 최소한의 순서 안정화)
         let len = parseInt(document.getElementById("trainLength").value, 10);
         if (Number.isNaN(len)) len = 8;
         const loadRate = parseFloat(document.getElementById("inputLoadRate").value) || 0;
@@ -2496,8 +2686,10 @@ function loadVehicleFile(filePath){
           ws.send(JSON.stringify({ type: "cmd", payload: { name: "setTrainLength", length: len } }));
           ws.send(JSON.stringify({ type: "cmd", payload: { name: "setLoadRate", loadRate, length: len } }));
         }, 10);
-        const desiredPlatLen = /n700s_3000/i.test(filePath) || /e26/i.test(filePath) ? 405 : 210;
-if (window.__updatePlatformLength) window.__updatePlatformLength(desiredPlatLen);
+
+        const desiredPlatLen =
+          /n700s_3000/i.test(filePath) || /e26/i.test(filePath) ? 405 : 210;
+        if (window.__updatePlatformLength) window.__updatePlatformLength(desiredPlatLen);
       }
     })
     .catch(console.error);
