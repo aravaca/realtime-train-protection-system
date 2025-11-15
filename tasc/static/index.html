@@ -1613,43 +1613,75 @@ camera.lookAt(xOffset, yOffset, zOffset);
   requestAnimationFrame(tick);
 })();
 
-// Optional station melody audio 
+// Optional station melody audio (Tokyo / Seoul variation)
 let stationMelody = null;
+
+function getCurrentTrainName() {
+  // 서버 상태(st.train_name)가 있으면 그걸 우선 사용
+  if (window.st && window.st.train_name) return window.st.train_name;
+
+  // 없으면 화면에 표시된 차량 이름 사용
+  const carNameEl = document.getElementById("carName");
+  return carNameEl ? (carNameEl.textContent || "") : "";
+}
+
 try {
-  stationMelody = new Audio('/static/tokyo_st_announcement.mp3');
+  stationMelody = new Audio();
   stationMelody.preload = 'auto';
   stationMelody.volume = 0.75;
+  // 현재 어떤 음원을 쓰는지 표시용 키
+  stationMelody._variantKey = null;
 } catch (e) {
   stationMelody = null;
 }
 
 function playStationMelody() {
   if (!stationMelody) return;
+
   try {
+    // 현재 열차 이름 확인
+    const name = getCurrentTrainName();
+    const lower = (name || "").toLowerCase();
+
+    // "서울" 또는 "seoul"이 들어가면 서울역 방송
+    const isSeoulTrain =
+      name.includes("서울") || lower.includes("seoul");
+
+    const variantKey = isSeoulTrain ? "seoul" : "tokyo";
+    const desiredSrc =
+      isSeoulTrain
+        ? "/static/audio/nambu.mp3"
+        : "/static/audio/tokyo_st_announcement.mp3";
+
+    // 필요할 때만 src 변경 (불필요한 재로딩 방지)
+    if (stationMelody._variantKey !== variantKey) {
+      stationMelody.pause();
+      stationMelody.currentTime = 0;
+      stationMelody.src = desiredSrc;
+      stationMelody._variantKey = variantKey;
+    }
+
     // 항상 완전 초기화
     stationMelody.pause();
     stationMelody.currentTime = 0;
-
-    // 반복 방지: autoplay 속성이나 loop 끄기
     stationMelody.loop = false;
 
     // 기존 핸들러 제거
     if (stationMelody._endedHandler) {
       try {
-        stationMelody.removeEventListener('ended', stationMelody._endedHandler);
+        stationMelody.removeEventListener("ended", stationMelody._endedHandler);
       } catch (e) {}
       stationMelody._endedHandler = null;
     }
 
     // 안전하게 한 번만 재생
     stationMelody.play().catch(err => {
-      console.debug('stationMelody play failed:', err);
+      console.debug("stationMelody play failed:", err);
     });
   } catch (e) {
-    console.debug('playStationMelody error', e);
+    console.debug("playStationMelody error", e);
   }
 }
-
 
 const weatherSelect=document.getElementById("weatherSelect"),
       snowflakes=document.querySelector(".snowflakes"),
