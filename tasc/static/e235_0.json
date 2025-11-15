@@ -2,7 +2,7 @@
   "name": "JR EAST E235-0",
   "mass_t": 36.5,
   "a_max": 1.0,
-  "j_max": 0.5,
+  "j_max": 0.7,
   "notches": 10,
   "notch_accels": 
   [-1.44, 

@@ -172,7 +172,8 @@ body{overflow-x:hidden;overflow-y:auto}
 /* 상단 프레임: 얇고 시야 살짝 가림 */
 .cab-frame.top {
   top: 0;
-  height: clamp(6%, 9vh, 75px);
+  /* height: clamp(6%, 9vh, 75px); */
+  height: 85px;
   background:
     linear-gradient(to bottom, rgba(10,14,20,.95), rgba(10,14,20,.76));
   border-bottom: 1px solid rgba(255,255,255,.08);
@@ -181,7 +182,8 @@ body{overflow-x:hidden;overflow-y:auto}
 /* 하단 프레임: 상단보다 조금 더 두껍게 */
 .cab-frame.bottom {
   bottom: 0;
-  height: clamp(8%, 80vh, 190px);
+  /* height: clamp(8%, 14vh, 190px); */
+  height: 190px;
   background:
     linear-gradient(to top, rgba(10,14,20,.96), rgba(10,14,20,1));
   border-top: 1px solid rgba(255,255,255,.08);
@@ -505,10 +507,11 @@ body{overflow-x:hidden;overflow-y:auto}
         <option value="JRW285">285계</option>
         <option value="JRW323">323계</option>
         <option value="JR103">103계</option>
-        <option value="K3000">케이세이 3000계</option>
         <option value="EF510">EF510형 전기기관차 + E26계 객차</option>
-        <option value="N700S">신칸센 N700S계</option> 
+        <option value="K3000">케이세이 3000계</option>
         <option value="T5300">도쿄도 교통국 5300계</option> -->
+        <option value="S3000">서울교통공사 3000호대 VVVF 전동차</option>
+        <option value="N700S">신칸센 N700S계</option> 
       </select>
     </label>
     <label class="form-label"><span id="labelSeries">시리즈</span>
@@ -711,7 +714,7 @@ const overlay=document.getElementById("overlay"),
   // use actual mount size for correct aspect ratio so canvas fills its container
   const initialW = mount.clientWidth || Math.max(800, window.innerWidth);
   const initialH = mount.clientHeight || Math.max(450, Math.round(initialW * 9/16));
-  const camera = new THREE.PerspectiveCamera(58, initialW / initialH, 0.1, 300);
+  const camera = new THREE.PerspectiveCamera(45, initialW / initialH, 0.1, 300);
 
 
   // const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
@@ -846,23 +849,8 @@ function buildInstrumentLadder(notchCount) {
   const ladderInfo = INST_MARKERS.ladder;
   if (!ladderInfo) return;
 
-  // ✅ drawBrakeLadderMini와 동일한 방식으로 EB 인덱스 계산
-  const accArr = (window.vehicle && Array.isArray(window.vehicle.notch_accels))
-    ? window.vehicle.notch_accels
-    : null;
-
-  const notches = accArr
-    ? accArr.length
-    : (Number.isInteger(notchCount)
-        ? notchCount
-        : (window.vehicle && Number.isInteger(window.vehicle.notches)
-            ? window.vehicle.notches
-            : 10));
-
-  const ebIdx = accArr
-    ? Math.max(1, accArr.length - 1)
-    : Math.max(1, notches - 1);
-
+  // EB 인덱스 계산
+  const ebIdx = getEbIndex();
   const blocks = ebIdx;
 
   // 이전 그룹 제거
@@ -941,17 +929,7 @@ function updateInstrumentHUD({ speed, notch }) {
 /** 상태에 따라 mini ladder 색만 업데이트 */
 
 function updateInstrumentLadder(state) {
-  const accArr = (window.vehicle && Array.isArray(window.vehicle.notch_accels))
-    ? window.vehicle.notch_accels
-    : null;
-  const notches = accArr
-    ? accArr.length
-    : (window.vehicle && Number.isInteger(window.vehicle.notches)
-        ? window.vehicle.notches
-        : 10);
-  const ebIdx = accArr
-    ? Math.max(1, accArr.length - 1)
-    : Math.max(1, notches - 1);
+  const ebIdx = getEbIndex();
 
   const cur = Math.max(0, Math.min(ebIdx, state.lever_notch | 0));
 
@@ -1198,6 +1176,14 @@ function createTrackCanvasTexture() {
   track2.receiveShadow = false;
   scene.add(track2);
 
+  const track3 = new THREE.Mesh(trackGeo, trackMat);
+  track3.position.set(-6.5, 0.01, 200);
+  track3.rotation.x = -Math.PI/2;
+  track3.position.y = 0.01;
+  track3.position.z = 200;
+  track3.receiveShadow = false;
+  scene.add(track3);
+
   // rails (thin metallic extrusions) on top of the track plane for specular highlights and correct shading
   const railMat = new THREE.MeshStandardMaterial({ color:0xe0e5e5, metalness:0.95, roughness:0.28 });
   const railH = 0.14, railW = 0.065, railLen = 2000;
@@ -1217,6 +1203,14 @@ function createTrackCanvasTexture() {
   railL2.castShadow = false; railL2.receiveShadow = false;
   railR2.castShadow = false; railR2.receiveShadow = false;
   scene.add(railL2, railR2);
+
+  const railL3 = new THREE.Mesh(railGeo, railMat);
+  const railR3 = new THREE.Mesh(railGeo, railMat);
+  railL3.position.set(-0.535-6.5, railH/2 + 0.01, 200);
+  railR3.position.set( 0.535-6.5, railH/2 + 0.01, 200);
+  railL3.castShadow = false; railL3.receiveShadow = false;
+  railR3.castShadow = false; railR3.receiveShadow = false;
+  scene.add(railL3, railR3);
 
 //   // --- 침목(InstancedMesh) ---
 //   const sleeperMat = new THREE.MeshStandardMaterial({
@@ -1298,8 +1292,8 @@ window.__updatePlatformLength = function(newLen) {
     (function addPlatformRoof(){
     const pillarMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness:0.2, roughness:0.6 });
     const roofMat = new THREE.MeshStandardMaterial({ color: 0xf1f3f6, metalness:0.05, roughness:0.8 });
-    const pillarGeo = new THREE.BoxGeometry(0.3, 5, 0.3);
-    const roofGeo = new THREE.BoxGeometry(platW*5 , 0.12, platformLen + 6);
+    const pillarGeo = new THREE.BoxGeometry(0.3, 3.5, 0.3);
+    const roofGeo = new THREE.BoxGeometry(platW*1.5 , 0.12, platformLen + 6);
 
     const startZ = platZ - 2;
     const endZ = platZ - platformLen + 2;
@@ -1308,6 +1302,7 @@ window.__updatePlatformLength = function(newLen) {
       // 왼쪽 기둥
       const pL = new THREE.Mesh(pillarGeo, pillarMat);
       pL.position.set(2.7+4, 2.5, z);
+
       pL.castShadow = false; pL.receiveShadow = false;
       scene.add(pL);
       // 오른쪽 기둥
@@ -1319,9 +1314,16 @@ window.__updatePlatformLength = function(newLen) {
 
     // long roof spanning the platform
     const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.set(1.75, platH + 3.5, platZ - platformLen/2);
+    roof.position.set(-2.25, platH + 3.0, platZ - platformLen/2);
+    roof.rotation.z = THREE.MathUtils.degToRad(5);   // 5도 기울이기
     roof.castShadow = false; roof.receiveShadow = false;
     scene.add(roof);
+
+    const roofL = new THREE.Mesh(roofGeo, roofMat);
+    roofL.position.set(6.25, platH + 3.0, platZ - platformLen/2);
+    roofL.rotation.z = THREE.MathUtils.degToRad(-5);   // 5도 기울이기
+    roofL.castShadow = false; roofL.receiveShadow = false;
+    scene.add(roofL);
   })();
 
 const ambient = new THREE.AmbientLight(0xffffff, 0.05);
@@ -1540,12 +1542,12 @@ function syncCameraFromState() {
   
   // train_name에 'n700s'가 포함되어 있으면 높이를 3.1로
   const trainName = window.st?.train_name ?? '';
-  const y = trainName.toLowerCase().includes('n700s') || trainName.toLowerCase().includes('e26') ? 2.9: 2.6; // 대소문자 무시
+  const y = trainName.toLowerCase().includes('n700s') || trainName.toLowerCase().includes('e26') ? 3.0 : 2.7; // 대소문자 무시
   
 const z = 200 - rem;
 
 // 카메라를 살짝 왼쪽으로 이동시키고, 살짝 아래쪽을 바라보게 설정
-const xOffset = 0.8;  // 카메라를 왼쪽으로 1.5 단위 이동
+const xOffset = 0.9;  // 카메라를 왼쪽으로 1.5 단위 이동
 const yOffset = y - 0.4; // 기존보다 살짝 더 아래쪽을 바라보도록 설정
 const zOffset = z + 4.0;  // 기존 z에 조정값 추가
 
@@ -1665,6 +1667,20 @@ function sendCmd(name, delta){
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({type:"cmd", payload:{name, delta}}));
   }
+}
+
+
+function getEbIndex() {
+  // vehicle.notches가 서버에서 사용하는 "최대 브레이크 notch + 1"이라고 가정
+  // (0=N, 1..EB-1=B1.., EB=notches-1)
+  if (vehicle && Number.isInteger(vehicle.notches)) {
+    return Math.max(1, vehicle.notches - 1);
+  }
+  // fallback: notch_accels 길이
+  if (vehicle && Array.isArray(vehicle.notch_accels)) {
+    return Math.max(1, vehicle.notch_accels.length - 1);
+  }
+  return 9; // 기본값
 }
 
 /* ===== 편성 & 탑승률 ===== */
@@ -2394,9 +2410,9 @@ function drawBrakeLadderMini(st) {
   if (!w || !h) return;
   ctx2.clearRect(0, 0, w, h);
 
-  const accArr  = (vehicle && Array.isArray(vehicle.notch_accels)) ? vehicle.notch_accels : null;
-  const notches = accArr ? accArr.length : (vehicle && Number.isInteger(vehicle.notches) ? vehicle.notches : 10);
-  const ebIdx   = accArr ? Math.max(1, accArr.length - 1) : Math.max(1, notches - 1);
+const accArr = (vehicle && Array.isArray(vehicle.notch_accels)) ? vehicle.notch_accels : null;
+const ebIdx = getEbIndex();
+
   const blocks  = ebIdx;
   const cur     = Math.max(0, Math.min(ebIdx, st.lever_notch|0));
 
@@ -2628,8 +2644,13 @@ N700S: [{
   lines: "도카이도 신칸센: 도쿄↔신오사카, 산요 신칸센: 신오사카↔하카타",
   file: "/static/n700s_3000.json",
   lengths: [16]
+}],
+S3000: [{
+  code: "서울교통공사 3000호대 VVVF 전동차",
+  lines: "수도권 전철 3호선",
+  file: "/static/s3000.json",
+  lengths: [10]
 }]
-
 
 };
 

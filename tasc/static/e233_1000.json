@@ -2,7 +2,7 @@
 "name": "JR EAST E233-1000",
 "mass_t": 39.9,
 "a_max": 1.0,
-"j_max": 0.5,
+"j_max": 0.7,
 "notches": 10,
 "notch_accels": [
 -1.44,
@@ -16,7 +16,7 @@
 -0.20,
 0.00
 ],
-"maxSpeed_kmh": 140,
+"maxSpeed_kmh": 120,
 "forward_notches": 5,
 "forward_notch_accels":[ 0.450, 0.511, 0.572, 0.633, 0.694 ],
 "tau_cmd_ms": 150,
